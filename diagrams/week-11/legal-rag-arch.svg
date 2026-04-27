@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1100" width="1280" height="1100">
+  <style>text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }</style>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1f2937"/></marker>
+    <marker id="ar" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#7f1d1d"/></marker>
+    <filter id="ds" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.07"/></filter>
+  </defs>
+  <rect width="1280" height="1100" fill="#ffffff"/>
+  <text x="40" y="40" font-size="20" font-weight="700" fill="#111827">Legal RAG Reference Architecture</text>
+  <text x="40" y="62" font-size="13" fill="#6b7280">Three-stage system: offline ingestion (left) → online query path (center) → audit + eval (right). ACL filtering at query time enforces tenant isolation.</text>
+  <rect x="60" y="100" width="360" height="700" rx="14" ry="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2"/>
+  <text x="78" y="126" font-size="14" font-weight="700" fill="#1e3a8a">Ingestion (offline)</text>
+  <rect x="90" y="160" width="300" height="70" rx="8" ry="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="200.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">SharePoint / DMS / Email</text>
+  <rect x="90" y="240" width="300" height="70" rx="8" ry="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="273.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Format normalizer</text>
+  <text x="240.0" y="289.0" text-anchor="middle" font-size="11" fill="#6b7280">PDF · DOCX · MSG → text</text>
+  <line x1="240" y1="230" x2="240" y2="238" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="90" y="330" width="300" height="70" rx="8" ry="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="363.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Metadata extractor</text>
+  <text x="240.0" y="379.0" text-anchor="middle" font-size="11" fill="#6b7280">author · date · ACL · doc-type</text>
+  <line x1="240" y1="310" x2="240" y2="328" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="90" y="420" width="300" height="70" rx="8" ry="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="453.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Semantic chunker</text>
+  <text x="240.0" y="469.0" text-anchor="middle" font-size="11" fill="#6b7280">+ overlap</text>
+  <line x1="240" y1="400" x2="240" y2="418" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="90" y="510" width="300" height="70" rx="8" ry="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="543.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Embedding model</text>
+  <text x="240.0" y="559.0" text-anchor="middle" font-size="11" fill="#6b7280">BGE-M3 or Nomic</text>
+  <line x1="240" y1="490" x2="240" y2="508" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="90" y="600" width="300" height="70" rx="8" ry="8" fill="#fff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="633.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Vector store</text>
+  <text x="240.0" y="649.0" text-anchor="middle" font-size="11" fill="#6b7280">namespace per ACL group</text>
+  <line x1="240" y1="580" x2="240" y2="598" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="90" y="705" width="300" height="60" rx="8" ry="8" fill="#1a5276" stroke="#1a5276" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="240.0" y="740.0" text-anchor="middle" font-size="13" font-weight="600" fill="#ffffff">Audit log (ingest events)</text>
+  <line x1="240" y1="400" x2="90" y2="735" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="116.0" y="559.5" width="98" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="165.0" y="570.5" text-anchor="middle" font-size="10" font-style="italic" fill="#6b7280">metadata events</text>
+  <rect x="460" y="100" width="420" height="850" rx="14" ry="14" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="2"/>
+  <text x="478" y="126" font-size="14" font-weight="700" fill="#14532d">Query Path (online)</text>
+  <rect x="510" y="160" width="320" height="70" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="200.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Lawyer query</text>
+  <rect x="510" y="245" width="320" height="70" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="278.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Query classifier</text>
+  <text x="670.0" y="294.0" text-anchor="middle" font-size="11" fill="#6b7280">factual / comparative / multi-hop</text>
+  <line x1="670" y1="230" x2="670" y2="243" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="510" y="330" width="320" height="70" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="363.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Query rewriter</text>
+  <text x="670.0" y="379.0" text-anchor="middle" font-size="11" fill="#6b7280">+ legal vocab expansion</text>
+  <line x1="670" y1="315" x2="670" y2="328" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="510" y="415" width="320" height="70" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="448.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">ACL filter</text>
+  <text x="670.0" y="464.0" text-anchor="middle" font-size="11" fill="#6b7280">user role → allowed namespaces</text>
+  <line x1="670" y1="400" x2="670" y2="413" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="510" y="500" width="320" height="70" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="533.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Retrieval</text>
+  <text x="670.0" y="549.0" text-anchor="middle" font-size="11" fill="#6b7280">top-k with cosine threshold</text>
+  <line x1="670" y1="485" x2="670" y2="498" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="510" y="585" width="320" height="70" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="625.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Cross-encoder reranker</text>
+  <line x1="670" y1="570" x2="670" y2="583" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <polygon points="670.0,675 800,710.0 670.0,745 540,710.0" fill="#fff" stroke="#1f2937" stroke-width="1.5"/>
+  <text x="670.0" y="708.0" text-anchor="middle" font-size="11" font-weight="600" fill="#111827">Confidence ≥ threshold?</text>
+  <line x1="670" y1="655" x2="670" y2="675" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="400" y="680" width="130" height="60" rx="8" ry="8" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="465.0" y="715.0" text-anchor="middle" font-size="13" font-weight="600" fill="#7f1d1d">No relevant docs</text>
+  <line x1="540" y1="710" x2="465" y2="710" stroke="#7f1d1d" stroke-width="1.6" marker-end="url(#ar)"/>
+  <rect x="492.5" y="702.0" width="20" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="502.5" y="713.0" text-anchor="middle" font-size="10" font-style="italic" fill="#6b7280">No</text>
+  <rect x="510" y="770" width="320" height="60" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="798.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Context assembler</text>
+  <text x="670.0" y="814.0" text-anchor="middle" font-size="11" fill="#6b7280">chunk + [SOURCE:id] binding</text>
+  <line x1="670" y1="745" x2="670" y2="770" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="657.0" y="749.5" width="26" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="670.0" y="760.5" text-anchor="middle" font-size="10" font-style="italic" fill="#6b7280">Yes</text>
+  <rect x="510" y="845" width="320" height="60" rx="8" ry="8" fill="#fff" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="873.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Generation</text>
+  <text x="670.0" y="889.0" text-anchor="middle" font-size="11" fill="#6b7280">(cite SOURCE ids only)</text>
+  <line x1="670" y1="830" x2="670" y2="845" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="510" y="915" width="320" height="60" rx="8" ry="8" fill="#dcfce7" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="670.0" y="943.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Output validator + Response</text>
+  <text x="670.0" y="959.0" text-anchor="middle" font-size="11" fill="#6b7280">citation presence check</text>
+  <line x1="670" y1="905" x2="670" y2="915" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="920" y="100" width="320" height="700" rx="14" ry="14" fill="#faf5ff" stroke="#ddd6fe" stroke-width="2"/>
+  <text x="938" y="126" font-size="14" font-weight="700" fill="#5b21b6">Eval + Observability</text>
+  <rect x="945" y="150" width="270" height="60" rx="8" ry="8" fill="#1a5276" stroke="#1a5276" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="1080.0" y="178.0" text-anchor="middle" font-size="13" font-weight="600" fill="#ffffff">Audit log</text>
+  <text x="1080.0" y="194.0" text-anchor="middle" font-size="11" fill="#6b7280">query · chunks · answer · user · ts</text>
+  <rect x="945" y="260" width="270" height="80" rx="8" ry="8" fill="#fff" stroke="#ddd6fe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="1080.0" y="298.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Faithfulness eval</text>
+  <text x="1080.0" y="314.0" text-anchor="middle" font-size="11" fill="#6b7280">(LLM-as-judge)</text>
+  <line x1="1080" y1="210" x2="1080" y2="258" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="945" y="360" width="270" height="80" rx="8" ry="8" fill="#fff" stroke="#ddd6fe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="1080.0" y="398.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Citation accuracy</text>
+  <text x="1080.0" y="414.0" text-anchor="middle" font-size="11" fill="#6b7280">exact-match string search</text>
+  <line x1="1080" y1="210" x2="1080" y2="358" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="945" y="460" width="270" height="80" rx="8" ry="8" fill="#fff" stroke="#ddd6fe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="1080.0" y="498.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Retrieval hit-rate</text>
+  <text x="1080.0" y="514.0" text-anchor="middle" font-size="11" fill="#6b7280">monitoring dashboard</text>
+  <line x1="1080" y1="210" x2="1080" y2="458" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="880" y1="945" x2="920" y2="180" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
+  <rect x="881.0" y="554.5" width="38" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="900.0" y="565.5" text-anchor="middle" font-size="10" font-style="italic" fill="#6b7280">audit</text>
+</svg>

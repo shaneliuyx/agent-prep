@@ -1,29 +1,32 @@
 [
   {
     "collection": "bge_m3_hnsw",
+    "model": "bge-m3",
     "recall@10": 0.9932664756446992,
     "mrr@10": 0.9555688588711504,
     "ndcg@10": 0.9637102463287495,
-    "embed_sec": 10.005455017089844,
-    "search_sec": 29.015991687774658,
+    "embed_sec": 10.086658000946045,
+    "search_sec": 27.913521766662598,
     "n_queries": 6980
   },
   {
     "collection": "bge_m3_hnsw_fast",
+    "model": "bge-m3",
     "recall@10": 0.9932664756446992,
     "mrr@10": 0.9555688588711504,
     "ndcg@10": 0.9637102463287495,
-    "embed_sec": 9.733193159103394,
-    "search_sec": 27.218804121017456,
+    "embed_sec": 9.805837869644165,
+    "search_sec": 29.469703197479248,
     "n_queries": 6980
   },
   {
     "collection": "nomic_hnsw",
+    "model": "nomic-embed-text-v2-moe",
     "recall@10": 0.9965616045845272,
     "mrr@10": 0.9628539591576832,
     "ndcg@10": 0.9701649699555657,
-    "embed_sec": 23.598299264907837,
-    "search_sec": 25.15474510192871,
+    "embed_sec": 23.56835412979126,
+    "search_sec": 27.33959197998047,
     "n_queries": 6980
   }
 ]

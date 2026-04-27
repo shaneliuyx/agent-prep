@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1080" width="1200" height="1080">
+  <style>text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; }</style>
+  <defs>
+    <marker id="arr-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+    <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <marker id="arr-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#7c3aed"/>
+    </marker>
+    <marker id="arr-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af"/>
+    </marker>
+    <filter id="ds" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="1080" fill="#ffffff"/>
+  <text x="40" y="35" font-size="18" font-weight="600" fill="#111827">Week 2 — Retrieval Pipeline</text>
+  <text x="40" y="55" font-size="12" fill="#6b7280">3 retrieval modes × 2 rerank options × 2 compression options = 12 measurable A/B combinations</text>
+  <rect x="520.0" y="60" width="160" height="50" rx="8" ry="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="600.0" y="90.0" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">User Query</text>
+  <rect x="460.0" y="160" width="280" height="90" rx="8" ry="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="600.0" y="202.0" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">BGE-M3 Encode</text>
+  <text x="600.0" y="221.0" text-anchor="middle" font-size="11" fill="#6b7280">dense (1024-d) + sparse (lex weights) — one pass</text>
+  <text x="40" y="282" font-size="12" font-weight="600" fill="#6b7280" letter-spacing="0.5">1. RETRIEVAL MODE (3 A/B VARIANTS)</text>
+  <rect x="70" y="295" width="280" height="90" rx="8" ry="8" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="210.0" y="337.0" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Dense-only</text>
+  <text x="210.0" y="356.0" text-anchor="middle" font-size="11" fill="#6b7280">bge_m3_hnsw · using=dense</text>
+  <text x="210.0" y="399" text-anchor="middle" font-size="10" fill="#6b7280">Week 1 baseline</text>
+  <rect x="490" y="295" width="280" height="90" rx="8" ry="8" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="630.0" y="337.0" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Hybrid (RRF k=60)</text>
+  <text x="630.0" y="356.0" text-anchor="middle" font-size="11" fill="#6b7280">bge_m3_hybrid · dense + sparse prefetch → fuse</text>
+  <text x="630.0" y="399" text-anchor="middle" font-size="10" font-weight="600" fill="#ea580c">DEFAULT — Phase 1 new</text>
+  <rect x="910" y="295" width="280" height="90" rx="8" ry="8" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="1050.0" y="337.0" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Sparse-only</text>
+  <text x="1050.0" y="356.0" text-anchor="middle" font-size="11" fill="#6b7280">bge_m3_hybrid · using=sparse</text>
+  <text x="1050.0" y="399" text-anchor="middle" font-size="10" fill="#6b7280">A/B comparison</text>
+  <text x="40" y="457" font-size="12" font-weight="600" fill="#6b7280" letter-spacing="0.5">2. RERANK STAGE (SKIP / CROSS-ENCODER)</text>
+  <rect x="200" y="470" width="280" height="70" rx="8" ry="8" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="340.0" y="502.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Skip rerank</text>
+  <text x="340.0" y="521.0" text-anchor="middle" font-size="10" fill="#6b7280">top-5 by retrieval score</text>
+  <rect x="720" y="470" width="280" height="70" rx="8" ry="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="860.0" y="502.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">BGE-reranker-v2-m3</text>
+  <text x="860.0" y="521.0" text-anchor="middle" font-size="10" fill="#6b7280">cross-encoder · batch=32 · ~80-140ms</text>
+  <text x="860.0" y="554" text-anchor="middle" font-size="10" font-weight="600" fill="#16a34a">DEFAULT</text>
+  <text x="40" y="612" font-size="12" font-weight="600" fill="#6b7280" letter-spacing="0.5">3. COMPRESSION STAGE (RAW / EXTRACT-ONLY)</text>
+  <rect x="200" y="625" width="280" height="70" rx="8" ry="8" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="340.0" y="657.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Raw context</text>
+  <text x="340.0" y="676.0" text-anchor="middle" font-size="10" fill="#6b7280">5 full passages</text>
+  <rect x="720" y="625" width="280" height="70" rx="8" ry="8" fill="#faf5ff" stroke="#ddd6fe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="860.0" y="657.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Gemma 26B Compressor</text>
+  <text x="860.0" y="676.0" text-anchor="middle" font-size="10" fill="#6b7280">extract-only · temp=0 · max=500 tok</text>
+  <text x="860.0" y="709" text-anchor="middle" font-size="10" font-weight="600" fill="#7c3aed">DEFAULT</text>
+  <rect x="460.0" y="760" width="280" height="70" rx="8" ry="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="600.0" y="792.0" text-anchor="middle" font-size="13" font-weight="600" fill="#111827">Synthesis Model</text>
+  <text x="600.0" y="811.0" text-anchor="middle" font-size="10" fill="#6b7280">answer generation · grounded on retrieved context</text>
+  <rect x="520.0" y="870" width="160" height="50" rx="8" ry="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5" filter="url(#ds)"/>
+  <text x="600.0" y="900.0" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">Final Answer</text>
+  <rect x="1020" y="470" width="130" height="100" rx="6" ry="6" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1.5"/>
+  <line x1="1030" y1="500" x2="1140" y2="500" stroke="#e5e7eb" stroke-width="1"/>
+  <line x1="1030" y1="520" x2="1140" y2="520" stroke="#e5e7eb" stroke-width="1"/>
+  <line x1="1030" y1="540" x2="1140" y2="540" stroke="#e5e7eb" stroke-width="1"/>
+  <text x="1085.0" y="488" text-anchor="middle" font-size="12" font-weight="600" fill="#111827">Measurement Store</text>
+  <text x="1085.0" y="514" text-anchor="middle" font-size="10" fill="#6b7280">recall@K · nDCG@K</text>
+  <text x="1085.0" y="534" text-anchor="middle" font-size="10" fill="#6b7280">latency · token ratio</text>
+  <text x="1085.0" y="554" text-anchor="middle" font-size="10" fill="#6b7280">judge A/B winner</text>
+  <line x1="600" y1="110" x2="600" y2="158" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <line x1="600" y1="250" x2="210.0" y2="293" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <line x1="600" y1="250" x2="630.0" y2="293" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arr-orange)"/>
+  <line x1="600" y1="250" x2="1050.0" y2="293" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <line x1="210.0" y1="385" x2="340.0" y2="468" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <line x1="630.0" y1="385" x2="340.0" y2="468" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arr-orange)"/>
+  <line x1="630.0" y1="385" x2="860.0" y2="468" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arr-orange)"/>
+  <line x1="1050.0" y1="385" x2="860.0" y2="468" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <line x1="340.0" y1="540" x2="340.0" y2="623" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arr-green)"/>
+  <line x1="340.0" y1="540" x2="860.0" y2="623" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arr-green)"/>
+  <line x1="860.0" y1="540" x2="340.0" y2="623" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arr-green)"/>
+  <line x1="860.0" y1="540" x2="860.0" y2="623" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arr-green)"/>
+  <line x1="340.0" y1="695" x2="570" y2="758" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#arr-purple)"/>
+  <line x1="860.0" y1="695" x2="630" y2="758" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#arr-purple)"/>
+  <line x1="600" y1="830" x2="600" y2="868" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <line x1="770" y1="340.0" x2="1020" y2="500" stroke="#9ca3af" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-gray)"/>
+  <line x1="1000" y1="505.0" x2="1020" y2="520" stroke="#9ca3af" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-gray)"/>
+  <line x1="1000" y1="660.0" x2="1020" y2="540" stroke="#9ca3af" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-gray)"/>
+  <path d="M 740.0 795.0 C 920 795.0, 1000 560, 1020 560" stroke="#9ca3af" stroke-width="1.6" fill="none" stroke-dasharray="5,3" marker-end="url(#arr-gray)"/>
+  <text x="40" y="970" font-size="12" font-weight="600" fill="#6b7280">LEGEND</text>
+  <line x1="40" y1="990" x2="80" y2="990" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arr-blue)"/>
+  <text x="90" y="994" font-size="12" fill="#111827">Primary data flow (encode, synthesis)</text>
+  <line x1="40" y1="1012" x2="80" y2="1012" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arr-orange)"/>
+  <text x="90" y="1016" font-size="12" fill="#111827">Hybrid retrieval path (Phase 1 — new)</text>
+  <line x1="40" y1="1034" x2="80" y2="1034" stroke="#16a34a" stroke-width="1.6" marker-end="url(#arr-green)"/>
+  <text x="90" y="1038" font-size="12" fill="#111827">Rerank stage (skip vs cross-encoder)</text>
+  <line x1="40" y1="1056" x2="80" y2="1056" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#arr-purple)"/>
+  <text x="90" y="1060" font-size="12" fill="#111827">Compression stage (skip vs extract-only)</text>
+  <line x1="40" y1="1078" x2="80" y2="1078" stroke="#9ca3af" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-gray)"/>
+  <text x="90" y="1082" font-size="12" fill="#111827">Measurement edges (recorded for RESULTS.md)</text>
+</svg>

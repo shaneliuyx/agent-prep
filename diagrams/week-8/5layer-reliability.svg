@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 880" width="1200" height="880">
+  <style>text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; }</style>
+  <defs>
+    <filter id="ds" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arr-down" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1f2937"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="880" fill="#ffffff"/>
+  <text x="40" y="40" font-size="22" font-weight="700" fill="#111827">5-Layer Schema Reliability Defense</text>
+  <text x="40" y="65" font-size="13" fill="#6b7280">Each layer catches what the layer above it missed. Cumulative reliability rises from ~70% (L1 alone) to ~99.9% (full stack).</text>
+  <text x="40" y="85" font-size="11" font-style="italic" fill="#6b7280">Read top-down: L1 is your first line of defense (cheapest), L5 is the last-resort safety net.</text>
+  <rect x="240" y="130" width="720" height="110" rx="10" ry="10" fill="#dbeafe" stroke="#60a5fa" stroke-width="2" filter="url(#ds)"/>
+  <circle cx="290" cy="185.0" r="34" fill="#60a5fa" stroke="#60a5fa" stroke-width="2"/>
+  <text x="290" y="194.0" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff">L1</text>
+  <text x="350" y="168" font-size="17" font-weight="700" fill="#1e40af">Schema + Prompt Design</text>
+  <text x="350" y="190" font-size="13" fill="#111827">reasoning-BEFORE-answer · enums · min nesting · 1 worked example</text>
+  <text x="350" y="212" font-size="11" font-style="italic" fill="#6b7280">fall-through: ambiguous schema cases</text>
+  <rect x="1000" y="163.0" width="160" height="44" rx="8" ry="8" fill="#ffffff" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="1080.0" y="181.0" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280">CUMULATIVE</text>
+  <text x="1080.0" y="199.0" text-anchor="middle" font-size="18" font-weight="700" fill="#1e40af">~70%</text>
+  <rect x="240" y="258" width="720" height="110" rx="10" ry="10" fill="#dcfce7" stroke="#4ade80" stroke-width="2" filter="url(#ds)"/>
+  <circle cx="290" cy="313.0" r="34" fill="#4ade80" stroke="#4ade80" stroke-width="2"/>
+  <text x="290" y="322.0" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff">L2</text>
+  <text x="350" y="296" font-size="17" font-weight="700" fill="#14532d">Constrained Decoding</text>
+  <text x="350" y="318" font-size="13" fill="#111827">Outlines · xgrammar · provider-native strict JSON</text>
+  <text x="350" y="340" font-size="11" font-style="italic" fill="#6b7280">fall-through: server doesn't support strict mode</text>
+  <rect x="1000" y="291.0" width="160" height="44" rx="8" ry="8" fill="#ffffff" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="1080.0" y="309.0" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280">CUMULATIVE</text>
+  <text x="1080.0" y="327.0" text-anchor="middle" font-size="18" font-weight="700" fill="#14532d">~94%</text>
+  <rect x="240" y="386" width="720" height="110" rx="10" ry="10" fill="#fef3c7" stroke="#facc15" stroke-width="2" filter="url(#ds)"/>
+  <circle cx="290" cy="441.0" r="34" fill="#facc15" stroke="#facc15" stroke-width="2"/>
+  <text x="290" y="450.0" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff">L3</text>
+  <text x="350" y="424" font-size="17" font-weight="700" fill="#854d0e">Instructor + Pydantic</text>
+  <text x="350" y="446" font-size="13" fill="#111827">auto-retry with ValidationError injected as conversational feedback</text>
+  <text x="350" y="468" font-size="11" font-style="italic" fill="#6b7280">fall-through: semantic rules beyond shape</text>
+  <rect x="1000" y="419.0" width="160" height="44" rx="8" ry="8" fill="#ffffff" stroke="#facc15" stroke-width="1.5"/>
+  <text x="1080.0" y="437.0" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280">CUMULATIVE</text>
+  <text x="1080.0" y="455.0" text-anchor="middle" font-size="18" font-weight="700" fill="#854d0e">~99.3%</text>
+  <rect x="240" y="514" width="720" height="110" rx="10" ry="10" fill="#fce7f3" stroke="#f472b6" stroke-width="2" filter="url(#ds)"/>
+  <circle cx="290" cy="569.0" r="34" fill="#f472b6" stroke="#f472b6" stroke-width="2"/>
+  <text x="290" y="578.0" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff">L4</text>
+  <text x="350" y="552" font-size="17" font-weight="700" fill="#831843">Post-validation + Repair</text>
+  <text x="350" y="574" font-size="13" fill="#111827">semantic rules (end_date > start_date, totals) · retry ≤ 1</text>
+  <text x="350" y="596" font-size="11" font-style="italic" fill="#6b7280">fall-through: corrupted output that even repair can't fix</text>
+  <rect x="1000" y="547.0" width="160" height="44" rx="8" ry="8" fill="#ffffff" stroke="#f472b6" stroke-width="1.5"/>
+  <text x="1080.0" y="565.0" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280">CUMULATIVE</text>
+  <text x="1080.0" y="583.0" text-anchor="middle" font-size="18" font-weight="700" fill="#831843">~99.8%</text>
+  <rect x="240" y="642" width="720" height="110" rx="10" ry="10" fill="#f3f4f6" stroke="#9ca3af" stroke-width="2" filter="url(#ds)"/>
+  <circle cx="290" cy="697.0" r="34" fill="#9ca3af" stroke="#9ca3af" stroke-width="2"/>
+  <text x="290" y="706.0" text-anchor="middle" font-size="22" font-weight="700" fill="#ffffff">L5</text>
+  <text x="350" y="680" font-size="17" font-weight="700" fill="#374151">Defensive Parsing</text>
+  <text x="350" y="702" font-size="13" fill="#111827">regex scrape · safe defaults · log + page · last resort</text>
+  <text x="350" y="724" font-size="11" font-style="italic" fill="#6b7280">(last layer — DLQ + alert)</text>
+  <rect x="1000" y="675.0" width="160" height="44" rx="8" ry="8" fill="#ffffff" stroke="#9ca3af" stroke-width="1.5"/>
+  <text x="1080.0" y="693.0" text-anchor="middle" font-size="10" font-weight="600" fill="#6b7280">CUMULATIVE</text>
+  <text x="1080.0" y="711.0" text-anchor="middle" font-size="18" font-weight="700" fill="#374151">~99.9%</text>
+  <line x1="600.0" y1="242" x2="600.0" y2="254" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr-down)"/>
+  <rect x="570.0" y="241.0" width="60" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="600.0" y="252.0" text-anchor="middle" font-size="11" font-style="italic" fill="#6b7280">if fail</text>
+  <line x1="600.0" y1="370" x2="600.0" y2="382" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr-down)"/>
+  <rect x="570.0" y="369.0" width="60" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="600.0" y="380.0" text-anchor="middle" font-size="11" font-style="italic" fill="#6b7280">if fail</text>
+  <line x1="600.0" y1="498" x2="600.0" y2="510" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr-down)"/>
+  <rect x="570.0" y="497.0" width="60" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="600.0" y="508.0" text-anchor="middle" font-size="11" font-style="italic" fill="#6b7280">if fail</text>
+  <line x1="600.0" y1="626" x2="600.0" y2="638" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr-down)"/>
+  <rect x="570.0" y="625.0" width="60" height="14" fill="#ffffff" opacity="0.95"/>
+  <text x="600.0" y="636.0" text-anchor="middle" font-size="11" font-style="italic" fill="#6b7280">if fail</text>
+  <line x1="600.0" y1="772" x2="600.0" y2="798" stroke="#7f1d1d" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arr-down)"/>
+  <rect x="510.0" y="802" width="180" height="32" rx="6" ry="6" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/>
+  <text x="600.0" y="822" text-anchor="middle" font-size="13" font-weight="600" fill="#7f1d1d">DLQ + alert (failure escapes)</text>
+  <line x1="160" y1="130" x2="160" y2="790" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="155" y="446.0" text-anchor="end" font-size="11" font-style="italic" fill="#6b7280">cheaper</text>
+  <text x="155" y="460.0" text-anchor="end" font-size="11" font-style="italic" fill="#6b7280">first line</text>
+  <text x="155" y="478.0" text-anchor="end" font-size="11" font-style="italic" fill="#6b7280">↓</text>
+  <text x="155" y="496.0" text-anchor="end" font-size="11" font-style="italic" fill="#6b7280">last resort</text>
+</svg>
