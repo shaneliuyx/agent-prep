@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+.DS_Store
+models/
+data/
+*.sqlite
+*.duckdb
+traces/
+.ragas_cache/
+.omc/
+
+# Eval debug backups (added 2026-04-27)
+*.bak
+*.bak2
+*.bak3
+
+# Local secrets — extra defense (already covered by .env*, but defense-in-depth)
+last30days-x.env
+*.key
+*.pem
