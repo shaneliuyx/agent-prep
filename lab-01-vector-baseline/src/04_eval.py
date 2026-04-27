@@ -1,34 +1,38 @@
-"""Retrieve top-k for every query, compute recall@10, MRR@10, nDCG@10."""
-import json, math, os, time
+"""Retrieve top-k for every query, compute recall@10, MRR@10, nDCG@10.
+
+Iterates ALL_COLLECTIONS from src/model_config.py — adding a new collection or model
+requires zero edits in this file: append to model_config.py, re-run this script.
+"""
+import json, math, time
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
+from model_config import ALL_COLLECTIONS
 
-HOME = os.path.expanduser("~")
 qd = QdrantClient(url="http://127.0.0.1:6333")
 
 queries = json.loads(Path("data/queries.json").read_text())
 qrels = json.loads(Path("data/qrels.json").read_text())
-print(f"evaluating on {len(queries)} queries")
-
-CONFIGS = [
-    # (collection, embed_model_path, query_prefix)
-    ("bge_m3_hnsw",      f"{HOME}/models/bge-m3",         ""),            # no prefix — BGE handles bare queries
-    ("bge_m3_hnsw_fast", f"{HOME}/models/bge-m3",         ""),
-    ("nomic_hnsw",       f"{HOME}/models/nomic-embed-v2", "search_query: "),  # Nomic requires asymmetric prefixes
-]
+print(f"evaluating {len(queries)} queries across {len(ALL_COLLECTIONS)} collections")
 
 K = 10
 encoders = {}
-def get_encoder(path):
-    if path not in encoders:
-        encoders[path] = SentenceTransformer(path, device="mps", trust_remote_code=True)
-    return encoders[path]  # cache avoids reloading a 2 GB model for each config
+def get_encoder(model_spec):
+    # cache avoids reloading a 2 GB model when two collections share an encoder (e.g. BGE-M3 used by both _hnsw and _hnsw_fast)
+    if model_spec.path not in encoders:
+        encoders[model_spec.path] = SentenceTransformer(
+            model_spec.path,
+            device="mps",
+            trust_remote_code=model_spec.trust_remote_code,
+        )
+    return encoders[model_spec.path]
 
-def metrics_for(collection, model_path, prefix):
-    m = get_encoder(model_path)
+def metrics_for(collection_spec):
+    C = collection_spec
+    M = C.model
+    m = get_encoder(M)
     qids = list(queries.keys())
-    texts = [prefix + queries[qid] for qid in qids]
+    texts = [M.query_prefix + queries[qid] for qid in qids]   # query_prefix is "" for BGE, "search_query: " for Nomic
     t0 = time.time()
     q_vecs = m.encode(texts, normalize_embeddings=True, batch_size=128, show_progress_bar=False)
     t_embed = time.time() - t0
@@ -36,7 +40,7 @@ def metrics_for(collection, model_path, prefix):
     recall_sum, mrr_sum, ndcg_sum = 0.0, 0.0, 0.0
     t0 = time.time()
     for qid, qv in zip(qids, q_vecs):
-        hits = qd.query_points(collection, query=qv.tolist(), limit=K).points
+        hits = qd.query_points(C.name, query=qv.tolist(), limit=K).points
         hit_ids = [h.payload["doc_id"] for h in hits]
         gold = set(qrels[qid])
 
@@ -53,16 +57,17 @@ def metrics_for(collection, model_path, prefix):
     t_search = time.time() - t0
     n = len(qids)
     return {
-        "collection": collection,
-        "recall@10": recall_sum / n,
-        "mrr@10":    mrr_sum / n,
-        "ndcg@10":   ndcg_sum / n,
-        "embed_sec": t_embed,
+        "collection": C.name,
+        "model":      M.name,
+        "recall@10":  recall_sum / n,
+        "mrr@10":     mrr_sum / n,
+        "ndcg@10":    ndcg_sum / n,
+        "embed_sec":  t_embed,
         "search_sec": t_search,
-        "n_queries": n,
+        "n_queries":  n,
     }
 
-results = [metrics_for(c, m, p) for c, m, p in CONFIGS]
+results = [metrics_for(c) for c in ALL_COLLECTIONS]
 Path("results").mkdir(exist_ok=True)
 Path("results/retrieval_metrics.json").write_text(json.dumps(results, indent=2))
 

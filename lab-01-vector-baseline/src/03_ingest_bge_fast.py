@@ -1,4 +1,4 @@
-"""Re-use BGE vectors already in bge_m3_hnsw — re-upsert them into bge_m3_hnsw_fast for index-config ablation.
+"""Re-use BGE vectors from bge_m3_hnsw — copy them into bge_m3_hnsw_fast for index-config ablation.
 
 Why this script exists:
   We want to compare HNSW recall/latency at two graph densities (m=16 vs m=8) on IDENTICAL
@@ -6,20 +6,26 @@ Why this script exists:
   is to embed once (Phase 3.1) and copy the vectors into a second collection whose HNSW
   config is the only thing that differs. The graph topology (m, ef_construct) comes from
   collection-level config set in Phase 2's 02_collections.py — this script is a pure data copy.
+
+The (source, destination, hnsw config) tuple lives in src/model_config.py as one record;
+this script reads it from there instead of hardcoding the names.
 """
 import time
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PointStruct
+from model_config import BGE_M3_HNSW_FAST
+
+C = BGE_M3_HNSW_FAST
+SRC = C.source_collection
+DST = C.name
+assert SRC, f"{C.name} has no source_collection in model_config.py — define one before running this script"
 
 qd = QdrantClient(url="http://127.0.0.1:6333")
-
-SRC = "bge_m3_hnsw"
-DST = "bge_m3_hnsw_fast"
 BATCH = 256  # Qdrant scroll batch — bound by network/serialization, not GPU memory; 256 is safe up to ~10M vectors
 
 # Sanity: verify source has data before we copy (catches "ran 02_collections but skipped 03_ingest_bge")
 src_count = qd.get_collection(SRC).points_count
-print(f"source {SRC} contains {src_count} points")
+print(f"source {SRC} contains {src_count} points  ->  copying into {DST} (m={C.hnsw_m}, ef_construct={C.hnsw_ef_construct})")
 if src_count == 0:
     raise RuntimeError(f"{SRC} is empty — run 03_ingest_bge.py first")
 
