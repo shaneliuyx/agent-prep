@@ -135,6 +135,13 @@ ALL_COLLECTIONS = (BGE_M3_HYBRID, BGE_M3_HNSW, FIQA_HYBRID)
 
 # --- Chunking sweep (Phase 4): 3 chunk sizes × 3 overlaps = 9 collections ---
 
+# How many MS MARCO passages get concatenated into one synthetic "long doc" for the sweep.
+# MUST be the same in 03_chunk_sweep.py (build) and 03b_sweep_eval.py (eval) — if these
+# drift, the parent-doc mapping breaks silently and recall@5 collapses to ~0 with no error.
+# Single source of truth here. Why 8? See Week 2 §4.1: 8 × ~90 tokens ≈ 720 tokens, the
+# right size for the sweep's chunk_size range (256/512/1024).
+LONG_DOC_PASSAGES = 8
+
 CHUNK_SIZES = (256, 512, 1024)
 CHUNK_OVERLAPS = (0, 64, 128)
 
