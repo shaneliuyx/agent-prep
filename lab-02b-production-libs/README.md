@@ -1,27 +1,36 @@
 # lab-02b — Production Library Refactor
 
-This lab takes the **same retrieval / rerank / eval tasks** from `lab-02-rerank-compress` and re-implements them using three production-grade Python libraries:
+Re-implements every lab-02 script using production Python libraries instead of primitives. **Strict 1:1 pairing** — each lab-02 script has a counterpart here that does the same task with `langchain-qdrant`, `rerankers`, `ragas`, or `ranx`.
 
-| Library | What it abstracts | Script in this lab |
-|---|---|---|
-| [`langchain-qdrant`](https://python.langchain.com/docs/integrations/vectorstores/qdrant/) | Vector-store wrapper over Qdrant — `as_retriever()`, `similarity_search()`, integration glue for the LangChain ecosystem | `src/00_hybrid_via_langchain.py` |
-| [`rerankers`](https://github.com/AnswerDotAI/rerankers) | Unified cross-encoder API across BGE / ColBERT / Cohere / Jina / etc. — `Reranker(model).rank(query, docs)` | `src/01_rerank_via_rerankers.py` |
-| [`ranx`](https://github.com/AmenRa/ranx) | IR metrics library — `evaluate(qrels, run, ["recall@10", "ndcg@10", "mrr@10"])` | `src/02_eval_via_ranx.py` |
+## 1:1 mapping with lab-02
+
+| lab-02 (primitives) | lab-02b (libraries) | Library | Numbers match lab-02? |
+|---|---|---|---|
+| `00_hybrid_ingest.py` | `00_hybrid_ingest_via_langchain.py` | langchain-qdrant + FastEmbedSparse | ⚠️ different sparse encoder (SPLADE++ vs BGE-M3 sparse) |
+| `00_hybrid_eval.py` | `00_hybrid_eval_via_langchain.py` | langchain-qdrant retrievers (3 modes) | dense ✅ identical · sparse/hybrid ⚠️ differ ~3-7pp |
+| `00_fiqa_eval.py` | `00_fiqa_eval_via_langchain.py` | langchain-qdrant + datasets | dense ✅ identical · sparse/hybrid ⚠️ differ |
+| `01_rerank.py` | `01_rerank_via_rerankers.py` | rerankers | ✅ identical (same model, wrapper API) |
+| `01b_latency.py` | `01b_latency_via_rerankers.py` | rerankers | ✅ within ±5% (wrapper overhead) |
+| `02_compress.py` | `02_compress_via_langchain.py` | LangChain `ContextualCompressionRetriever + LLMChainExtractor` | ✅ comparable ratio (0.25-0.50 range) |
+| `02b_answer_eval.py` | `02b_answer_eval_via_ragas.py` | RAGAS — `faithfulness`, `answer_relevancy`, `context_precision` | ➕ MORE metrics than lab-02's hand-rolled judge |
+| `03_chunk_sweep.py` | `03_chunk_sweep_via_langchain.py` | LangChain `RecursiveCharacterTextSplitter` + langchain-qdrant | ⚠️ slightly different boundaries (LangChain handles edge cases differently) |
+| `03b_sweep_eval.py` | `03b_sweep_eval_via_ranx.py` | ranx — typed Qrels + Run + bonus paired stat tests via `compare()` | ✅ identical recall@5 · ➕ adds significance tests |
+
+**Read this table as the lab's thesis:** every primitive task has a library counterpart. Some library versions are clean drop-in wins (`rerankers`, `ranx`); others have intentional deltas (`langchain-qdrant` hybrid uses SPLADE not BGE-M3 sparse). The deltas ARE the lesson — they show you what each library hides + what it costs.
 
 ## Why this lab exists
 
-`lab-02` (the primitives lab) teaches you *what* hybrid retrieval, two-stage rerank, and IR metrics actually are — by writing them from scratch.
+`lab-02` (primitives) teaches you *what* hybrid retrieval, two-stage rerank, context compression, and IR metrics actually are — by writing them from scratch.
 
 `lab-02b` (this lab) teaches you *which production libraries you'd actually reach for*, what they give you, and what they take away.
 
-**Read both.** The primitives lab is your portfolio + interview answer ("I built it from scratch so I know what each piece does"). This lab is your shipping answer ("In production I'd use these — here's the code").
+**Read both.** The primitives lab is your portfolio + interview answer ("I built it from scratch so I know what each piece does"). This lab is your shipping answer ("In production I'd use these — here's the code, here's the trade-off table").
 
 ## Prerequisites
 
-- `lab-02-rerank-compress` already run end-to-end:
-  - Qdrant collection `bge_m3_hybrid` populated with 10K MS MARCO docs
-  - Qdrant collection `bge_m3_hnsw` populated (lab-01 baseline, used as upstream for rerank)
-  - `data/queries.json`, `data/qrels.json`, `data/docs.jsonl` present
+- `lab-02-rerank-compress` ideally already run end-to-end (so you have lab-02 numbers to compare against)
+- Qdrant running on `:6333`
+- For most scripts: lab-01's `bge_m3_hnsw` collection populated (used as upstream for rerank + compression scripts)
 
 ## Setup
 
@@ -34,52 +43,64 @@ mkdir -p src results data
 # Reuse lab-02's data (same MS MARCO 10K corpus + qrels)
 cp ../lab-02-rerank-compress/data/*.json{,l} data/
 
-# New deps for the production libraries
+# All deps for the production-library scripts
 uv pip install -U \
     langchain-qdrant \
     langchain-huggingface \
+    langchain-openai \
+    langchain-text-splitters \
+    "langchain[community]" \
     rerankers \
-    ranx
+    ranx \
+    ragas \
+    datasets \
+    fastembed
 ```
 
-## What each script demonstrates
+## Run order
 
-### `00_hybrid_via_langchain.py` — vector-store abstraction
+The scripts have dependencies (some build collections that others read):
 
-Wraps the **existing** `bge_m3_hnsw` collection (built by lab-01) as a LangChain `QdrantVectorStore`. Demonstrates:
-- `from_existing_collection()` — connect without re-ingesting
-- `as_retriever(search_kwargs={"k": 10})` — get a LangChain Retriever object usable in any chain/agent
-- Result: same recall numbers as lab-01's `04_eval.py` (identical encoder + collection, just different API)
+```bash
+# Phase 1 — Hybrid retrieval
+python src/00_hybrid_ingest_via_langchain.py    # builds lc_hybrid collection (~6-8 min)
+python src/00_hybrid_eval_via_langchain.py      # evaluates dense/sparse/hybrid (~3-5 min)
+python src/00_fiqa_eval_via_langchain.py        # ingests + evals BEIR-FiQA (~15-20 min)
 
-**Trade-off vs lab-02:** LangChain hides the `query_points()` call. Plus side: you get drop-in compatibility with chains, agents, and other LangChain components. Minus side: BGE-M3's *sparse* + hybrid mode aren't directly supported (LangChain's `RetrievalMode.HYBRID` uses fastembed/SPLADE sparse, not BGE-M3 sparse) — for true BGE-M3 hybrid you fall back to native client.
+# Phase 2 — Rerank
+python src/01_rerank_via_rerankers.py           # two-stage retrieval (~3-5 min)
+python src/01b_latency_via_rerankers.py         # latency benchmark (~2 min)
 
-### `01_rerank_via_rerankers.py` — unified reranker API
+# Phase 3 — Compression + answer eval
+python src/02_compress_via_langchain.py         # 50-query compression (~3-5 min)
+python src/02b_answer_eval_via_ragas.py         # RAGAS metrics (~2-5 min, depends on judge model)
 
-Replaces lab-02's `CrossEncoder` directly with `rerankers.Reranker`. Demonstrates:
-- `Reranker("BAAI/bge-reranker-v2-m3", model_type="cross-encoder")` — same model, simpler API
-- `ranker.rank(query=q, docs=[...])` — returns a sorted `RankedResults` object
-- Single API across BGE, ColBERT, Cohere, Jina, T5, RankZephyr — swap `Reranker(...)` argument, no other code changes
+# Phase 4 — Chunking sweep
+python src/03_chunk_sweep_via_langchain.py      # builds 9 lc_sweep_* collections (~25-30 min)
+python src/03b_sweep_eval_via_ranx.py           # evaluates + paired stat tests (~5 min)
+```
 
-**Trade-off vs lab-02:** Trivially replaceable. The `rerankers` API doesn't take much away — just adds a uniform interface across vendors. Worth adopting in production from day one.
+## Where each library wins
 
-### `02_eval_via_ranx.py` — IR metrics library
-
-Replaces lab-02's hand-rolled recall@K / MRR@K / nDCG@K math with one `ranx.evaluate()` call. Demonstrates:
-- `Qrels({qid: {docid: relevance}})` — ground truth as a typed object
-- `Run({qid: {docid: retrieval_score}})` — system output as a typed object
-- `evaluate(qrels, run, ["recall@10", "mrr@10", "ndcg@10"])` — metrics in one call
-- Bonus: `ranx.compare(...)` for paired statistical tests across systems
-
-**Trade-off vs lab-02:** Saves ~30 lines of metric math, removes a class of off-by-one errors (rank starts at 1 not 0, IDCG denominator handling, etc.) but hides the formula. Use after you've internalized what nDCG actually computes.
-
-## Expected results
-
-All three scripts should produce **numbers within ε of lab-02's hand-rolled versions** when run on the same collections + queries. If they diverge by more than rounding error, something's wrong with the library configuration — not a real algorithmic difference.
-
-The headline output is the same `recall@10 ≈ 0.993` (BGE-M3 dense on MS MARCO 10K) you got in lab-01.
+| Library | Strongest 1:1 win | What it hides |
+|---|---|---|
+| `langchain-qdrant` | Reduces collection-create + upsert + query boilerplate by ~80%; gives you a `Retriever` interface usable in any chain or agent | Collection schema details (named vector configs, sparse encoder choice) |
+| `rerankers` | Single API across BGE / ColBERT / Cohere / Jina / T5 / RankZephyr — swap one string to A/B vendors | Almost nothing — adopt from day one in production |
+| `LLMChainExtractor` (LangChain) | Composes retrieval + compression as one `Retriever` object; can plug into any LangChain chain | Custom prompt control (use `from_llm(llm, prompt=...)` if you need it) |
+| `ragas` | Typed metrics with proven LLM-as-judge implementations; gets you 4+ metrics in one `evaluate()` call | The judge prompts (RAGAS picks battle-tested versions) |
+| `ranx` | One-call IR metrics + `compare()` for paired stat tests; eliminates off-by-one errors in metric math | Hides the recall/MRR/nDCG formulas (which is also the learning content) |
 
 ## What this lab is NOT
 
-- Not a pitch for adopting LangChain wholesale — for an agent stack at scale, the integration glue is real value; for a single-purpose retrieval pipeline, the dependency cost is high.
-- Not a benchmark of the libraries vs each other — they're complementary, not competitive.
-- Not the "right" answer — the right answer in production depends on your team's existing dependencies, your latency budget, and your customization needs. The labs together teach you to make that decision deliberately.
+- **Not a pitch for adopting any single library wholesale.** The right stack depends on your team's existing dependencies, latency budget, and customization needs.
+- **Not a benchmark of libraries vs each other.** They're complementary — `langchain-qdrant` for vector ops, `rerankers` for cross-encoders, `ranx` for metrics, `ragas` for RAG eval.
+- **Not the "right" answer.** The correct production choice changes as your scope grows. The lab teaches you to make that choice deliberately, with the trade-off table in your head.
+
+## What you should learn from finishing both labs
+
+After running lab-02 + lab-02b end-to-end, you should be able to defend any of these in an interview:
+
+1. **"Why didn't you just use LangChain?"** — Because lab-02 was about understanding what `langchain-qdrant.from_existing_collection().as_retriever()` actually does. Now I know, and I'd use it for the integration glue in production.
+2. **"How do you know if reranking actually helps your retrieval?"** — Run lab-02b's `03b_sweep_eval_via_ranx.py` style: paired statistical comparison via `ranx.compare(stat_test="fisher")`. Eyeballing recall deltas is a way to fool yourself.
+3. **"What's the trade-off in 'hybrid retrieval'?"** — Hybrid via BGE-M3 (lab-02): one model, learned dense + sparse. Hybrid via LangChain default (lab-02b): two models, dense + SPLADE. Different recall on hard queries; same RRF fusion logic.
+4. **"How would you evaluate a RAG system?"** — RAGAS for the answer-quality side (`faithfulness`, `answer_relevancy`), ranx for the retrieval side (`recall@K`, `nDCG@K`), paired statistical tests when comparing variants.
