@@ -172,9 +172,17 @@ def fetch_pageviews_batch(titles: list[str]) -> dict[str, int]:
     Why pageviews vs link-count or article-length: pageviews directly measure
     user attention, which is what makes a corpus pipeline surface canonical
     entities. Mark Zuckerberg's article gets ~5M+ monthly views; mid-tier
-    B2B SaaS articles get ~5K. The 1000× ratio swamps any noise and is
-    exactly the heavy-tailed distribution Wikipedia's category structure
-    obscures."""
+    B2B SaaS articles get ~5K. The 1000× ratio swamps any noise.
+
+    Title-resolution gotcha: with `redirects=1` the API normalizes input
+    titles ("Apple Inc." → "Apple Inc") and follows redirects ("iPhone" →
+    "IPhone"). Response titles are the *canonical* form, not the input.
+    Returning a dict keyed by *input* title requires walking the
+    `normalized` + `redirects` arrays in the response to map back. Without
+    this mapping, every title that gets normalized falls through to a 0
+    weight even though pageviews were successfully fetched under the
+    canonical name — which is what produced the 87% zero-pageview rate
+    in the first cut of this function."""
     out: dict[str, int] = {}
     params = {
         "action":      "query",
@@ -184,17 +192,35 @@ def fetch_pageviews_batch(titles: list[str]) -> dict[str, int]:
         "pvipdays":    PAGEVIEWS_DAYS,
         "redirects":   1,
     }
-    pages = _api_get(params).get("query", {}).get("pages", {})
-    for page in pages.values():
+    body = _api_get(params)
+    query = body.get("query", {})
+
+    # Build canonical-title → total-pageviews dict from the pages array.
+    canonical_to_total: dict[str, int] = {}
+    for page in query.get("pages", {}).values():
         title = page.get("title", "")
         pv = page.get("pageviews") or {}
-        # Daily counts can be None for missing days; sum the known ones.
-        total = sum(v for v in pv.values() if isinstance(v, int))
-        out[title] = total
-    # Titles missing from the response (rare — usually due to canonical-form
-    # mismatch after redirect resolution) get scored 0.
-    for t in titles:
-        out.setdefault(t, 0)
+        canonical_to_total[title] = sum(v for v in pv.values() if isinstance(v, int))
+
+    # Build input → canonical mapping. Walk normalized first (case/encoding
+    # fixes), then redirects (page renames). Each entry has 'from' and 'to'.
+    input_to_canonical: dict[str, str] = {t: t for t in titles}
+    for n in query.get("normalized", []):
+        # If "Mark zuckerberg" → "Mark Zuckerberg", apply.
+        from_t, to_t = n["from"], n["to"]
+        for k, v in input_to_canonical.items():
+            if v == from_t:
+                input_to_canonical[k] = to_t
+    for r in query.get("redirects", []):
+        from_t, to_t = r["from"], r["to"]
+        for k, v in input_to_canonical.items():
+            if v == from_t:
+                input_to_canonical[k] = to_t
+
+    # Resolve each input title to canonical, look up its pageview total.
+    for input_title in titles:
+        canonical = input_to_canonical.get(input_title, input_title)
+        out[input_title] = canonical_to_total.get(canonical, 0)
     return out
 
 
