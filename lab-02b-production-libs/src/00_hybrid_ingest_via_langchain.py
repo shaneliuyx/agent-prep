@@ -36,6 +36,9 @@ print(f"loaded {len(texts)} docs · ingesting into {COLLECTION} (dense=BGE-M3, s
 
 # from_texts() handles: collection creation, encoding (both modes), upsert.
 # Compare to lab-02's 65 lines: this is 5 lines.
+# Lab-02 bad-case journal: the default 5s QdrantClient timeout breaks once HNSW
+# indexing competes with upserts (around the indexing_threshold=10000 mark). Bumping
+# to 60s is a one-line fix that prevented FiQA's mid-ingest httpx.ReadTimeout in lab-02.
 vectorstore = QdrantVectorStore.from_texts(
     texts=texts,
     embedding=dense,
@@ -43,6 +46,7 @@ vectorstore = QdrantVectorStore.from_texts(
     metadatas=metadatas,
     collection_name=COLLECTION,
     url="http://127.0.0.1:6333",
+    timeout=60,                              # lab-02 bad-case journal: HNSW-indexing timeout fix
     retrieval_mode=RetrievalMode.HYBRID,
     force_recreate=True,
 )

@@ -26,10 +26,16 @@ encoder = SentenceTransformer(f"{HOME}/models/bge-m3", device="mps", trust_remot
 #   ranker = Reranker("colbert-ir/colbertv2.0", model_type="colbert")
 # To swap to Cohere:
 #   ranker = Reranker("rerank-english-v2.0", model_type="cohere", api_key=os.environ["COHERE_API_KEY"])
+#
+# Lab-02 §2.2.1 lesson: fp16 on M5 Pro Metal 4 is a 2.86× speedup with recall@5
+# bitwise-identical and nDCG@5 within 1.6×10⁻⁴ — well below noise. rerankers v0.5+
+# accepts dtype as a constructor kwarg, so weights load directly in fp16 (cleaner
+# than .half() after construction; no try/except for wrapper-shape drift).
 ranker = Reranker(
     f"{HOME}/models/bge-reranker-v2-m3",
     model_type="cross-encoder",
     device="mps",
+    dtype="fp16",
 )
 
 queries = json.loads(Path("data/queries.json").read_text())

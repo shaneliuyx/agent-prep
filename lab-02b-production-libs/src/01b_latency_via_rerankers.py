@@ -16,6 +16,16 @@ ranker = Reranker(
     device="mps",
 )
 
+# Lab-02 §2.3.2 lesson: at production shape (1 query × 50 pairs), fp16 cuts per-query
+# latency from 112 ms → 37.8 ms — a 2.97× speedup, dominantly the fp16 lever (-63%) with
+# a smaller batch=128 contribution (-8%). Without this line, the headline number will
+# match the unoptimized lab-02 baseline (~112 ms), not the §2.3.2 shipping config.
+try:
+    ranker.model.half()
+    print("[opt] cross-encoder converted to fp16 (lab-02 §2.3.2 production-shape lever)")
+except (AttributeError, TypeError) as e:
+    print(f"[opt] fp16 conversion skipped — rerankers wrapper changed shape: {e}")
+
 # Warm up — first call includes lazy weight loading
 ranker.rank(query="warmup", docs=["warmup doc"])
 

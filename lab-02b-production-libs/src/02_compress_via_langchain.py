@@ -35,12 +35,21 @@ base_retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
 
 # --- Compressor: LLMChainExtractor uses an LLM to extract relevant sentences ---
 # Point at oMLX (or any OpenAI-compatible endpoint)
+#
+# Lab-02 §3.1.1 lesson: oMLX local models (Gemma-4-26B-it-heretic AND gpt-oss-20b) are
+# *reasoning models* — they put chain-of-thought in `reasoning_content` and only write
+# the final answer to `content` AFTER thinking finishes. `max_tokens` must cover BOTH
+# reasoning + output; otherwise content stays None and finish_reason='length'. The
+# original 500 was the bug that produced `AttributeError: 'NoneType' has no .split()`.
+# 3000 covers Gemma's worst-case reasoning length on MS MARCO 5-passage compression.
+# The cleanest fix is to disable thinking at the oMLX server level; this is the
+# defensive script-layer fallback for environments where the toggle isn't accessible.
 llm = ChatOpenAI(
     model=os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit"),
     base_url=os.getenv("OMLX_BASE_URL"),
     api_key=os.getenv("OMLX_API_KEY"),
     temperature=0.0,
-    max_tokens=500,
+    max_tokens=3000,   # was 500 — see lab-02 §3.1.1 (reasoning-model token-budget fix)
 )
 compressor = LLMChainExtractor.from_llm(llm)
 

@@ -14,6 +14,18 @@ import os
 HOME = os.path.expanduser("~")
 
 # Same 9-cell grid as lab-02 (could come from model_config.py SWEEP_VARIANTS)
+#
+# Lab-02 §4.4 empirical result on MS MARCO (parent-level recall@5, 50 queries):
+#   chunk_size=256  + overlap=128 → 0.786  ← winner
+#   chunk_size=256  + overlap=0   → 0.686
+#   chunk_size=512  + overlap=128 → 0.541
+#   chunk_size=1024 + any overlap → 0.493  (overlap is INERT at 1024)
+#
+# Smaller chunks dominate by 24.5pp — the "more context per chunk = better" intuition
+# fails because BGE-M3 *averages* token signal into one pooled vector. A 100-token
+# answer span is ~40% of a 256-token chunk's signal but only ~10% of a 1024-token
+# chunk's. The full grid below stays for teaching purposes (and so the heatmap is
+# meaningful), but in production prune the 1024 row entirely.
 SIZES = (256, 512, 1024)
 OVERLAPS = (0, 64, 128)
 LONG_DOC_PASSAGES = 8   # MUST match lab-02's spec — see lab-02 model_config.py

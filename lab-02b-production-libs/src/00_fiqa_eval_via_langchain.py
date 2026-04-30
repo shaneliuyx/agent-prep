@@ -10,17 +10,40 @@ on the sparse and hybrid modes — that gap is the lesson.
 import json, math, os, time
 from pathlib import Path
 from datasets import load_dataset
+from langchain_core.embeddings import Embeddings
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
-from langchain_huggingface import HuggingFaceEmbeddings
+from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import QdrantClient
+from tqdm import tqdm
 
 HOME = os.path.expanduser("~")
 COLLECTION = "lc_fiqa_hybrid"
 K = 10
 
-dense  = HuggingFaceEmbeddings(model_name=f"{HOME}/models/bge-m3",
-                                model_kwargs={"device": "mps", "trust_remote_code": True},
-                                encode_kwargs={"normalize_embeddings": True})
+
+class BGEM3DenseEmbeddings(Embeddings):
+    """LangChain Embeddings wrapper around FlagEmbedding's BGEM3FlagModel.
+
+    fastembed does not support BGE-M3 dense; HuggingFaceEmbeddings runs into MPS
+    memory issues from sentence_transformers padding to 8192 tokens. FlagEmbedding
+    handles BGE-M3 natively (same code path lab-02 uses) and is ~3-5x faster than
+    HuggingFaceEmbeddings on Apple Silicon.
+    """
+
+    def __init__(self, model_path: str, device: str = "mps", batch_size: int = 64):
+        self._m = BGEM3FlagModel(model_path, use_fp16=False, device=device)
+        self._batch_size = batch_size
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        out = self._m.encode(texts, batch_size=self._batch_size, max_length=512,
+                             return_dense=True, return_sparse=False)
+        return [v.tolist() for v in out["dense_vecs"]]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+
+dense = BGEM3DenseEmbeddings(f"{HOME}/models/bge-m3", device="mps", batch_size=64)
 sparse = FastEmbedSparse(model_name="prithivida/Splade_PP_en_v1")
 qd = QdrantClient(url="http://127.0.0.1:6333")
 
@@ -42,10 +65,15 @@ if COLLECTION not in existing or qd.get_collection(COLLECTION).points_count == 0
     docs_list = list(corpus)
     texts = [(d["title"] + " " + d["text"]).strip() for d in docs_list]
     metadatas = [{"doc_id": str(d["_id"])} for d in docs_list]
+    # Lab-02 bad-case journal: FiQA's 57k-doc upsert hit httpx.ReadTimeout at
+    # 12,480/57,638 points — default 5s client timeout breaks once HNSW indexing
+    # starts competing for resources. timeout=60 is the one-line fix.
     QdrantVectorStore.from_texts(
         texts=texts, embedding=dense, sparse_embedding=sparse,
         metadatas=metadatas, collection_name=COLLECTION,
-        url="http://127.0.0.1:6333", retrieval_mode=RetrievalMode.HYBRID,
+        url="http://127.0.0.1:6333", timeout=60,
+        retrieval_mode=RetrievalMode.HYBRID,
+        batch_size=512,  # Qdrant upload batch; default 64 → fewer round-trips
     )
     print(f"ingested {len(texts)} points into {COLLECTION}")
 
@@ -63,15 +91,26 @@ stores = {
     "hybrid": build_store(RetrievalMode.HYBRID),
 }
 
-def metrics(mode):
+# Pre-embed all 648 query texts in one batch — avoids 648 individual model calls
+# for dense mode (batch_size=512 means this is just 2 MPS dispatches total).
+print("Pre-embedding queries …")
+query_texts = [q["text"] for q in queries]
+query_vecs = dense.embed_documents(query_texts)
+
+def metrics(mode: str) -> dict:
     store = stores[mode]
     n = recall_hits = 0
     rr_sum = ndcg_sum = 0.0
     t0 = time.time()
-    for q in queries:
+    for i, q in tqdm(enumerate(queries), total=len(queries), desc=mode, leave=False):
         qid  = str(q["_id"])
         gold = qid2gold[qid]
-        docs = store.similarity_search(q["text"], k=K)
+        # Dense mode reuses pre-computed vectors; sparse/hybrid still calls embed
+        # internally (ONNX FastEmbed, negligible cost vs. the dense transformer).
+        if mode == "dense":
+            docs = store.similarity_search_by_vector(query_vecs[i], k=K)
+        else:
+            docs = store.similarity_search(q["text"], k=K)
         ids  = [d.metadata["doc_id"] for d in docs]
         n += 1
         if any(d in gold for d in ids): recall_hits += 1

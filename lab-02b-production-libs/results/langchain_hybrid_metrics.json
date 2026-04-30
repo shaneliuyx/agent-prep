@@ -1,0 +1,29 @@
+[
+  {
+    "library": "langchain-qdrant",
+    "mode": "dense",
+    "recall@10": 0.9932664756446992,
+    "mrr@10": 0.9555688588711504,
+    "ndcg@10": 0.9637102463287495,
+    "wall_sec": 123.57953310012817,
+    "n_queries": 6980
+  },
+  {
+    "library": "langchain-qdrant",
+    "mode": "sparse",
+    "recall@10": 0.9928366762177651,
+    "mrr@10": 0.9633905262200384,
+    "ndcg@10": 0.9697723553760038,
+    "wall_sec": 52.13770890235901,
+    "n_queries": 6980
+  },
+  {
+    "library": "langchain-qdrant",
+    "mode": "hybrid",
+    "recall@10": 0.9977077363896848,
+    "mrr@10": 0.9657647132396406,
+    "ndcg@10": 0.9728711969378909,
+    "wall_sec": 152.86816310882568,
+    "n_queries": 6980
+  }
+]

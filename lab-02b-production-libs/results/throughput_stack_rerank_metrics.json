@@ -1,0 +1,26 @@
+{
+  "library": "throughput-stack (FlagEmbedding + qdrant-batch + FlagReranker + ranx)",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "baseline_dense_top5": {
+    "recall@5": 0.9863777459407832,
+    "ndcg@5": 0.9615818431758733
+  },
+  "rerank_top5": {
+    "recall@5": 0.9938156638013371,
+    "ndcg@5": 0.9766846179858395
+  },
+  "stage_seconds": {
+    "encode": 11.5,
+    "retrieve": 6.2,
+    "rerank": 1810.5,
+    "total": 1828.2
+  },
+  "n_queries": 6980,
+  "config": {
+    "encode_batch": 128,
+    "qdrant_batch": 64,
+    "rerank_batch": 256,
+    "group_queries": 32,
+    "fp16": true
+  }
+}

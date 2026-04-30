@@ -1,0 +1,53 @@
+[
+  {
+    "library": "tei + langchain-qdrant",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "dense",
+    "ranx": {
+      "recall@10": 0.46822029993326286,
+      "mrr@10": 0.5007728297080148,
+      "ndcg@10": 0.40941677960019945
+    },
+    "hand_rolled": {
+      "hit_rate@10": 0.6774691358024691,
+      "mrr@10": 0.5007728297080147,
+      "ndcg@10": 0.4094167796001994
+    },
+    "wall_sec": 3.169102907180786,
+    "n_queries": 648
+  },
+  {
+    "library": "tei + langchain-qdrant",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "sparse",
+    "ranx": {
+      "recall@10": 0.35517001003112114,
+      "mrr@10": 0.3614583333333334,
+      "ndcg@10": 0.2929198611047872
+    },
+    "hand_rolled": {
+      "hit_rate@10": 0.5447530864197531,
+      "mrr@10": 0.36145833333333316,
+      "ndcg@10": 0.29291986110478724
+    },
+    "wall_sec": 5.392153739929199,
+    "n_queries": 648
+  },
+  {
+    "library": "tei + langchain-qdrant",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "hybrid",
+    "ranx": {
+      "recall@10": 0.4669418287473844,
+      "mrr@10": 0.4781017293748775,
+      "ndcg@10": 0.3949862601863815
+    },
+    "hand_rolled": {
+      "hit_rate@10": 0.6820987654320988,
+      "mrr@10": 0.4781017293748774,
+      "ndcg@10": 0.39498626018638155
+    },
+    "wall_sec": 27.48821520805359,
+    "n_queries": 648
+  }
+]

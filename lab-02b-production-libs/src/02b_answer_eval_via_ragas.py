@@ -20,11 +20,18 @@ from ragas.metrics import faithfulness, answer_relevancy, context_precision
 HOME = os.path.expanduser("~")
 
 # RAGAS needs an LLM (for judge prompts) + an embedding model (for relevancy scoring)
+#
+# Lab-02 §3.2.1 lesson: gpt-oss-20b on oMLX is *also* a reasoning model — 2/30 judges
+# in lab-02's run hit `reasoning_content` truncation at the original max_tokens=500.
+# RAGAS internally issues many judge calls per metric (faithfulness alone calls the
+# LLM 2-3× per row), so a too-tight token budget will silently corrupt scores. 3000
+# covers the worst-case reasoning length for short comparison prompts.
 llm = ChatOpenAI(
     model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
     base_url=os.getenv("OMLX_BASE_URL"),
     api_key=os.getenv("OMLX_API_KEY"),
     temperature=0.0,
+    max_tokens=3000,   # lab-02 §3.2.1: reasoning-model judge needs the headroom
 )
 embedding = HuggingFaceEmbeddings(
     model_name=f"{HOME}/models/bge-m3",

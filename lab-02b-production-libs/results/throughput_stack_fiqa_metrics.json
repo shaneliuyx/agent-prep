@@ -1,0 +1,38 @@
+[
+  {
+    "library": "throughput-stack (FlagEmbedding + qdrant-batch + ranx)",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "dense",
+    "recall@10": 0.46822029993326286,
+    "mrr@10": 0.5007728297080148,
+    "ndcg@10": 0.40941677960019945,
+    "wall_sec": 1.2065300941467285,
+    "n_queries": 648,
+    "enc_dense_sec": 2.93,
+    "enc_sparse_sec": 4.72
+  },
+  {
+    "library": "throughput-stack (FlagEmbedding + qdrant-batch + ranx)",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "sparse",
+    "recall@10": 0.35517001003112114,
+    "mrr@10": 0.3614583333333334,
+    "ndcg@10": 0.2929198611047872,
+    "wall_sec": 0.18636369705200195,
+    "n_queries": 648,
+    "enc_dense_sec": 2.93,
+    "enc_sparse_sec": 4.72
+  },
+  {
+    "library": "throughput-stack (FlagEmbedding + qdrant-batch + ranx)",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "hybrid",
+    "recall@10": 0.47267248783452487,
+    "mrr@10": 0.4737342004703116,
+    "ndcg@10": 0.39615127392164884,
+    "wall_sec": 1.0135853290557861,
+    "n_queries": 648,
+    "enc_dense_sec": 2.93,
+    "enc_sparse_sec": 4.72
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "library": "langchain-qdrant",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "dense",
+    "recall@10": 0.6774691358024691,
+    "mrr@10": 0.5007728297080146,
+    "ndcg@10": 0.40941677960019923,
+    "wall_sec": 3.39729380607605,
+    "n_queries": 648
+  },
+  {
+    "library": "langchain-qdrant",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "sparse",
+    "recall@10": 0.5447530864197531,
+    "mrr@10": 0.3614583333333332,
+    "ndcg@10": 0.292919861104787,
+    "wall_sec": 5.5368688106536865,
+    "n_queries": 648
+  },
+  {
+    "library": "langchain-qdrant",
+    "benchmark": "BEIR-FiQA-2018",
+    "mode": "hybrid",
+    "recall@10": 0.6820987654320988,
+    "mrr@10": 0.47175129825592754,
+    "ndcg@10": 0.3924615138474325,
+    "wall_sec": 24.485595226287842,
+    "n_queries": 648
+  }
+]

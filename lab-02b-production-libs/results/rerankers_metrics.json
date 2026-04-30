@@ -1,0 +1,14 @@
+{
+  "library": "rerankers",
+  "model": "BAAI/bge-reranker-v2-m3",
+  "baseline_dense_top5": {
+    "recall@5": 0.98810888252149,
+    "ndcg@5": 0.961581843175876
+  },
+  "rerank_top5": {
+    "recall@5": 0.9845272206303725,
+    "ndcg@5": 0.9659277270706826
+  },
+  "wall_sec": 1963.8960750102997,
+  "n_queries": 6980
+}
