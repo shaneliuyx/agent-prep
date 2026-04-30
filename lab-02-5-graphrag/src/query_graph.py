@@ -242,9 +242,14 @@ def answer(query: str) -> dict:
             "edges_used": 0,
         }
 
+    # Edge-cap bumped 40 → 200 for denser graphs (MAX_ARTICLES=400 typical
+    # neighborhoods produce 80-200 edges per query). 200 × ~35 tokens/edge
+    # ≈ 7K tokens of context, fits within Gemma-4-26B's effective window
+    # while leaving budget for answer generation. For sparser graphs the
+    # cap is a no-op since most queries return <200 edges.
     context = "\n".join(
         f"- {t['s']} --[{t['rel']}]--> {t['o']}  (source: {t['src']})"
-        for t in subgraph[:40]
+        for t in subgraph[:200]
     )
     resp = omlx.chat.completions.create(
         model=MODEL,

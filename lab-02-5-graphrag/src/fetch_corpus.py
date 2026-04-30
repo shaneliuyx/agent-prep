@@ -38,7 +38,7 @@ import requests
 WIKI_API = "https://en.wikipedia.org/w/api.php"
 USER_AGENT = "lab-02-5-graphrag/1.0 (educational; agent-prep curriculum)"
 SHUFFLE_SEED = 42  # deterministic shuffle so reproducible across runs
-REQUEST_SLEEP = 0.6  # ~100 req/min — well under MediaWiki's 200/min anon limit
+REQUEST_SLEEP = 1.0  # ~60 req/min — under sustained MediaWiki anonymous ceiling
 MAX_RETRIES = 4
 PAGEVIEWS_BATCH = 50  # MediaWiki query API caps at 50 titles per `titles=` arg
 PAGEVIEWS_DAYS = 60  # max value pvipdays accepts
@@ -69,7 +69,7 @@ SEED_CATEGORIES: list[str] = [
 
 PER_CATEGORY_PAGE = 500  # max anon page size for categorymembers
 MAX_PAGES_PER_CATEGORY = 5  # cap pagination — bound worst-case round-trips
-MAX_ARTICLES = 150
+MAX_ARTICLES = 400
 ARTICLE_TEXT_CHARS = 4000
 
 
