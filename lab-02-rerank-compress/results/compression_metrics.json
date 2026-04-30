@@ -1,0 +1,416 @@
+{
+  "summary": {
+    "n_attempted": 50,
+    "n_ok": 50,
+    "n_failed": 0,
+    "mean_raw_words": 260.68,
+    "mean_compressed_words": 35.9,
+    "mean_compression_ratio": 0.14188556731065838,
+    "mean_completion_tokens": 60.04,
+    "total_wall_sec": 109.11112594604492,
+    "per_query_sec": 2.1822225189208986
+  },
+  "rows": [
+    {
+      "qid": "300674",
+      "raw_word_count": 235,
+      "compressed_word_count": 17,
+      "ratio": 0.07234042553191489,
+      "completion_tokens": 34,
+      "prompt_tokens": 635
+    },
+    {
+      "qid": "125705",
+      "raw_word_count": 205,
+      "compressed_word_count": 38,
+      "ratio": 0.18536585365853658,
+      "completion_tokens": 68,
+      "prompt_tokens": 423
+    },
+    {
+      "qid": "94798",
+      "raw_word_count": 302,
+      "compressed_word_count": 37,
+      "ratio": 0.12251655629139073,
+      "completion_tokens": 51,
+      "prompt_tokens": 530
+    },
+    {
+      "qid": "9083",
+      "raw_word_count": 259,
+      "compressed_word_count": 23,
+      "ratio": 0.0888030888030888,
+      "completion_tokens": 33,
+      "prompt_tokens": 634
+    },
+    {
+      "qid": "174249",
+      "raw_word_count": 360,
+      "compressed_word_count": 17,
+      "ratio": 0.04722222222222222,
+      "completion_tokens": 33,
+      "prompt_tokens": 611
+    },
+    {
+      "qid": "320792",
+      "raw_word_count": 246,
+      "compressed_word_count": 34,
+      "ratio": 0.13821138211382114,
+      "completion_tokens": 61,
+      "prompt_tokens": 533
+    },
+    {
+      "qid": "1090270",
+      "raw_word_count": 242,
+      "compressed_word_count": 45,
+      "ratio": 0.1859504132231405,
+      "completion_tokens": 88,
+      "prompt_tokens": 506
+    },
+    {
+      "qid": "1101279",
+      "raw_word_count": 291,
+      "compressed_word_count": 18,
+      "ratio": 0.061855670103092786,
+      "completion_tokens": 37,
+      "prompt_tokens": 533
+    },
+    {
+      "qid": "201376",
+      "raw_word_count": 263,
+      "compressed_word_count": 33,
+      "ratio": 0.12547528517110265,
+      "completion_tokens": 55,
+      "prompt_tokens": 544
+    },
+    {
+      "qid": "54544",
+      "raw_word_count": 283,
+      "compressed_word_count": 22,
+      "ratio": 0.07773851590106007,
+      "completion_tokens": 34,
+      "prompt_tokens": 525
+    },
+    {
+      "qid": "118457",
+      "raw_word_count": 191,
+      "compressed_word_count": 26,
+      "ratio": 0.13612565445026178,
+      "completion_tokens": 43,
+      "prompt_tokens": 432
+    },
+    {
+      "qid": "178627",
+      "raw_word_count": 206,
+      "compressed_word_count": 98,
+      "ratio": 0.47572815533980584,
+      "completion_tokens": 153,
+      "prompt_tokens": 412
+    },
+    {
+      "qid": "1101278",
+      "raw_word_count": 260,
+      "compressed_word_count": 23,
+      "ratio": 0.08846153846153847,
+      "completion_tokens": 35,
+      "prompt_tokens": 599
+    },
+    {
+      "qid": "68095",
+      "raw_word_count": 333,
+      "compressed_word_count": 22,
+      "ratio": 0.06606606606606606,
+      "completion_tokens": 31,
+      "prompt_tokens": 562
+    },
+    {
+      "qid": "87892",
+      "raw_word_count": 219,
+      "compressed_word_count": 13,
+      "ratio": 0.0593607305936073,
+      "completion_tokens": 25,
+      "prompt_tokens": 457
+    },
+    {
+      "qid": "257309",
+      "raw_word_count": 316,
+      "compressed_word_count": 44,
+      "ratio": 0.13924050632911392,
+      "completion_tokens": 71,
+      "prompt_tokens": 550
+    },
+    {
+      "qid": "1090242",
+      "raw_word_count": 231,
+      "compressed_word_count": 22,
+      "ratio": 0.09523809523809523,
+      "completion_tokens": 36,
+      "prompt_tokens": 483
+    },
+    {
+      "qid": "211691",
+      "raw_word_count": 244,
+      "compressed_word_count": 95,
+      "ratio": 0.38934426229508196,
+      "completion_tokens": 137,
+      "prompt_tokens": 464
+    },
+    {
+      "qid": "165002",
+      "raw_word_count": 180,
+      "compressed_word_count": 23,
+      "ratio": 0.12777777777777777,
+      "completion_tokens": 35,
+      "prompt_tokens": 371
+    },
+    {
+      "qid": "1101276",
+      "raw_word_count": 330,
+      "compressed_word_count": 27,
+      "ratio": 0.08181818181818182,
+      "completion_tokens": 37,
+      "prompt_tokens": 605
+    },
+    {
+      "qid": "264827",
+      "raw_word_count": 246,
+      "compressed_word_count": 16,
+      "ratio": 0.06504065040650407,
+      "completion_tokens": 32,
+      "prompt_tokens": 495
+    },
+    {
+      "qid": "342285",
+      "raw_word_count": 228,
+      "compressed_word_count": 81,
+      "ratio": 0.35526315789473684,
+      "completion_tokens": 132,
+      "prompt_tokens": 522
+    },
+    {
+      "qid": "372586",
+      "raw_word_count": 322,
+      "compressed_word_count": 64,
+      "ratio": 0.19875776397515527,
+      "completion_tokens": 97,
+      "prompt_tokens": 630
+    },
+    {
+      "qid": "89786",
+      "raw_word_count": 199,
+      "compressed_word_count": 18,
+      "ratio": 0.09045226130653267,
+      "completion_tokens": 28,
+      "prompt_tokens": 434
+    },
+    {
+      "qid": "118448",
+      "raw_word_count": 216,
+      "compressed_word_count": 27,
+      "ratio": 0.125,
+      "completion_tokens": 39,
+      "prompt_tokens": 422
+    },
+    {
+      "qid": "92542",
+      "raw_word_count": 215,
+      "compressed_word_count": 24,
+      "ratio": 0.11162790697674418,
+      "completion_tokens": 37,
+      "prompt_tokens": 431
+    },
+    {
+      "qid": "206117",
+      "raw_word_count": 232,
+      "compressed_word_count": 79,
+      "ratio": 0.34051724137931033,
+      "completion_tokens": 141,
+      "prompt_tokens": 458
+    },
+    {
+      "qid": "141472",
+      "raw_word_count": 328,
+      "compressed_word_count": 17,
+      "ratio": 0.051829268292682924,
+      "completion_tokens": 62,
+      "prompt_tokens": 564
+    },
+    {
+      "qid": "293992",
+      "raw_word_count": 238,
+      "compressed_word_count": 35,
+      "ratio": 0.14705882352941177,
+      "completion_tokens": 60,
+      "prompt_tokens": 509
+    },
+    {
+      "qid": "196232",
+      "raw_word_count": 238,
+      "compressed_word_count": 73,
+      "ratio": 0.3067226890756303,
+      "completion_tokens": 122,
+      "prompt_tokens": 451
+    },
+    {
+      "qid": "352818",
+      "raw_word_count": 387,
+      "compressed_word_count": 66,
+      "ratio": 0.17054263565891473,
+      "completion_tokens": 85,
+      "prompt_tokens": 619
+    },
+    {
+      "qid": "45924",
+      "raw_word_count": 253,
+      "compressed_word_count": 52,
+      "ratio": 0.20553359683794467,
+      "completion_tokens": 97,
+      "prompt_tokens": 534
+    },
+    {
+      "qid": "208145",
+      "raw_word_count": 337,
+      "compressed_word_count": 69,
+      "ratio": 0.20474777448071216,
+      "completion_tokens": 94,
+      "prompt_tokens": 610
+    },
+    {
+      "qid": "79891",
+      "raw_word_count": 241,
+      "compressed_word_count": 14,
+      "ratio": 0.058091286307053944,
+      "completion_tokens": 27,
+      "prompt_tokens": 486
+    },
+    {
+      "qid": "208494",
+      "raw_word_count": 268,
+      "compressed_word_count": 56,
+      "ratio": 0.208955223880597,
+      "completion_tokens": 86,
+      "prompt_tokens": 531
+    },
+    {
+      "qid": "319564",
+      "raw_word_count": 349,
+      "compressed_word_count": 22,
+      "ratio": 0.06303724928366762,
+      "completion_tokens": 36,
+      "prompt_tokens": 656
+    },
+    {
+      "qid": "155234",
+      "raw_word_count": 252,
+      "compressed_word_count": 38,
+      "ratio": 0.15079365079365079,
+      "completion_tokens": 51,
+      "prompt_tokens": 468
+    },
+    {
+      "qid": "14151",
+      "raw_word_count": 248,
+      "compressed_word_count": 12,
+      "ratio": 0.04838709677419355,
+      "completion_tokens": 24,
+      "prompt_tokens": 464
+    },
+    {
+      "qid": "67802",
+      "raw_word_count": 352,
+      "compressed_word_count": 12,
+      "ratio": 0.03409090909090909,
+      "completion_tokens": 22,
+      "prompt_tokens": 625
+    },
+    {
+      "qid": "1090184",
+      "raw_word_count": 210,
+      "compressed_word_count": 11,
+      "ratio": 0.05238095238095238,
+      "completion_tokens": 30,
+      "prompt_tokens": 451
+    },
+    {
+      "qid": "323382",
+      "raw_word_count": 309,
+      "compressed_word_count": 64,
+      "ratio": 0.20711974110032363,
+      "completion_tokens": 115,
+      "prompt_tokens": 641
+    },
+    {
+      "qid": "323998",
+      "raw_word_count": 228,
+      "compressed_word_count": 20,
+      "ratio": 0.08771929824561403,
+      "completion_tokens": 31,
+      "prompt_tokens": 534
+    },
+    {
+      "qid": "91711",
+      "raw_word_count": 367,
+      "compressed_word_count": 26,
+      "ratio": 0.07084468664850137,
+      "completion_tokens": 48,
+      "prompt_tokens": 739
+    },
+    {
+      "qid": "125898",
+      "raw_word_count": 255,
+      "compressed_word_count": 48,
+      "ratio": 0.18823529411764706,
+      "completion_tokens": 75,
+      "prompt_tokens": 476
+    },
+    {
+      "qid": "289812",
+      "raw_word_count": 219,
+      "compressed_word_count": 15,
+      "ratio": 0.0684931506849315,
+      "completion_tokens": 40,
+      "prompt_tokens": 494
+    },
+    {
+      "qid": "333486",
+      "raw_word_count": 235,
+      "compressed_word_count": 13,
+      "ratio": 0.05531914893617021,
+      "completion_tokens": 29,
+      "prompt_tokens": 477
+    },
+    {
+      "qid": "1090171",
+      "raw_word_count": 149,
+      "compressed_word_count": 14,
+      "ratio": 0.09395973154362416,
+      "completion_tokens": 34,
+      "prompt_tokens": 390
+    },
+    {
+      "qid": "73257",
+      "raw_word_count": 247,
+      "compressed_word_count": 25,
+      "ratio": 0.10121457489878542,
+      "completion_tokens": 56,
+      "prompt_tokens": 561
+    },
+    {
+      "qid": "1090170",
+      "raw_word_count": 226,
+      "compressed_word_count": 90,
+      "ratio": 0.39823008849557523,
+      "completion_tokens": 148,
+      "prompt_tokens": 517
+    },
+    {
+      "qid": "237373",
+      "raw_word_count": 244,
+      "compressed_word_count": 17,
+      "ratio": 0.06967213114754098,
+      "completion_tokens": 27,
+      "prompt_tokens": 475
+    }
+  ],
+  "failures": []
+}

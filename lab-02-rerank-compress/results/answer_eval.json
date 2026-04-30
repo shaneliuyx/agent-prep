@@ -1,0 +1,293 @@
+{
+  "summary": {
+    "n_attempted": 30,
+    "n_ok": 30,
+    "n_failed": 0,
+    "compressed_wins": 11,
+    "ties": 10,
+    "raw_wins": 9,
+    "compressed_win_rate": 0.367,
+    "compressed_win_or_tie_rate": 0.7,
+    "raw_win_rate": 0.3,
+    "verdict": "compression_safe_to_ship",
+    "total_wall_sec": 195.3,
+    "per_query_sec": 6.51,
+    "models": {
+      "answer": "gemma-4-26B-A4B-it-heretic-4bit",
+      "judge": "gpt-oss-20b-MXFP4-Q8"
+    }
+  },
+  "rows": [
+    {
+      "qid": "300674",
+      "query": "how many years did william bradford serve as governor of plymouth colony?",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer B gives a specific duration (about thirty years) and context, directly addressing the question, whereas Answer A is uninformative.",
+      "ans_raw_words": 17,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "125705",
+      "query": "define preventive",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer B provides a broader, more accurate definition of the adjective preventive and includes relevant context, making it more useful.",
+      "ans_raw_words": 50,
+      "ans_compressed_words": 21
+    },
+    {
+      "qid": "94798",
+      "query": "color overlay photoshop",
+      "outcome": "raw_wins",
+      "compressed_was_A": false,
+      "judge_reason": "Answer A explicitly references Photoshop, matching the query, while B omits the software name.",
+      "ans_raw_words": 43,
+      "ans_compressed_words": 27
+    },
+    {
+      "qid": "9083",
+      "query": "____________________ is considered the father of modern medicine.",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "B provides the correct answer and adds a relevant explanatory detail, making it more useful.",
+      "ans_raw_words": 22,
+      "ans_compressed_words": 8
+    },
+    {
+      "qid": "174249",
+      "query": "does xpress bet charge to deposit money in your account",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Both answers are equally insufficient.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "320792",
+      "query": "how much is a cost to run disneyland",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer B provides a specific cost estimate, making it more useful than the vague response in Answer A.",
+      "ans_raw_words": 14,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "1090270",
+      "query": "botulinum definition",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer B provides a more complete and accurate definition, including the mechanism of action, while Answer A incorrectly limits the toxin to type A and omits key details.",
+      "ans_raw_words": 39,
+      "ans_compressed_words": 29
+    },
+    {
+      "qid": "1101279",
+      "query": "do physicians pay for insurance from their salaries?",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Both answers are equally insufficient.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "201376",
+      "query": "here there be dragons comic",
+      "outcome": "compressed_wins",
+      "compressed_was_A": false,
+      "judge_reason": "Answer B directly states it is not a comic book and is more precise and useful.",
+      "ans_raw_words": 34,
+      "ans_compressed_words": 31
+    },
+    {
+      "qid": "54544",
+      "query": "blood diseases that are sexually transmitted",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A provides specific, relevant examples (hepatitis B and C) and explains their transmission routes, whereas Answer B offers no useful information.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 20
+    },
+    {
+      "qid": "118457",
+      "query": "define bona fides",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A is more concise and directly defines the term without unnecessary repetition.",
+      "ans_raw_words": 25,
+      "ans_compressed_words": 22
+    },
+    {
+      "qid": "178627",
+      "query": "effects of detox juice cleanse",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A presents only evidence-based facts (weight loss, muscle loss, diarrhea) without including unverified claims, making it more faithful and useful.",
+      "ans_raw_words": 42,
+      "ans_compressed_words": 28
+    },
+    {
+      "qid": "1101278",
+      "query": "do prince harry and william have last names",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A correctly states that their surname is Windsor without adding inaccurate details.",
+      "ans_raw_words": 23,
+      "ans_compressed_words": 11
+    },
+    {
+      "qid": "68095",
+      "query": "can hives be a sign of pregnancy",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer B adds useful context about the cause of hives, making it slightly more informative while still addressing the question.",
+      "ans_raw_words": 27,
+      "ans_compressed_words": 21
+    },
+    {
+      "qid": "87892",
+      "query": "causes of petechial hemorrhage",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Both answers are equally incorrect.",
+      "ans_raw_words": 12,
+      "ans_compressed_words": 12
+    },
+    {
+      "qid": "257309",
+      "query": "how long does it take to get your bsrn if you already have a bachelors degree",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Both answers are equally insufficient.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "1090242",
+      "query": "symptoms of ptsd in vietnam veterans",
+      "outcome": "raw_wins",
+      "compressed_was_A": false,
+      "judge_reason": "Answer A provides specific symptoms of PTSD, making it more useful than the vague response in Answer B.",
+      "ans_raw_words": 8,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "211691",
+      "query": "how coffee works quote",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Neither answer provides a quote that explains how coffee works, so both are equally unhelpful.",
+      "ans_raw_words": 11,
+      "ans_compressed_words": 30
+    },
+    {
+      "qid": "165002",
+      "query": "does contraction of the ciliary muscles shorten the lens",
+      "outcome": "compressed_wins",
+      "compressed_was_A": false,
+      "judge_reason": "Answer B correctly explains that ciliary muscle contraction makes the lens rounder, not shorter, providing a useful and evidence\u2011based response.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 14
+    },
+    {
+      "qid": "1101276",
+      "query": "do spiders eat other animals",
+      "outcome": "compressed_wins",
+      "compressed_was_A": false,
+      "judge_reason": "Answer B correctly states that most spiders eat insects and other spiders, while A incorrectly claims most spiders eat other spiders.",
+      "ans_raw_words": 24,
+      "ans_compressed_words": 22
+    },
+    {
+      "qid": "264827",
+      "query": "how long is the flight from chicago to cairo",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A gives the correct flight duration without unnecessary or potentially misleading assumptions.",
+      "ans_raw_words": 35,
+      "ans_compressed_words": 15
+    },
+    {
+      "qid": "342285",
+      "query": "how titanic facts",
+      "outcome": "raw_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer B uses more precise phrasing (\u201csink to\u201d) and is slightly more natural, making it marginally more faithful and useful.",
+      "ans_raw_words": 48,
+      "ans_compressed_words": 45
+    },
+    {
+      "qid": "372586",
+      "query": "how to play blu ray discs",
+      "outcome": "tie",
+      "compressed_was_A": false,
+      "judge_reason": "Both answers provide the same accurate steps and are equally useful.",
+      "ans_raw_words": 44,
+      "ans_compressed_words": 44
+    },
+    {
+      "qid": "89786",
+      "query": "central city definition",
+      "outcome": "tie",
+      "compressed_was_A": false,
+      "judge_reason": "Both answers are identical and equally correct.",
+      "ans_raw_words": 16,
+      "ans_compressed_words": 16
+    },
+    {
+      "qid": "118448",
+      "query": "define body muscular endurance",
+      "outcome": "compressed_wins",
+      "compressed_was_A": false,
+      "judge_reason": "Answer B provides a clear definition of muscular endurance, directly addressing the query, whereas Answer A offers no useful information.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 26
+    },
+    {
+      "qid": "92542",
+      "query": "circulation money definition",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Both answers are equally insufficient and provide no useful information.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "206117",
+      "query": "hotels in thornton co",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A lists all hotels succinctly and directly, making it more straightforward and useful than the slightly redundant phrasing in Answer B.",
+      "ans_raw_words": 26,
+      "ans_compressed_words": 21
+    },
+    {
+      "qid": "141472",
+      "query": "derriere definition",
+      "outcome": "tie",
+      "compressed_was_A": false,
+      "judge_reason": "Both answers are equally insufficient and do not provide the definition.",
+      "ans_raw_words": 2,
+      "ans_compressed_words": 2
+    },
+    {
+      "qid": "293992",
+      "query": "how many product lines does coca cola have",
+      "outcome": "tie",
+      "compressed_was_A": true,
+      "judge_reason": "Both answers are identical and neither is better.",
+      "ans_raw_words": 19,
+      "ans_compressed_words": 19
+    },
+    {
+      "qid": "196232",
+      "query": "government does do",
+      "outcome": "compressed_wins",
+      "compressed_was_A": true,
+      "judge_reason": "Answer A is more concise, accurate, and directly addresses the government's role without adding vague or poorly phrased statements.",
+      "ans_raw_words": 44,
+      "ans_compressed_words": 37
+    }
+  ],
+  "failures": []
+}

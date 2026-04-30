@@ -1,0 +1,23 @@
+{
+  "baseline_dense_top5": {
+    "recall@5": 0.98810888252149,
+    "ndcg@5": 0.961581843175876
+  },
+  "dense_top50_rerank_top5": {
+    "recall@5": 0.9948424068767908,
+    "ndcg@5": 0.9766846179858419
+  },
+  "stage_seconds": {
+    "encode": 10.4,
+    "retrieve": 6.2,
+    "rerank": 1890.7,
+    "total": 1907.3
+  },
+  "n_queries": 6980,
+  "config": {
+    "encode_batch": 128,
+    "qdrant_batch": 64,
+    "rerank_batch": 256,
+    "rerank_group_queries": 32
+  }
+}
