@@ -28,6 +28,7 @@ Trade-offs vs the original `train[:200]` slice:
 from __future__ import annotations
 
 import json
+import math
 import random
 import time
 from pathlib import Path
@@ -39,6 +40,8 @@ USER_AGENT = "lab-02-5-graphrag/1.0 (educational; agent-prep curriculum)"
 SHUFFLE_SEED = 42  # deterministic shuffle so reproducible across runs
 REQUEST_SLEEP = 0.6  # ~100 req/min — well under MediaWiki's 200/min anon limit
 MAX_RETRIES = 4
+PAGEVIEWS_BATCH = 50  # MediaWiki query API caps at 50 titles per `titles=` arg
+PAGEVIEWS_DAYS = 60  # max value pvipdays accepts
 
 # Domain-bounding parameter. Each entry is a Wikipedia category whose direct
 # members (ns=0 articles) we will pull. Adding categories or switching to a
@@ -46,10 +49,22 @@ MAX_RETRIES = 4
 # adding hand-picked article titles. To inspect a category before adding it:
 # https://en.wikipedia.org/wiki/Category:<NAME>
 SEED_CATEGORIES: list[str] = [
+    # Founders — Wikipedia's taxonomy splits "tech founders" into multiple
+    # subcategories. Mark Zuckerberg, Larry Page, Sergey Brin, Jeff Bezos,
+    # Jack Dorsey land in "Internet company founders" (consumer Internet),
+    # while semiconductor/hardware founders land in "technology company
+    # founders" — without both, half the canonical names are uncovered.
     "American_technology_company_founders",
+    "American_Internet_company_founders",
+    # Executives — covers Tim Cook, Sundar Pichai, Satya Nadella, Andy Jassy,
+    # who are not founders but are central nodes in the tech graph.
+    "American_chief_executives_in_technology",
+    # Wealth-class backstop — picks up tech billionaires that fall outside
+    # the founder/CEO subcategories (e.g. early-employee equity, investors).
+    "American_billionaires",
+    # Companies — Silicon Valley + US software for organizational coverage.
     "Companies_based_in_Silicon_Valley",
     "Software_companies_of_the_United_States",
-    "American_chief_executives_of_technology_companies",
 ]
 
 PER_CATEGORY_PAGE = 500  # max anon page size for categorymembers
@@ -145,15 +160,93 @@ def fetch_extract(title: str, max_chars: int = ARTICLE_TEXT_CHARS) -> dict | Non
     }
 
 
-def collect_titles() -> list[str]:
-    """Walk the seed categories, dedupe titles, shuffle, cap at MAX_ARTICLES.
+def fetch_pageviews_batch(titles: list[str]) -> dict[str, int]:
+    """Pull last-60-day pageview totals for up to 50 titles in one API call.
 
-    Wikipedia categorymembers returns titles in collation order (alphabetical
-    by sortkey). Without shuffling, MAX_ARTICLES truncation systematically
-    drops Z-tail entries — including, e.g., 'Mark Zuckerberg' falling outside
-    the first 50 of `American_technology_company_founders`. Shuffling with a
-    fixed seed (SHUFFLE_SEED) gives a deterministic random sample: same input
-    produces same output across runs while spanning the alphabet."""
+    MediaWiki's `prop=pageviews&pvipdays=60` returns daily counts per article
+    in the same response shape as `prop=extracts`. We sum the daily counts to
+    get a single importance score per article. Articles with `null` pageviews
+    (extension disabled, broken page, redirect) are scored 0; downstream
+    weighted sampling will not select them.
+
+    Why pageviews vs link-count or article-length: pageviews directly measure
+    user attention, which is what makes a corpus pipeline surface canonical
+    entities. Mark Zuckerberg's article gets ~5M+ monthly views; mid-tier
+    B2B SaaS articles get ~5K. The 1000× ratio swamps any noise and is
+    exactly the heavy-tailed distribution Wikipedia's category structure
+    obscures."""
+    out: dict[str, int] = {}
+    params = {
+        "action":      "query",
+        "format":      "json",
+        "prop":        "pageviews",
+        "titles":      "|".join(titles),
+        "pvipdays":    PAGEVIEWS_DAYS,
+        "redirects":   1,
+    }
+    pages = _api_get(params).get("query", {}).get("pages", {})
+    for page in pages.values():
+        title = page.get("title", "")
+        pv = page.get("pageviews") or {}
+        # Daily counts can be None for missing days; sum the known ones.
+        total = sum(v for v in pv.values() if isinstance(v, int))
+        out[title] = total
+    # Titles missing from the response (rare — usually due to canonical-form
+    # mismatch after redirect resolution) get scored 0.
+    for t in titles:
+        out.setdefault(t, 0)
+    return out
+
+
+def weighted_sample_no_replacement(
+    items: list[str],
+    weights: dict[str, int],
+    k: int,
+    seed: int,
+) -> list[str]:
+    """A-ExpJ weighted reservoir sampling (Efraimidis & Spirakis, 2006).
+
+    Without numpy: assign each item key_i = log(U_i) / weight_i where U_i ~
+    Uniform(0,1), sort ascending, take top-k. Items with weight=0 are excluded
+    (would divide by zero); items with very small weights are sampled
+    proportionally. Deterministic with seeded RNG so the same input pool
+    produces the same sample across runs.
+
+    For weight distributions with a single zero or near-zero floor, we add 1
+    to every weight to avoid the sampler ignoring any candidate entirely. The
+    +1 floor still respects the heavy-tail (10M views + 1 ≈ 10M views) while
+    keeping zero-pageview articles eligible at their long-tail probability."""
+    rng = random.Random(seed)
+    keyed: list[tuple[float, str]] = []
+    for item in items:
+        weight = weights.get(item, 0) + 1  # +1 floor — see docstring
+        u = rng.random()
+        # log(u) is negative; dividing by positive weight keeps it negative;
+        # smaller (more negative) keys = lower-priority items. Sorting
+        # descending means highest-weight items rise to the top.
+        key = math.log(u) / weight
+        keyed.append((key, item))
+    keyed.sort(reverse=True)
+    return [item for _, item in keyed[:k]]
+
+
+def collect_titles() -> list[str]:
+    """Walk the seed categories → dedupe → pageview-weighted sample → cap at k.
+
+    Production-shape sampling: Wikipedia's category structure is uniform-
+    enumerable but the entities inside are heavy-tailed by attention.
+    Mid-tier B2B companies dominate the membership lists; canonical
+    entities like 'Mark Zuckerberg' or 'Steve Jobs' sit alongside them
+    with no built-in priority signal. Sampling uniformly makes canonical
+    entities probability ~1/N where N is the deduped pool size — for our
+    1472-candidate domain that's ~10% inclusion per famous name.
+
+    Pageview-weighted A-ExpJ sampling instead biases inclusion by the
+    same importance signal real corpus pipelines use. Mark Zuckerberg's
+    Wikipedia page receives ~5M+ monthly pageviews; a typical mid-tier
+    SaaS company gets ~5K. The 1000× ratio in the weighted sampler
+    means famous entities are essentially guaranteed to be in the
+    sample while leaving capacity for long-tail discovery."""
     seen: set[str] = set()
     titles: list[str] = []
     for category in SEED_CATEGORIES:
@@ -171,10 +264,33 @@ def collect_titles() -> list[str]:
             added += 1
         print(f"  category {category!r}: {len(members)} members (paginated), {added} new")
         time.sleep(REQUEST_SLEEP)
-    rng = random.Random(SHUFFLE_SEED)
-    rng.shuffle(titles)
+
+    # Batched pageview fetch — up to 50 titles per request.
+    print(f"\nFetching pageviews for {len(titles)} candidates ...")
+    weights: dict[str, int] = {}
+    t_pv = time.time()
+    for i in range(0, len(titles), PAGEVIEWS_BATCH):
+        batch = titles[i : i + PAGEVIEWS_BATCH]
+        try:
+            weights.update(fetch_pageviews_batch(batch))
+        except requests.RequestException as exc:
+            print(f"  pageviews batch [{i}:{i+len(batch)}] HTTP error: {exc}")
+        time.sleep(REQUEST_SLEEP)
+    elapsed_pv = time.time() - t_pv
+    n_zero = sum(1 for t in titles if weights.get(t, 0) == 0)
+    p99 = sorted(weights.values())[int(len(weights) * 0.99)] if weights else 0
+    p50 = sorted(weights.values())[len(weights) // 2] if weights else 0
+    print(
+        f"  fetched in {elapsed_pv:.0f}s — "
+        f"p50={p50}, p99={p99}, zero-pageview={n_zero}/{len(titles)}"
+    )
+
+    # A-ExpJ weighted sample. Cap at k = MAX_ARTICLES.
     if len(titles) > MAX_ARTICLES:
-        titles = titles[:MAX_ARTICLES]
+        titles = weighted_sample_no_replacement(
+            titles, weights, MAX_ARTICLES, SHUFFLE_SEED
+        )
+    print(f"  weighted-sampled {len(titles)} titles for fetch.")
     return titles
 
 
