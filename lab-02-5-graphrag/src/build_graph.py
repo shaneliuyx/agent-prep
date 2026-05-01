@@ -74,6 +74,7 @@ Output JSON only: {"triples": [{"subject": str, "relation": str, "object": str},
 
 Rules:
 - Use the exact surface form that appears in the text for subject/object.
+- **Always emit triples in ACTIVE voice.** If the source text is passive ("Apple was acquired by NeXT"), invert subject/object so the agent is the subject: emit subject="NeXT", relation="acquired", object="Apple". Applies to all by-suffix passives ("X was founded by Y", "X was published by Y", "X was sold to Y"). For passives where the subject is genuinely the patient ("John was awarded the Nobel Prize", "John was named CEO"), keep subject=John — the relationship describes John, not the agent. Use linguistic judgment per triple, not a fixed list.
 - Relations are 1-4-word verb phrases. Include BOTH:
   * Corporate / affiliation relations: "founded", "acquired by", "co-founded",
     "led", "merged with", "invested in", "joined", "left".
@@ -170,9 +171,17 @@ def main() -> None:
     with driver.session() as session:
         # Clear previous runs — safe for a lab, not safe for production.
         session.run("MATCH (n) DETACH DELETE n")
-        # Drop the full-text index too so it gets rebuilt against fresh nodes.
-        # IF EXISTS keeps the first-time-ever run from erroring.
-        session.run("DROP INDEX entity_names IF EXISTS")
+        # Create the full-text index BEFORE extraction, not after. Earlier
+        # versions did DROP-then-extract-then-CREATE; if extraction crashed
+        # mid-loop the DROP had already executed but CREATE never ran,
+        # leaving the graph queryable but un-searchable. The IF NOT EXISTS
+        # form makes CREATE idempotent — safe to run on a fresh DB or when
+        # rebuilding. Index over Entity.name (replaces v6's CONTAINS
+        # substring matching that produced "meta" → "metal" false positives).
+        session.run(
+            "CREATE FULLTEXT INDEX entity_names IF NOT EXISTS "
+            "FOR (n:Entity) ON EACH [n.name]"
+        )
 
         # Threaded extraction across articles. Each worker walks all windows
         # of its article serially (no nested parallelism) so we keep the
@@ -215,12 +224,9 @@ def main() -> None:
                     f"{article['title']!r}"
                 )
 
-        # Full-text index over Entity.name (replaces CONTAINS substring
-        # matching that produced "meta" → "metal" false positives in v6).
-        session.run(
-            "CREATE FULLTEXT INDEX entity_names IF NOT EXISTS "
-            "FOR (n:Entity) ON EACH [n.name]"
-        )
+        # (CREATE FULLTEXT INDEX moved to BEFORE the extraction loop above —
+        # see the comment there. The index is idempotent + always present
+        # post-build regardless of whether extraction crashes mid-loop.)
 
     elapsed = time.time() - t0
     print()
