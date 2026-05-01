@@ -26,9 +26,13 @@ from sentence_transformers import CrossEncoder, SentenceTransformer
 
 from model_config import BGE_M3_HNSW, BGE_RERANKER_V2_M3
 
-# Same model + collection configuration as 02b_answer_eval.py.
+# Same model + collection configuration as 02b_answer_eval.py, but
+# QDRANT_COLLECTION env var lets callers override the default collection
+# (e.g. lab-02.5/compare.py points at `tech_corpus_hnsw` for fair head-
+# to-head against GraphRAG on the same corpus).
 SONNET = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
-_C, _M, _R = BGE_M3_HNSW, BGE_M3_HNSW.model, BGE_RERANKER_V2_M3
+_M, _R = BGE_M3_HNSW.model, BGE_RERANKER_V2_M3
+_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", BGE_M3_HNSW.name)
 
 omlx = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
 qd = QdrantClient(url="http://127.0.0.1:6333")
@@ -48,7 +52,7 @@ Answer:"""
 
 def _retrieve(q: str, top_n: int) -> list:
     qv = encoder.encode([_M.query_prefix + q], normalize_embeddings=True)[0]
-    return qd.query_points(_C.name, query=qv.tolist(), limit=top_n, with_payload=True).points
+    return qd.query_points(_COLLECTION_NAME, query=qv.tolist(), limit=top_n, with_payload=True).points
 
 
 def _rerank(q: str, cands: list, k: int) -> list[tuple[str, str, float]]:

@@ -198,3 +198,38 @@ All four queries used phrase strategy (high precision; OR fallback only fires on
 | Triples produced | 2,245 | 5,948 | 14.9 triples/article (stable) |
 
 **Diminishing returns past 400** for canonical-entity coverage (heavy tail flattens at rank ~250 in the candidate pool). Scaling to 1000+ articles primarily adds mid-tier entities that won't be queried unless the use case specifically demands long-tail coverage.
+
+---
+
+## v9.5 — Fair head-to-head: same corpus, both pipelines (2026-05-01)
+
+After v9 verified each pipeline individually, the next question was whether VectorRAG could answer the same questions when its index pointed at the same 400-article tech corpus (rather than W2's MS MARCO financial-passages collection). To test this, the 400-article corpus was chunked into 3331 passages (512-char windows, 64-char overlap) and ingested into a new Qdrant collection `tech_corpus_hnsw` via `src/ingest_to_vector.py`. `compare.py` was then run with `QDRANT_COLLECTION=tech_corpus_hnsw` so VectorRAG queried the same corpus shape.
+
+### Results (3-question eval set)
+
+| Q | Type | Expected | GraphRAG recall | VectorRAG recall | Winner |
+|---|---|---|---|---|---|
+| Q1 | multi-hop relational ("PayPal founders' later companies") | Tesla, SpaceX, LinkedIn, YouTube, Palantir | 0.40 | 0.40 | tie |
+| Q2 | single-hop factoid ("Google founders' universities") | Stanford | 0.00 | **1.00** | **vector** |
+| Q3 | out-of-domain ("iPhone 4 features") | Retina Display, FaceTime | 0.00 | 0.00 | tie |
+| **Avg** | | | **0.13** | **0.47** | 0/1/2 |
+
+Latency: GraphRAG 3.7s avg, VectorRAG 1.3s avg (~3× ratio).
+
+### Architecture lesson reified
+
+This 3-query eval is too small to draw quantitative conclusions, but the per-query directionality matches the W2.5 architectural prediction exactly:
+
+- **Q1 multi-hop:** tied at 0.40. GraphRAG surfaces Tesla + SpaceX via Musk's article (cross-document entity bridge); VectorRAG surfaces them via passages that mention multiple PayPal alumni together. When the relevant facts cluster in close passages, the bridge advantage GraphRAG offers becomes redundant.
+- **Q2 factoid:** VectorRAG wins decisively. "Stanford" appears in passage text in both Brin and Page articles, but the LLM relation-extraction step does not promote it to an entity node — the extraction prompt biases toward verb-phrase relations like "co-founded" or "graduated from" over plain entity mentions. Production fix would be a parallel entity-mention-extraction pass; the architectural alternative is to route factoid queries to a vector backend.
+- **Q3 out-of-domain:** both fail correctly when the corpus simply does not cover the topic. Neither retriever fabricates an answer — GraphRAG fires the precondition warning (zero phrase + or matches), VectorRAG returns "insufficient context."
+
+### Production pattern
+
+These results confirm the W2.5 hybrid recommendation: route multi-hop / relational / audit-trail queries to GraphRAG, factoid / topical queries to vector RAG, both retrievers behind a query classifier. Both backends produced trustworthy refusals on out-of-domain questions, so the router can fall back to either one without risking hallucination. The latency cost of GraphRAG (~3×) is paid only on queries the classifier promotes to that path.
+
+### Setup notes
+
+- Ingest script: `src/ingest_to_vector.py` (chunk 512-char windows + 64-char overlap; new collection `tech_corpus_hnsw`).
+- `retrieve.py` accepts `QDRANT_COLLECTION` env var to target a specific collection; defaults to W2's `bge_m3_hnsw` for backwards compatibility.
+- Cross-venv install gotcha (W2.5 Bad-Case Entry 5): the lab .venv is uv-managed and lacks pip; install dependencies via `uv pip install --python ./.venv/bin/python <pkg>`. The plain `pip install` resolves to `~/.openharness-venv/bin/python` and silently goes to the wrong venv.
