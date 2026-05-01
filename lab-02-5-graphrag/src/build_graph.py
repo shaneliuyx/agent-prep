@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -38,6 +39,11 @@ from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from openai import OpenAI
 from tqdm import tqdm
+
+# Sentence-aware chunker — canonical impl in shared/rag_hybrid/chunking.py.
+# Local helpers were removed in phase 7 of the rag_hybrid refactor.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
+from rag_hybrid.chunking import sentence_window_chunks  # noqa: E402
 
 # LLM-server max_concurrent_requests = 8. Keep workers strictly under that
 # so query_graph.py / IDE autocomplete / ad-hoc queries don't queue behind
@@ -80,116 +86,6 @@ Rules:
 - Do not invent facts. Every triple must be supported by the segment text.
 - A single segment may repeat facts that appeared in earlier segments — that's
   fine, MERGE will dedupe."""
-
-
-# Sentence boundaries: simple split on terminal punctuation followed by
-# whitespace + capital letter. Python's re module rejects variable-width
-# look-behinds, so we cannot inline an abbreviation guard like
-# (?<!Inc\.|Mr\.|...). Instead we split conservatively and post-merge
-# fragments that look like abbreviation false-splits ("Mr." → next
-# sentence). Quality on Wikipedia prose is near-perfect after the merge.
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
-_ABBREV_TAILS = (
-    "Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Sr.", "Jr.", "St.", "Inc.",
-    "Co.", "Corp.", "Ltd.", "Ph.D.", "M.D.", "U.S.", "U.K.", "e.g.",
-    "i.e.", "etc.", "vs.", "approx.", "cir.", "c.", "fl.", "d.", "b.",
-)
-
-
-def _merge_abbrev_splits(sentences: list[str]) -> list[str]:
-    """Merge fragments that ended on a known abbreviation into the next.
-
-    Conservative split + merge is faster and simpler than maintaining a
-    correct variable-width abbreviation regex, and Wikipedia prose has a
-    bounded set of common abbreviations covered by _ABBREV_TAILS."""
-    merged: list[str] = []
-    i = 0
-    while i < len(sentences):
-        sent = sentences[i]
-        # If this fragment ends with a known abbreviation and there's a next
-        # fragment, fold them together. Repeat in case of consecutive
-        # abbreviations ("Dr. Mr. Smith said...").
-        while i + 1 < len(sentences) and sent.rstrip().endswith(_ABBREV_TAILS):
-            sent = sent + " " + sentences[i + 1]
-            i += 1
-        merged.append(sent)
-        i += 1
-    return merged
-
-
-def _chunk_by_sentences(
-    text: str,
-    target_chars: int = WINDOW_CHARS,
-    overlap_chars: int = WINDOW_OVERLAP_CHARS,
-) -> list[str]:
-    """Split text into sentence-aware sliding windows.
-
-    Each window is a contiguous run of complete sentences whose total length
-    is close to `target_chars`. Adjacent windows overlap by approximately
-    `overlap_chars` (carrying the last few sentences of the previous window
-    forward) so a fact whose subject and object span a sentence boundary
-    has a chance to be extracted.
-
-    Returns list of strings, never None / empty list.
-
-    Empty or near-empty text returns a single window containing the input;
-    sentences longer than target_chars are kept whole rather than split
-    mid-sentence (preserving extraction quality at the cost of a slightly
-    oversized window)."""
-    text = (text or "").strip()
-    if len(text) <= target_chars:
-        return [text] if text else []
-
-    # Try our regex split. Fall back to single-window if split returns 0-1
-    # pieces (very rare — would happen on text without any sentence-final
-    # punctuation, e.g. some non-English Wikipedia articles).
-    raw_sentences = [s.strip() for s in _SENTENCE_SPLIT.split(text) if s.strip()]
-    sentences = _merge_abbrev_splits(raw_sentences)
-    if len(sentences) <= 1:
-        return [text]
-
-    windows: list[str] = []
-    current: list[str] = []
-    current_chars = 0
-    i = 0
-    while i < len(sentences):
-        sent = sentences[i]
-        sent_chars = len(sent)
-        # If a single sentence already exceeds target, emit it as its own window.
-        if sent_chars >= target_chars and not current:
-            windows.append(sent)
-            i += 1
-            continue
-        # Adding this sentence would overflow → emit current window, then
-        # carry the last `overlap_chars` worth of sentences forward AND
-        # append this sentence so the loop makes progress. (Earlier version
-        # forgot to append after overlap-carry, looping forever when
-        # overlap + new sentence still exceeded target_chars.)
-        if current and current_chars + sent_chars > target_chars:
-            windows.append(" ".join(current))
-            overlap: list[str] = []
-            overlap_running = 0
-            for c in reversed(current):
-                overlap_running += len(c) + 1
-                overlap.append(c)
-                if overlap_running >= overlap_chars:
-                    break
-            overlap.reverse()
-            current = overlap
-            current_chars = sum(len(c) + 1 for c in current)
-            # Fall through to append `sent` and advance `i` below — guarantees
-            # progress every iteration.
-        current.append(sent)
-        current_chars += sent_chars + 1
-        i += 1
-
-    # Tail flush.
-    if current:
-        tail = " ".join(current)
-        if len(tail) >= MIN_WINDOW_CHARS or not windows:
-            windows.append(tail)
-
-    return windows
 
 
 def extract_triples(text: str) -> list[dict]:
@@ -239,7 +135,12 @@ def _extract_one(article: dict) -> tuple[dict, list[dict], int, Exception | None
     Returns (article, all_triples, n_windows, exc). Exception captured
     rather than raised so a single failure does not kill the pool."""
     try:
-        windows = _chunk_by_sentences(article["text"])
+        windows = sentence_window_chunks(
+            article["text"],
+            target_chars=WINDOW_CHARS,
+            overlap_chars=WINDOW_OVERLAP_CHARS,
+            min_window_chars=MIN_WINDOW_CHARS,
+        )
         all_triples: list[dict] = []
         for window in windows:
             triples = extract_triples(window)
