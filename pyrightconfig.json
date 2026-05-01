@@ -1,0 +1,40 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+
+  "extraPaths": [
+    "shared"
+  ],
+
+  "executionEnvironments": [
+    {
+      "root": "lab-02-5-graphrag/src",
+      "extraPaths": [
+        "../../shared",
+        "../../lab-02-rerank-compress/src"
+      ]
+    },
+    {
+      "root": "lab-02-rerank-compress/src",
+      "extraPaths": [
+        "../../shared"
+      ]
+    },
+    {
+      "root": "shared",
+      "extraPaths": [
+        "."
+      ]
+    }
+  ],
+
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules"
+  ]
+}
