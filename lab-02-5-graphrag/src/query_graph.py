@@ -317,8 +317,22 @@ the corpus. Format:
 
 The 'relations' list is multiple ways the same connection is expressed in
 different sources (e.g. "founded" | "co-founded" | "was started by"). Treat
-the list as evidence FOR the connection, not as 4 separate facts. Pick the
-most natural canonical phrasing for the answer.
+the list as evidence FOR the connection, not as 4 separate facts.
+
+**Use the variants for semantic precision.** The variants encode nuance —
+not every list member means the same thing:
+- A list containing "co-founded" or "founded with X" implies multiple founders.
+  A list containing only "founded" suggests solo founding.
+- A list containing "acquired" + "merged with" suggests structural variation
+  (asset purchase vs share swap) — pick "acquired" if the question is about
+  ownership, "merged with" if about corporate structure.
+- A list containing "married" + "divorced" describes a current state — pick
+  the temporally-most-recent variant if the question is about present.
+- A list containing "served as CEO of" + "was a board member of" describes
+  different roles — pick the one matching the question's role.
+
+Pick the variant whose semantic best answers the question. If multiple
+variants apply, lead with the most specific.
 
 REQUIRED PROCESS:
 1. **Identify the question type:**
