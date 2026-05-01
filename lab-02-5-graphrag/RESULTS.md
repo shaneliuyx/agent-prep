@@ -534,6 +534,8 @@ Added one rule to `EXTRACT_SYSTEM`: if source text is passive ("Apple was acquir
 
 ### v10d → v11 grid (hybrid, LLM-judge)
 
+**What the numbers mean.** Each cell is **GraphRAG / VectorRAG recall@expected_entities** — for each question, the answer text is checked for the question's expected-entity list (e.g. for "What companies has Mark Zuckerberg founded?", expected = `['Facebook', 'Meta']`); recall = `hits / len(expected)`. Per-category cells are averaged across that category's questions; ALL is averaged across all 32. Substring scoring uses case-insensitive substring match — strict, undercounts semantic equivalents (`"Steven Paul Jobs"` ≠ `"Steve Jobs"` substring; `"purchased"` ≠ `"acquired"`). LLM-judge scoring uses gemma-4-26B with explicit accept-list (`"Steve Jobs"` ≡ `"Steven Paul Jobs"`; `"purchased"` ≡ `"acquired"`); the honest measurement. The grid below uses LLM-judge throughout. Out_of_domain expected-entity list is refusal-phrase synonyms (`['insufficient', 'do not contain', 'no relevant', 'cannot answer']`) — a correct refusal scores ≥ 0.25 substring + 1.0 judge.
+
 | Category | N | v10d Graph | **v11 Graph** | Δ Graph | v10d Vector | v11 Vector | Δ Vector |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | **ALL** | 32 | 0.63 | **0.68** | **+0.05** | 0.61 | 0.58 | -0.03 |
