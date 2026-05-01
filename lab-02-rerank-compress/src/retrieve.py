@@ -1,44 +1,68 @@
-"""Vector-RAG search-with-rerank wrapper.
+"""Vector-RAG search-with-rerank wrapper. Public API for downstream comparison.
 
-Public API for downstream comparison work (e.g. lab-02.5's `compare.py`).
-Wraps the same BGE-M3 dense + Qdrant HNSW + BGE-reranker-v2-m3 + LLM-answer
-pipeline that 02b_answer_eval.py uses, but exposed as a single
-`search_with_rerank(query, k=5) -> {"answer", "chunks"}` callable.
+Two retrieval modes, auto-detected from the target Qdrant collection schema:
 
-Why a separate module instead of importing from 02b_answer_eval.py:
-- Module names cannot start with digits in Python — `import 02b_answer_eval`
-  is a syntax error.
-- 02b_answer_eval.py runs the full eval at module-import time (it is a
-  script, not a library). Importing it would trigger a 30-query eval as a
-  side effect — wrong behavior for callers that just want a single search.
+1. **Dense-only** (e.g. `bge_m3_hnsw`, `tech_corpus_hnsw`):
+     BGE-M3 dense kNN → cross-encoder rerank → top-K → LLM answer
 
-This module's import-time side effects are limited to: connecting to the
-local Qdrant, loading the BGE-M3 encoder onto MPS, and loading the
-cross-encoder reranker. All three are required for `search_with_rerank`
-to function and are cached for the process lifetime."""
+2. **Hybrid dense+sparse** (e.g. `bge_m3_hybrid`, `tech_corpus_hybrid`):
+     BGE-M3 dense + sparse one-pass encode → query both named vectors →
+     RRF fuse rankings (Cormack 2009, k=60) → cross-encoder rerank →
+     top-K → LLM answer
+
+The hybrid path catches lexical-match edge cases (rare proper nouns,
+acronyms, exact phrases) that dense embeddings dilute across 1024
+dimensions. Production GraphRAG benchmarks (Microsoft GraphRAG, Sarmah
+et al. 2024 HybridRAG) use hybrid as the default vector baseline.
+
+Set `QDRANT_COLLECTION` env var to choose collection. Mode is inferred
+from the collection's vectors_config — no separate flag required.
+"""
 from __future__ import annotations
 
 import os
 
 from openai import OpenAI
 from qdrant_client import QdrantClient
-from sentence_transformers import CrossEncoder, SentenceTransformer
+from qdrant_client.models import NamedSparseVector, NamedVector, SparseVector
+from sentence_transformers import CrossEncoder
 
-from model_config import BGE_M3_HNSW, BGE_RERANKER_V2_M3
+from model_config import BGE_M3_HNSW, BGE_M3_HYBRID, BGE_RERANKER_V2_M3
 
-# Same model + collection configuration as 02b_answer_eval.py, but
-# QDRANT_COLLECTION env var lets callers override the default collection
-# (e.g. lab-02.5/compare.py points at `tech_corpus_hnsw` for fair head-
-# to-head against GraphRAG on the same corpus).
 SONNET = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
 _M, _R = BGE_M3_HNSW.model, BGE_RERANKER_V2_M3
 _COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", BGE_M3_HNSW.name)
+_RRF_K = 60  # Cormack et al. 2009 default; rank-domain fusion constant.
 
 omlx = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
 qd = QdrantClient(url="http://127.0.0.1:6333")
-encoder = SentenceTransformer(_M.path, device="mps", trust_remote_code=_M.trust_remote_code)
 reranker = CrossEncoder(_R.path, device="mps")
 reranker.model.half()
+
+
+def _is_hybrid_collection(client: QdrantClient, name: str) -> bool:
+    """Inspect collection schema to determine retrieval mode.
+
+    Hybrid collections have a sparse_vectors_config with at least one
+    named sparse vector. Dense-only collections have only a regular
+    vectors_config. Returns True for hybrid, False for dense-only."""
+    info = client.get_collection(name)
+    sparse_cfg = getattr(info.config.params, "sparse_vectors", None)
+    return bool(sparse_cfg)
+
+
+_IS_HYBRID = _is_hybrid_collection(qd, _COLLECTION_NAME)
+print(f"[retrieve] collection={_COLLECTION_NAME!r} mode={'hybrid' if _IS_HYBRID else 'dense'}")
+
+
+# Encoder: hybrid mode needs BGE-M3 with sparse output enabled.
+# Dense-only mode uses SentenceTransformer (lighter, no sparse weights).
+if _IS_HYBRID:
+    from FlagEmbedding import BGEM3FlagModel
+    encoder = BGEM3FlagModel(_M.path, use_fp16=False, device="mps")
+else:
+    from sentence_transformers import SentenceTransformer
+    encoder = SentenceTransformer(_M.path, device="mps", trust_remote_code=_M.trust_remote_code)
 
 
 _ANSWER_PROMPT = """Using ONLY the context below, answer the query in 1-3 sentences. If the context doesn't contain the answer, reply exactly: insufficient context.
@@ -50,9 +74,65 @@ Query: {q}
 Answer:"""
 
 
-def _retrieve(q: str, top_n: int) -> list:
+def _retrieve_dense(q: str, top_n: int) -> list:
     qv = encoder.encode([_M.query_prefix + q], normalize_embeddings=True)[0]
-    return qd.query_points(_COLLECTION_NAME, query=qv.tolist(), limit=top_n, with_payload=True).points
+    return qd.query_points(
+        _COLLECTION_NAME, query=qv.tolist(), limit=top_n, with_payload=True,
+    ).points
+
+
+def _retrieve_hybrid(q: str, top_n: int) -> list:
+    """Run dense and sparse queries against the hybrid collection, fuse via RRF.
+
+    Both vectors come from a single BGE-M3 forward pass. Each ranking
+    contributes a 1/(_RRF_K + rank) score; the fused list is sorted
+    by aggregate score before reranking."""
+    out = encoder.encode(
+        [q],
+        return_dense=True,
+        return_sparse=True,
+        return_colbert_vecs=False,
+    )
+    dense_vec = out["dense_vecs"][0].tolist()
+    sparse_dict = out["lexical_weights"][0]
+
+    dense_pts = qd.query_points(
+        _COLLECTION_NAME,
+        query=NamedVector(name=BGE_M3_HYBRID.dense_vector_name, vector=dense_vec),
+        limit=top_n,
+        with_payload=True,
+    ).points
+    sparse_pts = qd.query_points(
+        _COLLECTION_NAME,
+        query=NamedSparseVector(
+            name=BGE_M3_HYBRID.sparse_vector_name,
+            vector=SparseVector(
+                indices=list(map(int,   sparse_dict.keys())),
+                values =list(map(float, sparse_dict.values())),
+            ),
+        ),
+        limit=top_n,
+        with_payload=True,
+    ).points
+
+    # Reciprocal Rank Fusion (Cormack et al. 2009). k=60 default.
+    scores: dict[int, float] = {}
+    pt_by_id: dict[int, object] = {}
+    for rank, pt in enumerate(dense_pts):
+        pid = pt.id
+        scores[pid] = scores.get(pid, 0.0) + 1.0 / (_RRF_K + rank + 1)
+        pt_by_id[pid] = pt
+    for rank, pt in enumerate(sparse_pts):
+        pid = pt.id
+        scores[pid] = scores.get(pid, 0.0) + 1.0 / (_RRF_K + rank + 1)
+        pt_by_id.setdefault(pid, pt)
+
+    fused_ids = sorted(scores.keys(), key=lambda pid: -scores[pid])[:top_n]
+    return [pt_by_id[pid] for pid in fused_ids]
+
+
+def _retrieve(q: str, top_n: int) -> list:
+    return _retrieve_hybrid(q, top_n) if _IS_HYBRID else _retrieve_dense(q, top_n)
 
 
 def _rerank(q: str, cands: list, k: int) -> list[tuple[str, str, float]]:
@@ -63,14 +143,11 @@ def _rerank(q: str, cands: list, k: int) -> list[tuple[str, str, float]]:
 
 
 def search_with_rerank(query: str, k: int = 5, top_n: int | None = None) -> dict:
-    """Run the W2 hybrid retrieval + rerank + LLM-answer pipeline on one query.
+    """Run vector retrieval + cross-encoder rerank + LLM answer on one query.
 
-    Returns dict with:
-      - `answer`: LLM-generated 1-3 sentence answer grounded in the top-k chunks
-      - `chunks`: list of (doc_id, text, rerank_score) tuples used as context
-
-    `top_n` controls retrieval breadth before rerank; defaults to the lab's
-    configured cross-encoder pair budget (R.max_pairs_per_query)."""
+    Auto-routes to hybrid (dense+sparse+RRF) or dense-only retrieval based
+    on the configured collection's schema. Reranking + LLM-answer steps
+    are identical across modes."""
     cands = _retrieve(query, top_n or _R.max_pairs_per_query)
     top = _rerank(query, cands, k)
     ctx = "\n\n".join(f"[{did}] {text}" for did, text, _ in top)
