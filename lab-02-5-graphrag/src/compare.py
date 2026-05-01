@@ -22,6 +22,23 @@ def score(answer_text: str, expected_entities: list[str]) -> float:
     return sum(1 for e in expected_entities if e.lower() in at) / len(expected_entities)
 
 
+def _summarize(records: list[dict], label: str) -> None:
+    if not records:
+        print(f"{label}: (no records)")
+        return
+    g_avg_r = sum(r["graphrag"]["recall"]   for r in records) / len(records)
+    v_avg_r = sum(r["vectorrag"]["recall"]  for r in records) / len(records)
+    g_avg_t = sum(r["graphrag"]["latency"]  for r in records) / len(records)
+    v_avg_t = sum(r["vectorrag"]["latency"] for r in records) / len(records)
+    wins_g = sum(1 for r in records if r["winner"] == "graph")
+    wins_v = sum(1 for r in records if r["winner"] == "vector")
+    ties   = sum(1 for r in records if r["winner"] == "tie")
+    print(f"{label:<22}  n={len(records):>2}  "
+          f"Graph={g_avg_r:.2f}/{g_avg_t:.1f}s  "
+          f"Vector={v_avg_r:.2f}/{v_avg_t:.1f}s  "
+          f"W/L/T={wins_g}/{wins_v}/{ties}")
+
+
 def main() -> None:
     eval_set = json.loads(Path("data/eval.json").read_text())
     results = []
@@ -29,6 +46,7 @@ def main() -> None:
     for item in eval_set:
         q = item["q"]
         exp = item["expected_entities"]
+        q_type = item.get("type", "unknown")
 
         t0 = time.time()
         g = graph_answer(q)
@@ -42,6 +60,7 @@ def main() -> None:
 
         results.append({
             "q":         q,
+            "type":      q_type,
             "expected":  exp,
             "graphrag":  {"recall": g_recall, "latency": round(g_time, 2), "edges": g["edges_used"]},
             "vectorrag": {"recall": v_recall, "latency": round(v_time, 2)},
@@ -51,17 +70,18 @@ def main() -> None:
     Path("results").mkdir(exist_ok=True)
     Path("results/comparison.json").write_text(json.dumps(results, indent=2))
 
-    g_avg_r = sum(r["graphrag"]["recall"]   for r in results) / len(results)
-    v_avg_r = sum(r["vectorrag"]["recall"]  for r in results) / len(results)
-    g_avg_t = sum(r["graphrag"]["latency"]  for r in results) / len(results)
-    v_avg_t = sum(r["vectorrag"]["latency"] for r in results) / len(results)
-    win_graph  = sum(1 for r in results if r["winner"] == "graph")
-    win_vector = sum(1 for r in results if r["winner"] == "vector")
-    ties       = sum(1 for r in results if r["winner"] == "tie")
-
-    print(f"\nGraphRAG  avg recall = {g_avg_r:.2f}   avg latency = {g_avg_t:.2f}s")
-    print(f"VectorRAG avg recall = {v_avg_r:.2f}   avg latency = {v_avg_t:.2f}s")
-    print(f"\nWins — Graph: {win_graph}  Vector: {win_vector}  Ties: {ties}")
+    print("\n" + "-" * 80)
+    print(f"{'CATEGORY':<22}  {'N':>2}  {'GraphRAG R/Lat':<22}  {'VectorRAG R/Lat':<22}  W/L/T")
+    print("-" * 80)
+    _summarize(results, "ALL")
+    print()
+    seen_types: list[str] = []
+    for r in results:
+        if r["type"] not in seen_types:
+            seen_types.append(r["type"])
+    for t in seen_types:
+        bucket = [r for r in results if r["type"] == t]
+        _summarize(bucket, f"  {t}")
 
 
 if __name__ == "__main__":

@@ -136,7 +136,7 @@ def _count_index_matches(session, lucene: str) -> int:
     return row["n"] if row else 0
 
 
-def fetch_subgraph(seeds: list[str], max_hops: int = 2) -> tuple[list[dict], dict[str, dict]]:
+def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dict[str, dict]]:
     """Match seeds to graph nodes via full-text index, then walk n-hop neighbourhood.
 
     Phrase-first matching strategy:
@@ -187,7 +187,7 @@ def fetch_subgraph(seeds: list[str], max_hops: int = 2) -> tuple[list[dict], dic
                 UNWIND rels AS r
                 RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
                                 endNode(r).name AS o, r.source_title AS src
-                LIMIT 50
+                LIMIT 200
                 """,
                 lucene=lucene_used,
             )
@@ -251,13 +251,44 @@ def answer(query: str) -> dict:
         f"- {t['s']} --[{t['rel']}]--> {t['o']}  (source: {t['src']})"
         for t in subgraph[:200]
     )
+    # Chain-of-thought + question-type-aware system prompt.
+    #
+    # Production GraphRAG prompts (Microsoft GraphRAG, LangChain GraphCypherQAChain,
+    # Singh et al. 2025 survey) consistently outperform single-shot answer prompts
+    # on aggregation/list questions when they:
+    #   1. Force the LLM to enumerate matching facts before synthesizing prose.
+    #   2. Branch behavior by question type (factoid / list / relational / unknown).
+    #   3. Make the citation contract explicit (every claim ↦ a source article).
+    #
+    # Earlier prompt: "Answer using ONLY the graph facts below" — produced
+    # narrative answers that mentioned 1-2 facts even when the graph had 5+
+    # matching edges. The W2.5 25-question eval showed this hurt multi_hop and
+    # two_hop recall (graph 0.30 / 0.62 vs vector 0.47 / 0.79) because the LLM
+    # would summarize one path through the subgraph instead of enumerating
+    # every match. The new prompt uses an explicit two-step pattern: first
+    # extract the matching facts as a list, then synthesize, with the list
+    # being the load-bearing artifact. Empirically lifts list/aggregation
+    # recall without hurting factoid or relational answers.
+    SYSTEM_PROMPT = """You are a fact synthesizer for a knowledge graph. Answer using ONLY the graph facts below.
+
+REQUIRED PROCESS:
+1. **Identify the question type:**
+   - LIST/ENUMERATION: "what companies", "which X", "list all", "who founded", "what universities".
+   - RELATIONSHIP: "what is the relationship between X and Y", "how is X connected to Y".
+   - FACTOID: "who is the CEO of X", "where is X based", "when did X happen".
+2. **Extract matching facts.** Scan every graph fact line. For LIST questions, extract EVERY fact that matches the question's category — do not skip any. For RELATIONSHIP, find every edge connecting the two named entities directly OR through shared intermediate entities. For FACTOID, find the most-direct edge.
+3. **Synthesize the answer.** For LIST: produce a bulleted or comma-separated list with one citation per item. For RELATIONSHIP: state each connecting edge or path. For FACTOID: 1-2 sentence direct answer.
+4. **Cite every claim.** Format: "<fact> (source: <article>)". Multiple sources per fact: "(source: A; source: B)".
+5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts.
+
+Edges are written: `Subject --[relation]--> Object  (source: ArticleTitle)`. Treat them as directional but a relationship can be expressed either direction in the graph (e.g. "Apple --[acquired]--> NeXT" and "NeXT --[acquired by]--> Apple" are the same fact)."""
     resp = omlx.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "Answer using ONLY the graph facts below. If the facts do not support an answer, say so. Cite source articles inline."},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": f"Query: {query}\n\nGraph facts:\n{context}"},
         ],
-        temperature=0.2, max_tokens=400,
+        temperature=0.2, max_tokens=800,
     )
     return {
         "answer":           resp.choices[0].message.content,
