@@ -424,7 +424,81 @@ The whole investigation happened on top of the `shared/rag_hybrid` library landi
 
 ### Open follow-ups
 
-- **Eval scoring is the next bottleneck.** Substring match against expected-entity lists undercounts FIX2's qualitative wins (formal names, semantic equivalents, tense variations). Switch to LLM-judge or semantic-similarity scoring to capture true recall — phase v10d.
-- **Multi-hop category still under baseline** (0.17-0.23 vs 0.29). Likely fixable via richer 2..N-hop fill (currently capped at 100 edges/seed). Worth investigating once eval scoring lands.
+- **Multi-hop category still under baseline** (0.17-0.23 vs 0.29). Likely fixable via richer 2..N-hop fill (currently capped at 100 edges/seed). Worth investigating after eval scoring lands.
 - **Build_graph.py index lifecycle bug remains.** DROP+CREATE bracket the LLM-extraction loop; mid-loop crash leaves graph un-searchable. File a separate fix.
 - **`Apple Inc. -[ACQUIRED_BY]-> NeXT` extraction direction is reversed in the graph data.** The current FIX2 prompt explicitly tells the LLM that either direction is the same fact, so this no longer breaks queries — but it's a build_graph.py extraction quality issue worth a post-extraction normalization pass.
+
+---
+
+## v10d — LLM-judge eval scoring (2026-05-01)
+
+The v10c spot-check showed substring match was the bottleneck on relational eval — `"Steven Paul Jobs purchased Pixar"` scored 0/2 against expected `["Steve Jobs", "acquired"]` even though the answer is factually correct and well-cited. This run replaces the substring metric with **LLM-judge** scoring (gemma-4-26B, JSON-mode) that recognizes semantic equivalents.
+
+### LLM-judge contract (`compare.py::score_llm_judge`)
+
+For each (query, expected_entity, answer) triple, the judge decides whether the answer correctly mentions the entity OR a clear semantic equivalent. The judge prompt enumerates accept/reject examples:
+
+  - **MATCH:** `"Steve Jobs" ≡ "Steven Paul Jobs"`, `"acquired" ≡ "purchased" ≡ "bought"`, `"co-founder" ≡ "co-founded"`, `"Bill Gates" ≡ "William Henry Gates III"`, `"Stanford" ≡ "Stanford University"`
+  - **NOT MATCH:** `"Tesla" ≢ "SpaceX"`, `"founded" ≢ "left"`
+
+Output is strict JSON (`response_format={"type":"json_object"}`): `{"matches": {"<entity>": true|false, ...}}`. Per-question recall = `hits / len(expected)`. Falls back to substring score on JSON parse failure.
+
+`compare.py` records BOTH metrics per question — substring (backward-compat with frozen `comparison.json` baseline hash `39d0e96346d54b04`) and llm_judge (honest recall). The `winner_judge` field uses the judge metric; `winner` (substring) is preserved for parity continuity.
+
+### Substring vs LLM-judge per category (FIX2 + judge)
+
+**Hybrid (`tech_corpus_hybrid`):**
+
+| Category | Graph substr | Graph judge | Vector substr | Vector judge |
+|---|---|---|---|---|
+| **ALL** | **0.56** | **0.63** | **0.49** | **0.61** |
+| factoid | 0.86 | 0.86 | 0.71 | **0.86** |
+| two_hop | 0.75 | 0.75 | 0.72 | 0.72 |
+| relational | 0.75 | 0.75 | 0.38 | **0.88** |
+| multi_hop | 0.21 | 0.21 | 0.27 | 0.27 |
+| out_of_domain | 0.25 | **1.00** | 0.25 | **0.50** |
+
+**Dense (`tech_corpus_hnsw`):**
+
+| Category | Graph substr | Graph judge | Vector substr | Vector judge |
+|---|---|---|---|---|
+| **ALL** | **0.55** | **0.62** | **0.50** | **0.63** |
+| factoid | 0.86 | 0.86 | 0.71 | **0.86** |
+| two_hop | 0.75 | 0.75 | 0.72 | 0.72 |
+| relational | 0.75 | 0.75 | 0.38 | **0.88** |
+| multi_hop | 0.19 | 0.19 | 0.31 | 0.34 |
+| out_of_domain | 0.25 | **1.00** | 0.25 | **0.50** |
+
+### Three findings worth committing to memory
+
+**1. Hybrid Graph and Hybrid Vector are essentially tied** (judge 0.63 vs 0.61 ALL). The earlier claim that "Vector beats Graph 0.49 vs 0.27" (v10 hybrid run) was a compound artifact: pair-aggregation bug + substring scoring. Once both are fixed, both retrievers land in the 60-63% range — neither dominates.
+
+**2. Vector relational lift is dramatic** (substring 0.38 → judge 0.88, **+0.50 points**). Vector retrieval surfaces the right passages and the LLM extracts factually correct relationships (e.g. "Steven Paul Jobs purchased Pixar"), but the answer's surface form (`purchased` vs `acquired`, formal name `Steven Paul Jobs` vs `Steve Jobs`) misses substring match. The judge metric is the honest measurement.
+
+**3. GraphRAG out_of_domain refusal is now properly credited** (substring 0.25 → judge 1.00). Eval expected entities for OOD questions are refusal-phrase synonyms (`['insufficient', 'do not contain', 'no relevant', 'cannot answer']`). GraphRAG's actual answer ("graph does not contain information about helium boiling point") matches one substring (0.25) but the judge correctly recognizes all four as semantically equivalent ways of refusing. Same fact applies to Vector OOD (judge 0.50) — Vector's "insufficient context" matches half the refusal-phrase list semantically.
+
+### Per-category strengths after honest scoring
+
+| Category | GraphRAG advantage | VectorRAG advantage |
+|---|---|---|
+| factoid | tied (0.86) | tied (0.86) |
+| two_hop | slight (0.75 vs 0.72) | — |
+| relational | — | **+0.13** (0.88 vs 0.75) — Vector wins on judge metric |
+| multi_hop | — | **+0.06 to +0.15** |
+| out_of_domain | **+0.50** (1.00 vs 0.50) — refuses better | — |
+
+The W2.5 architectural recommendation holds: **route by question type**, route refusal through GraphRAG (for cleaner refusals), keep Vector strong on factoid/multi_hop, and treat relational as a tossup where either backend works.
+
+### Artifact policy update
+
+- `results/comparison.json` — frozen v9.5/v9 dense baseline (32-Q, query_graph.py at `264813e`). Substring metric only. SHA `39d0e96346d54b04`.
+- `results/comparison_dense_v2.json` — v10b dense run (broken NEW code, substring only).
+- `results/comparison_dense_fix2.json` — v10c dense FIX2 (substring only).
+- `results/comparison_dense_judge.json` — **v10d dense FIX2 + LLM-judge (this commit).** Both metrics recorded per question.
+- The hybrid v10d JSON wasn't preserved (sequential compare runs share `comparison.json`; dense overwrote hybrid). Re-run `QDRANT_COLLECTION=tech_corpus_hybrid ./.venv/bin/python src/compare.py` to regenerate; per-category numbers from this run are recorded in the table above.
+
+### Open follow-ups (post-v10d)
+
+- **Multi-hop is now the next ceiling** (0.19-0.27 across all configurations). Both retrievers struggle on questions like "Which founders attended Stanford and went on to found a Silicon Valley company?" — needs investigation. Likely a graph-density issue (5-hop expansion still misses some bridges) or a question-formulation issue (multi-hop questions assume corpus coverage that doesn't exist).
+- **Build_graph.py index lifecycle bug** still open.
+- **Reverse-direction triples** still open (build_graph.py extraction normalization).
