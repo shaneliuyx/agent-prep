@@ -233,3 +233,72 @@ These results confirm the W2.5 hybrid recommendation: route multi-hop / relation
 - Ingest script: `src/ingest_to_vector.py` (chunk 512-char windows + 64-char overlap; new collection `tech_corpus_hnsw`).
 - `retrieve.py` accepts `QDRANT_COLLECTION` env var to target a specific collection; defaults to W2's `bge_m3_hnsw` for backwards compatibility.
 - Cross-venv install gotcha (W2.5 Bad-Case Entry 5): the lab .venv is uv-managed and lacks pip; install dependencies via `uv pip install --python ./.venv/bin/python <pkg>`. The plain `pip install` resolves to `~/.openharness-venv/bin/python` and silently goes to the wrong venv.
+
+---
+
+## v10 — Hybrid VectorRAG (32-Q) — preliminary, graph-state confound (2026-05-01)
+
+After the v9.5 v9 dense baseline established a 3-Q comparison and the eval set was expanded to 32 categorized questions (`data/eval.json`: 7 factoid / 8 two_hop / 4 relational / 10 multi_hop / 3 out_of_domain), the next iteration ingests the same 400-article corpus into a **hybrid (dense + sparse)** Qdrant collection (`tech_corpus_hybrid`, 13292 points) and re-runs `compare.py` with `QDRANT_COLLECTION=tech_corpus_hybrid`. The dense baseline (`tech_corpus_hnsw`, also 13292 points) continues to anchor the prior 32-Q comparison.
+
+This run is the first to use the new `shared/rag_hybrid` library end-to-end (Ingestor + Retriever + autoconfig system probe; commits `a4dab7e..5516598`). Module-load audit log confirms the autoconfig path: `device=mps memory=51.5GB cpu=18 encode_batch=128 encoder.fp16=off reranker.fp16=on`.
+
+### Per-category recall (hybrid vector vs frozen dense baseline)
+
+| Category | N | Dense G/V | Hybrid G/V | Hybrid Δ Vector |
+|---|---|---|---|---|
+| **ALL** | **32** | **0.55 / 0.54** | **0.27 / 0.49** | **-0.05** |
+| factoid | 7 | 0.86 / 0.71 | 0.64 / 0.71 | +0.00 |
+| two_hop | 8 | 0.60 / 0.79 | 0.29 / 0.72 | -0.07 |
+| relational | 4 | 0.75 / 0.38 | 0.00 / 0.38 | +0.00 |
+| multi_hop | 10 | 0.29 / 0.38 | 0.10 / 0.27 | -0.11 |
+| out_of_domain | 3 | 0.25 / 0.25 | 0.25 / 0.25 | +0.00 |
+
+W/L/T (hybrid run): GraphRAG 5 wins / VectorRAG 15 wins / 12 ties.
+Latency: GraphRAG 6.1s avg, VectorRAG 3.4s avg.
+
+### Two findings, both unexpected
+
+**1. Hybrid Vector did NOT lift recall vs dense Vector.**
+Hybrid sparse weights were supposed to catch lexical-match cases (rare proper nouns, exact phrases) that dense embeddings dilute across 1024 dimensions — the production-grade boost reported by Microsoft GraphRAG and Sarmah et al. 2024. On this corpus + eval, hybrid actually **regressed** on two_hop (-0.07) and multi_hop (-0.11), with all other categories flat. Possible causes:
+- RRF dilution: when sparse and dense rankings disagree, the rank-domain fuse can demote a relevant doc that dense alone ranked highly.
+- Top-N candidate boundary shift: with k=50 candidates fed to the reranker, hybrid sometimes substitutes a sparse-favored doc for a dense-favored doc that the reranker would have promoted.
+- Corpus shape: tech-bio passages (Wikipedia infobox-style) may already be lexically rich enough that dense embeddings capture entity surface forms — sparse adds noise without new signal.
+
+**2. GraphRAG dropped dramatically vs the dense run on the same graph.**
+ALL Graph went 0.55 → 0.27, factoid 0.86 → 0.64, relational 0.75 → 0.00. The graph data shouldn't have changed between the two runs (compare.py's `graph_answer(q)` is independent of `QDRANT_COLLECTION`). Investigation surfaced two graph-state confounds:
+
+- **The `entity_names` fulltext index was recreated mid-session.** A `query_graph.py` invocation crashed with `Failed to invoke procedure db.index.fulltext.queryNodes ... There is no such fulltext schema index: entity_names`. Root cause: build_graph.py at line 175 does `DROP INDEX entity_names IF EXISTS` BEFORE the LLM-extraction loop, then recreates it at line 221 AFTER. The previous v10 build crashed mid-extraction, leaving the graph queryable but un-searchable. The index was recreated via Cypher (`CREATE FULLTEXT INDEX entity_names IF NOT EXISTS FOR (n:Entity) ON EACH [n.name]`) immediately before the hybrid `compare.py` run.
+- **Graph state ≠ v9.** v9 reported 5,948 triples; current Neo4j reports 12,802 entities + 13,998 relationships, suggesting a partial v10 windowed-extraction build added ~8K relationships before crashing. The dense `comparison.json` baseline may have been generated against a different graph state than today's hybrid run — direct delta interpretation is unsafe.
+
+### What this run can and cannot conclude
+
+**Can conclude:**
+- The `shared/rag_hybrid` refactor end-to-end produces a sound hybrid index. 13292 points (matches dense), dense norms = 1.0 (BGE-M3 normalized), sparse `nnz` 69-86 (right magnitude for tech-bio passages).
+- Hybrid retrieval auto-detect, RRF fusion (NATIVE_RRF, server-side), and cross-encoder rerank all execute cleanly via the new lib.
+- Hybrid vector retrieval is **not a free recall lift on this corpus**. Operators should benchmark per-corpus rather than assume the HybridRAG paper result generalizes.
+
+**Cannot conclude:**
+- That hybrid VectorRAG > GraphRAG on tech-domain QA. The headline ALL row (0.27 vs 0.49) is dominated by the GraphRAG regression, which is most likely a graph-state artifact, not a structural finding.
+- That the v9.5 hybrid recommendation (route multi-hop to Graph, factoid to Vector) is invalidated. The dense baseline's two_hop GraphRAG 0.60 + relational 0.75 demonstrates the structural advantage on a healthier graph.
+
+### Required follow-up before treating this as a benchmark
+
+1. Re-run `build_graph.py` end-to-end (~40 min) to produce a clean v10 graph with both the relationship pass AND the fulltext index in their final state.
+2. Re-run `compare.py` against `tech_corpus_hnsw` to refresh the dense baseline against the rebuilt graph — establishes the matched dense-run reference.
+3. Re-run `compare.py` against `tech_corpus_hybrid` to produce the matched hybrid-run.
+4. Compute the delta against the dense rebuild (not against the frozen pre-rebuild baseline). That delta is the trustworthy hybrid-vs-dense signal.
+5. Separately, fix `build_graph.py` index lifecycle: move `CREATE FULLTEXT INDEX ... IF NOT EXISTS` BEFORE the LLM-extraction loop, or wrap drop+create+extract in `try/finally` so index recreation always runs even on extraction crash. Filed as a follow-up bug.
+
+### Library-level wins worth recording (independent of the graph confound)
+
+- `Ingestor.run(payloads, BGE_M3_HYBRID)` produced the 13292-point hybrid collection in 8m 30s (encode 503s + upsert 9s) on M5 Pro / MPS, batch=128 from autoconfig. Direct script port (~140 lines) → declarative ingest (~70 lines) without touching the encoder/upsert loop.
+- `Retriever(qd, "tech_corpus_hybrid", encoder)` auto-detected hybrid mode via `params.sparse_vectors` schema inspection. Live test on `bge_m3_hybrid` confirmed NATIVE_RRF (one HTTP roundtrip) returns ranked candidates with semantically relevant texts.
+- autoconfig probe correctly selected `encode_batch=128` (51 GB host) where the prior hand-tuned W2.5 ingest used 64 ("smaller because passages are shorter" — wrong reasoning fixed at the library level).
+
+---
+
+## Compare-script artifact policy
+
+- `lab-02-5-graphrag/results/comparison.json` — frozen v9.5/v9 dense baseline (32-Q). SHA256 prefix `39d0e96346d54b04`. Tracked by `shared/parity/pre_refactor.json`. Do NOT overwrite without re-baselining.
+- `lab-02-5-graphrag/results/comparison_hybrid.json` — v10 hybrid run. New file; expect to refresh after the graph-rebuild follow-up.
+- Pattern for future eval variants: add a `comparison_<variant>.json` sibling (never clobber the dense baseline).
