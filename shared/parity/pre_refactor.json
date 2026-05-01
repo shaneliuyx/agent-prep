@@ -1,0 +1,386 @@
+{
+  "schema_version": 1,
+  "collections": {
+    "bge_m3_hnsw": {
+      "status": "ok",
+      "points_count": 10000,
+      "vector_signatures": [
+        {
+          "id": 0,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            0.013262,
+            0.00578,
+            0.003751
+          ]
+        },
+        {
+          "id": 1,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            0.007589,
+            0.026966,
+            0.000352
+          ]
+        },
+        {
+          "id": 100,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            0.019346,
+            0.021155,
+            -0.047224
+          ]
+        },
+        {
+          "id": 1000,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            0.005173,
+            0.035665,
+            -0.060088
+          ]
+        },
+        {
+          "id": 5000,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            -0.000817,
+            -0.010267,
+            -0.047941
+          ]
+        }
+      ]
+    },
+    "bge_m3_hybrid": {
+      "status": "ok",
+      "points_count": 10000,
+      "vector_signatures": [
+        {
+          "id": 0,
+          "status": "ok",
+          "vectors": {
+            "sparse": {
+              "type": "sparse",
+              "nnz": 49,
+              "sum_values": 5.85064
+            },
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                0.013262,
+                0.00578,
+                0.003751
+              ]
+            }
+          }
+        },
+        {
+          "id": 1,
+          "status": "ok",
+          "vectors": {
+            "sparse": {
+              "type": "sparse",
+              "nnz": 33,
+              "sum_values": 5.359368
+            },
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                0.007589,
+                0.026966,
+                0.000352
+              ]
+            }
+          }
+        },
+        {
+          "id": 100,
+          "status": "ok",
+          "vectors": {
+            "sparse": {
+              "type": "sparse",
+              "nnz": 36,
+              "sum_values": 4.573914
+            },
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                0.019346,
+                0.021155,
+                -0.047224
+              ]
+            }
+          }
+        },
+        {
+          "id": 1000,
+          "status": "ok",
+          "vectors": {
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                0.005173,
+                0.035665,
+                -0.060088
+              ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 35,
+              "sum_values": 4.287618
+            }
+          }
+        },
+        {
+          "id": 5000,
+          "status": "ok",
+          "vectors": {
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                -0.000817,
+                -0.010267,
+                -0.047941
+              ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 47,
+              "sum_values": 5.498121
+            }
+          }
+        }
+      ]
+    },
+    "fiqa_hybrid": {
+      "status": "ok",
+      "points_count": 57638,
+      "vector_signatures": [
+        {
+          "id": 0,
+          "status": "ok",
+          "vectors": {
+            "sparse": {
+              "type": "sparse",
+              "nnz": 60,
+              "sum_values": 6.963854
+            },
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                -0.051536,
+                -0.016512,
+                -0.02879
+              ]
+            }
+          }
+        },
+        {
+          "id": 1,
+          "status": "ok",
+          "vectors": {
+            "sparse": {
+              "type": "sparse",
+              "nnz": 67,
+              "sum_values": 6.145794
+            },
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                -0.037417,
+                -0.009093,
+                -0.037912
+              ]
+            }
+          }
+        },
+        {
+          "id": 100,
+          "status": "ok",
+          "vectors": {
+            "sparse": {
+              "type": "sparse",
+              "nnz": 80,
+              "sum_values": 7.143331
+            },
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                0.010789,
+                0.023718,
+                -0.001088
+              ]
+            }
+          }
+        },
+        {
+          "id": 1000,
+          "status": "ok",
+          "vectors": {
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                -0.012891,
+                -0.027908,
+                -0.044243
+              ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 185,
+              "sum_values": 13.790822
+            }
+          }
+        },
+        {
+          "id": 5000,
+          "status": "ok",
+          "vectors": {
+            "dense": {
+              "type": "dense",
+              "norm": 1.0,
+              "first3": [
+                -0.020474,
+                0.021413,
+                -0.025204
+              ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 82,
+              "sum_values": 8.502259
+            }
+          }
+        }
+      ]
+    },
+    "tech_corpus_hnsw": {
+      "status": "ok",
+      "points_count": 13292,
+      "vector_signatures": [
+        {
+          "id": 0,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            -0.022533,
+            -0.017659,
+            -0.028564
+          ]
+        },
+        {
+          "id": 1,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            -0.044142,
+            0.004821,
+            -0.015299
+          ]
+        },
+        {
+          "id": 100,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            -0.04297,
+            0.027272,
+            -0.009141
+          ]
+        },
+        {
+          "id": 1000,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            -0.005983,
+            0.018652,
+            -0.014145
+          ]
+        },
+        {
+          "id": 5000,
+          "status": "ok",
+          "type": "dense",
+          "norm": 1.0,
+          "first3": [
+            -0.013501,
+            0.054932,
+            -0.019438
+          ]
+        }
+      ]
+    },
+    "tech_corpus_hybrid": {
+      "status": "missing"
+    }
+  },
+  "result_files": {
+    "lab-02-rerank-compress/results/fiqa_metrics.json": {
+      "status": "ok",
+      "sha256_16": "459989bd5a46e121",
+      "size": 691,
+      "lines": 28
+    },
+    "lab-02-rerank-compress/results/hybrid_metrics.json": {
+      "status": "ok",
+      "sha256_16": "3d97c9be5bfa532b",
+      "size": 594,
+      "lines": 25
+    },
+    "lab-02-rerank-compress/results/rerank_metrics.json": {
+      "status": "ok",
+      "sha256_16": "1418a108f322c34d",
+      "size": 459,
+      "lines": 22
+    },
+    "lab-02-rerank-compress/results/answer_eval.json": {
+      "status": "ok",
+      "sha256_16": "8ee8800bdb7b5528",
+      "size": 10607,
+      "lines": 292
+    },
+    "lab-02-rerank-compress/results/compression_metrics.json": {
+      "status": "ok",
+      "sha256_16": "b59b085f051a20ea",
+      "size": 10032,
+      "lines": 415
+    },
+    "lab-02-rerank-compress/results/chunk_sweep.json": {
+      "status": "ok",
+      "sha256_16": "d4510bf5d1a23818",
+      "size": 297,
+      "lines": 10
+    },
+    "lab-02-5-graphrag/results/comparison.json": {
+      "status": "ok",
+      "sha256_16": "39d0e96346d54b04",
+      "size": 10948,
+      "lines": 591
+    }
+  }
+}
