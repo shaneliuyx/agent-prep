@@ -1,0 +1,40 @@
+[
+  {
+    "q": "Which companies did founders of PayPal later start?",
+    "expected": [
+      "Tesla",
+      "SpaceX",
+      "LinkedIn",
+      "YouTube",
+      "Palantir"
+    ],
+    "graphrag": {
+      "recall": 0.4,
+      "latency": 4.53,
+      "edges": 100
+    }
+  },
+  {
+    "q": "What universities did the founders of Google attend?",
+    "expected": [
+      "Stanford"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 1.78,
+      "edges": 100
+    }
+  },
+  {
+    "q": "Which iPhone features were first introduced on the iPhone 4?",
+    "expected": [
+      "Retina Display",
+      "FaceTime"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 0.37,
+      "edges": 0
+    }
+  }
+]
