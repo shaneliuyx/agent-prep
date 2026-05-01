@@ -297,8 +297,67 @@ ALL Graph went 0.55 → 0.27, factoid 0.86 → 0.64, relational 0.75 → 0.00. T
 
 ---
 
-## Compare-script artifact policy
+## v10b — Post-mortem: partial-index hypothesis rejected, code drift confirmed (2026-05-01)
 
-- `lab-02-5-graphrag/results/comparison.json` — frozen v9.5/v9 dense baseline (32-Q). SHA256 prefix `39d0e96346d54b04`. Tracked by `shared/parity/pre_refactor.json`. Do NOT overwrite without re-baselining.
-- `lab-02-5-graphrag/results/comparison_hybrid.json` — v10 hybrid run. New file; expect to refresh after the graph-rebuild follow-up.
-- Pattern for future eval variants: add a `comparison_<variant>.json` sibling (never clobber the dense baseline).
+The v10 section flagged two suspect causes for the GraphRAG regression: (a) `entity_names` fulltext index recreated mid-session (potentially partial), and (b) graph data drift from a partial v10 build. v10b investigation rules out both and identifies the real cause.
+
+### What was tested
+
+1. **Index population state.** `SHOW INDEXES YIELD name, state, populationPercent WHERE name="entity_names"` returned `state=ONLINE, populationPercent=100.0` BEFORE the v2 compare run. Sanity queries: `+jack +dorsey` matches 1 entity, `+apple` matches 21 entities. The index was fully built.
+2. **v2 compare run on the now-stable index.** `QDRANT_COLLECTION=tech_corpus_hybrid ./.venv/bin/python src/compare.py` produced essentially identical numbers to v1:
+
+| Category | v1 hybrid | v2 hybrid (full index) | dense baseline |
+|---|---|---|---|
+| **ALL** | 0.27/0.49 | **0.26/0.49** | 0.55/0.54 |
+| factoid | 0.64/0.71 | 0.57/0.71 | 0.86/0.71 |
+| two_hop | 0.29/0.72 | 0.29/0.72 | 0.60/0.79 |
+| relational | 0.00/0.38 | 0.00/0.38 | 0.75/0.38 |
+| multi_hop | 0.10/0.27 | 0.13/0.27 | 0.29/0.38 |
+| out_of_domain | 0.25/0.25 | 0.25/0.25 | 0.25/0.25 |
+
+GraphRAG ALL was 0.27 → 0.26 across runs. **Partial-index hypothesis rejected.**
+
+### What actually changed
+
+`git log` of `query_graph.py` since the dense baseline was generated:
+
+| Commit | Date | What |
+|---|---|---|
+| `264813e` | (when `comparison.json` was last touched) | CoT-aware answer prompt + max_hops=5 + 32-Q eval. THIS is the version that produced the dense baseline 0.55 ALL recall. |
+| `bc8fefa` | (after) | pair-aggregation in answer-generation context — collapse multiple relations between same (subject, object) pair into one bucket with all variants listed. |
+| `3236118` | (after) | variant-aware prompt for semantic disambiguation — prompt LLM to pick the best variant per question. |
+
+The `comparison.json` was generated at commit `264813e` (pre-pair-agg). Today's hybrid runs use HEAD (post-pair-agg + variant prompt). The intervening 123-line, 2-commit refactor (`bc8fefa..3236118`) is the actual regression cause — not graph state, not index state.
+
+### Direction of the regression
+
+Pair-aggregation was an **intentional change to improve precision** by aggregating parallel relations between the same entity pair. Hypothesis: variants list lets the LLM pick the right relation per question. The data on this 32-Q eval shows the opposite:
+
+- **relational queries collapsed entirely** (0.75 → 0.00). This is the category pair-aggregation should help most (multiple parallel relations between two entities), and it broke completely.
+- **factoid dropped 22 points** (0.86 → 0.57-0.64) — the LLM is getting confused by aggregated buckets even on simple "X founded Y" questions.
+- **two_hop dropped 31 points** (0.60 → 0.29) — pair-aggregation collapsing distinct hops into one entry.
+
+Most likely failure mode: the LLM faithfully obeys "answer using ONLY the graph facts below" but when the same (Person, Company) pair appears with relations `["founded", "co-founded", "was first president of", "left"]`, the aggregated bucket hedges or picks the wrong variant. The variant list IS the disambiguator in theory, but on this eval the prompt didn't successfully route the model to use it that way.
+
+### Recommended next experiment (not yet run)
+
+Roll back `query_graph.py` to commit `264813e` in the working tree only and re-run compare on `tech_corpus_hybrid`:
+
+```bash
+git checkout 264813e -- lab-02-5-graphrag/src/query_graph.py
+QDRANT_COLLECTION=tech_corpus_hybrid ./.venv/bin/python src/compare.py
+git checkout HEAD -- lab-02-5-graphrag/src/query_graph.py
+```
+
+If GraphRAG ALL bounces from 0.27 → ~0.55, code drift is locked in as cause. Three product paths:
+
+1. **Revert pair-aggregation entirely.** Cleanest. Loses the "show LLM all variants" intuition but recovers the eval numbers.
+2. **Keep pair-aggregation, fix the prompt.** The variant-aware prompt (`3236118`) tried to do this but didn't move the needle. Worth a more targeted prompt rewrite — e.g., explicitly instruct: "if multiple relations exist between two entities, choose the one whose surface form best matches the question's intent verb."
+3. **Tune pair-aggregation aggressiveness.** Currently every (subj, obj) pair with ≥2 relations gets aggregated. Try a stricter threshold (only aggregate when relation surface forms are near-synonyms).
+
+### Compare-script artifact policy
+
+- `results/comparison.json` — frozen v9.5/v9 dense baseline (32-Q, query_graph.py at commit `264813e`). SHA256 prefix `39d0e96346d54b04`. Tracked by `shared/parity/pre_refactor.json`. Do NOT overwrite without re-baselining.
+- `results/comparison_hybrid.json` — v10 hybrid run, partial-index suspect, query_graph.py at HEAD (post-pair-agg).
+- `results/comparison_hybrid_v2.json` — v10b hybrid run, full index, query_graph.py at HEAD (post-pair-agg). The reproducible "current state" measurement.
+- Future variants: `comparison_<variant>.json` sibling pattern.
