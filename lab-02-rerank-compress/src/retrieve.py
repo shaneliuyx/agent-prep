@@ -65,14 +65,17 @@ _cfg = autoconfig.recommend(_M, _R)
 _encoder = HybridEncoder(_cfg.encoder)
 _reranker = CrossEncoderReranker(dataclasses.replace(_cfg.reranker, fp16=True))
 
-# fusion=MANUAL_RRF preserves the frozen comparison.json hash for W2.5 eval.
-# Switch to NATIVE_RRF for one-roundtrip Qdrant-side fusion in phase 8b;
-# produces the same RRF ranking but ties may break differently.
+# fusion=NATIVE_RRF — server-side fusion via Qdrant Prefetch + FusionQuery.
+# Same RRF formula (Cormack 2009, k=60) as MANUAL_RRF; tied scores may
+# break differently but the metric output is equivalent. One HTTP roundtrip
+# instead of two. The frozen comparison.json was produced against a dense
+# collection (tech_corpus_hnsw), so this swap doesn't affect that hash —
+# fusion only kicks in for hybrid collections.
 _retriever = Retriever(
     qd=qd,
     collection=_COLLECTION_NAME,
     encoder=_encoder,
-    cfg=RetrieveConfig(fusion=FusionStrategy.MANUAL_RRF),
+    cfg=RetrieveConfig(fusion=FusionStrategy.NATIVE_RRF),
 )
 print(f"[retrieve] collection={_COLLECTION_NAME!r} mode={_retriever.mode} | " + " | ".join(_cfg.notes))
 
