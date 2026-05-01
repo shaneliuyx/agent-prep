@@ -502,3 +502,83 @@ The W2.5 architectural recommendation holds: **route by question type**, route r
 - **Multi-hop is now the next ceiling** (0.19-0.27 across all configurations). Both retrievers struggle on questions like "Which founders attended Stanford and went on to found a Silicon Valley company?" — needs investigation. Likely a graph-density issue (5-hop expansion still misses some bridges) or a question-formulation issue (multi-hop questions assume corpus coverage that doesn't exist).
 - **Build_graph.py index lifecycle bug** still open.
 - **Reverse-direction triples** still open (build_graph.py extraction normalization).
+
+---
+
+## v11 — Three open follow-ups closed (2026-05-01)
+
+The v10d post-mortem flagged three open follow-ups: index lifecycle, multi-hop ceiling, reverse-direction triples. v11 ships fixes for all three plus an extraction-prompt update.
+
+### Four fixes applied
+
+**Fix 1 — `build_graph.py` index lifecycle (commit `a44f3c8`).**
+Moved `CREATE FULLTEXT INDEX entity_names IF NOT EXISTS` from AFTER the LLM-extraction loop to BEFORE it. Removed the now-unnecessary `DROP INDEX`. The IF NOT EXISTS form is idempotent — works on fresh DBs and rebuilds without DROP. Mid-loop crash now leaves graph in a known good queryable state instead of un-searchable. Bad-Case Journal Entry 8 closed.
+
+**Fix 2 — Multi-hop query decomposition (commit `c038b4a`).**
+Added LLM-driven query decomposition in `query_graph.py::_decompose_multihop`. Detects multi-hop bridge or intersection questions ("founders of PayPal who later started X", "people who attended both Stanford and founded a Silicon Valley company") and runs targeted 2-step Cypher instead of relying on shotgun multi-hop fill. Plan format:
+
+```json
+{"plan": {
+  "step1": {"anchor": "PayPal", "edge_filter": "found|co-found|start", "yield_var": "founder"},
+  "step2": {"from_var": "founder", "edge_filter": "found|co-found|start|launch", "exclude_anchor": true, "yield_var": "company"}
+}}
+```
+
+Step-1 edges + step-2 edges concatenate into the per-edge dedup. Decomposition adds a `__decomposition__` diagnostic key to `matches_per_seed` so per-question audit is visible. Returns null for non-multi-hop questions; falls back gracefully to default fetch.
+
+**Fix 3a — Active-voice extraction prompt (commit `a44f3c8`).**
+Added one rule to `EXTRACT_SYSTEM`: if source text is passive ("Apple was acquired by NeXT"), invert subject/object so the agent leads. Open-vocab compatible — the LLM applies linguistic judgment per triple instead of using a static verb table. Effect on FUTURE corpus rebuilds; doesn't touch existing graph.
+
+**Fix 3b — One-shot reverse-direction normalization (commit `2c1538d`).**
+`src/normalize_passive_triples.py` runs against the existing graph in-place. Discovers passive-voice predicates (rel_type matches WAS_* or ENDS WITH _BY), groups by predicate type, makes one LLM call per unique type to decide flip-vs-keep, applies bulk Cypher rewrite via APOC. Audit trail: every flipped edge gets `normalized_from: <original_predicate_type>` so the operation is reversible. Run on current graph: 149 unique passive predicates with count >= 5, **783 edges flipped in 1.5s**. Verified Apple-NeXT direction now resolvable: query returns "Apple Inc. acquired NeXT (source: Steve Jobs)".
+
+### v10d → v11 grid (hybrid, LLM-judge)
+
+| Category | N | v10d Graph | **v11 Graph** | Δ Graph | v10d Vector | v11 Vector | Δ Vector |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **ALL** | 32 | 0.63 | **0.68** | **+0.05** | 0.61 | 0.58 | -0.03 |
+| factoid | 7 | 0.86 | 0.86 | 0 | 0.86 | 0.86 | 0 |
+| two_hop | 8 | 0.75 | **0.79** | +0.04 | 0.72 | 0.72 | 0 |
+| **relational** | 4 | 0.75 | **1.00** | **+0.25** | 0.88 | 0.88 | 0 |
+| multi_hop | 10 | 0.21 | 0.25 | +0.04 | 0.27 | 0.27 | 0 |
+| out_of_domain | 3 | 1.00 | 1.00 | 0 | 0.50 | 0.25 | -0.25 (LLM noise on n=3) |
+
+W/L/T (judge): **10/6/16** (v11) vs 9/8/15 (v10d). Graph wins more outright + more ties; Vector wins fewer.
+
+### Three findings worth noting
+
+**1. Relational perfect 1.00** — all 4 questions returned correct directional answers. Apple↔NeXT, Apple↔Pixar, Microsoft↔Paul Allen, Tesla↔SpaceX all answered with proper canonical direction. The reverse-direction normalization (Fix 3b) was the load-bearing change — pre-v11, Apple-NeXT picked "came to a deal with" because the ACQUIRED_BY direction was reversed; post-flip, the LLM identifies "Apple Inc. acquired NeXT" canonical.
+
+**2. Multi-hop +0.04 modest** — decomposition specifically helped Q23 (Harvard dropouts → Microsoft/Facebook/Meta: 0.00 → 0.67) and Q24 (Tesla leaders → previous companies: 0.50 → 0.67). Other multi_hop questions (Q20 PayPal, Q26 payments+space, Q29 Stanford+SV) stayed flat or declined. Extraction completeness is the next ceiling — see post-mortem below.
+
+**3. Latency cost** — Graph ALL 7.5s → 15.3s (~2×). Decomposition adds an LLM classifier call (the `_decompose_multihop` JSON-mode call) + targeted Cypher steps. Multi_hop questions specifically: 31.5s/q (4× the baseline). Acceptable for the +0.05 ALL recall lift; if this latency mattered, the decomposition could be gated on a cheap up-front question-shape regex first.
+
+### Q20 PayPal post-mortem — extraction completeness, not retrieval
+
+The Q20 case (expected ['Tesla','SpaceX','LinkedIn','YouTube','Palantir']) only landed Palantir (0.20 judge, vs 0.00 in v10d — small lift). Investigation traced 4 of 5 misses to extraction completeness, not retrieval:
+
+| Expected | Bridge required | Graph state | Why missed |
+|---|---|---|---|
+| Palantir | Thiel→Palantir AND Thiel∈PayPal | both edges in graph | **Found by v11** |
+| Tesla / SpaceX | Musk→Tesla,SpaceX AND Musk∈PayPal | Musk→X.com only (X.com merged INTO PayPal); decomposition's edge_filter `found\|co-found` doesn't match `MERGED_WITH` | extraction misses Musk-via-merger path |
+| LinkedIn | Hoffman→LinkedIn AND Hoffman∈PayPal | Hoffman→LinkedIn ✓; Hoffman∈PayPal NOT extracted (PayPal article lists Hoffman as "early employee" not "founder") | extraction missed predicate match |
+| YouTube | Chen/Hurley/Karim→YouTube AND ∈PayPal | likely missing entirely | YouTube + founders not in 400-article corpus or not extracted |
+
+Plus duplicate-entity issue: graph has both `Reid Hoffman` and `Reid Garrett Hoffman` as separate `Entity` nodes (Bad-Case Journal Entry 1). Even if the missing PayPal-Hoffman edge were extracted, it might attach to one node while LinkedIn-Hoffman attaches to the other — chain breaks at entity resolution.
+
+### Open follow-ups (post-v11)
+
+- **Multi-pass extraction** for indirect chains (Musk-via-X.com-merger). Re-extract each article asking specifically about merger/acquisition/successor relationships. ~40-min rebuild, expected +0.05-0.15 multi_hop.
+- **Entity resolution at MERGE time.** Embed entity names; cosine-merge above threshold. Catches `Reid Hoffman ≡ Reid Garrett Hoffman`. ~50 lines + small embedding model.
+- **Decomposition edge_filter expansion** to include "merge|acquire|absorb|formed_from". Cheap (1 line in `_DECOMPOSE_SYSTEM` examples). Tests if it alone unblocks Tesla/SpaceX class.
+- **Latency gate on decomposition** — regex pre-filter for question shapes, only call the LLM classifier when the regex matches. Cuts Graph ALL 15.3s → ~10s for non-multi-hop questions.
+
+### Artifact policy update
+
+- `results/comparison.json` — frozen v9.5/v9 dense baseline (32-Q substring). SHA `39d0e96346d54b04`.
+- `results/comparison_dense_v2.json` — v10b dense broken (substring).
+- `results/comparison_dense_fix2.json` — v10c dense FIX2 (substring).
+- `results/comparison_dense_judge.json` — v10d dense FIX2 + judge.
+- `results/comparison_hybrid.json` — v10 hybrid preliminary.
+- `results/comparison_hybrid_v2.json` — v10b hybrid stable.
+- `results/comparison_hybrid_v11.json` — **v11 hybrid all-fixes + judge (this commit).** Per-question detail with `__decomposition__` audit field on multi-hop questions.
