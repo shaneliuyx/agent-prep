@@ -10,9 +10,14 @@
     ],
     "graphrag": {
       "recall": 0.4,
-      "latency": 4.53,
+      "latency": 20.39,
       "edges": 100
-    }
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 1.26
+    },
+    "winner": "graph"
   },
   {
     "q": "What universities did the founders of Google attend?",
@@ -21,9 +26,14 @@
     ],
     "graphrag": {
       "recall": 0.0,
-      "latency": 1.78,
+      "latency": 0.8,
       "edges": 100
-    }
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 0.82
+    },
+    "winner": "tie"
   },
   {
     "q": "Which iPhone features were first introduced on the iPhone 4?",
@@ -35,6 +45,11 @@
       "recall": 0.0,
       "latency": 0.37,
       "edges": 0
-    }
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 0.74
+    },
+    "winner": "tie"
   }
 ]
