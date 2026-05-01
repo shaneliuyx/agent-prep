@@ -26,10 +26,9 @@ from qdrant_client import QdrantClient
 
 from rag_hybrid import (  # noqa: E402
     BGE_M3_HYBRID,
-    EncoderConfig,
     HybridEncoder,
-    IngestConfig,
     Ingestor,
+    autoconfig,
 )
 
 C = BGE_M3_HYBRID
@@ -37,10 +36,6 @@ M = C.model
 assert M.supports_sparse, (
     f"{M.name} doesn't expose sparse output — can't be paired with HybridCollectionSpec"
 )
-
-# M5 Pro tunings
-ENCODE_BATCH = 128
-UPSERT_BATCH = 256
 
 
 def main() -> None:
@@ -52,14 +47,10 @@ def main() -> None:
     payloads = [{"doc_id": d["id"], "text": d["text"]} for d in docs]
     print(f"loaded {len(docs)} docs into {C.name} via {M.name} (dense + sparse)")
 
-    encoder = HybridEncoder(
-        EncoderConfig(spec=M, use_fp16=False, default_batch_size=ENCODE_BATCH)
-    )
-    ing = Ingestor(
-        qd=qd,
-        encoder=encoder,
-        cfg=IngestConfig(encode_batch=ENCODE_BATCH, upsert_batch=UPSERT_BATCH),
-    )
+    encoder_cfg = autoconfig.encoder_config_for(M)
+    print(f"[autoconfig] device={encoder_cfg.device} batch={encoder_cfg.default_batch_size} fp16={encoder_cfg.use_fp16}")
+    encoder = HybridEncoder(encoder_cfg)
+    ing = Ingestor(qd=qd, encoder=encoder, cfg=autoconfig.ingest_config())
     ing.run(payloads, C)
 
 

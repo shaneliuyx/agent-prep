@@ -26,11 +26,10 @@ from qdrant_client import QdrantClient
 
 from rag_hybrid import (  # noqa: E402
     BGE_M3,
-    EncoderConfig,
     HybridCollectionSpec,
     HybridEncoder,
-    IngestConfig,
     Ingestor,
+    autoconfig,
     char_window_chunks,
     chunk_corpus,
 )
@@ -62,13 +61,14 @@ def main() -> None:
     )
 
     qd = QdrantClient(url="http://127.0.0.1:6333", timeout=60)
-    # use_fp16=False matches the original — BGE-M3 sparse head occasionally
-    # emits NaNs on MPS in fp16. autoconfig.recommend() will flip this to
-    # True when on CUDA.
-    encoder = HybridEncoder(
-        EncoderConfig(spec=BGE_M3, use_fp16=False, default_batch_size=64)
-    )
-    ing = Ingestor(qd=qd, encoder=encoder, cfg=IngestConfig(encode_batch=64))
+    # System-aware config: BGE-M3 sparse head NaN-prone on MPS in fp16, so
+    # autoconfig keeps use_fp16=False on MPS and flips to True on CUDA.
+    # encode_batch comes from the memory tier — 128 on this 51 GB host vs
+    # 64 on a 16 GB laptop, both correct for their respective targets.
+    encoder_cfg = autoconfig.encoder_config_for(BGE_M3)
+    print(f"[autoconfig] device={encoder_cfg.device} batch={encoder_cfg.default_batch_size} fp16={encoder_cfg.use_fp16}")
+    encoder = HybridEncoder(encoder_cfg)
+    ing = Ingestor(qd=qd, encoder=encoder, cfg=autoconfig.ingest_config())
     ing.run(payloads, SPEC)
 
 

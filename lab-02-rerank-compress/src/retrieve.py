@@ -32,16 +32,17 @@ from qdrant_client import QdrantClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
+import dataclasses
+
 from rag_hybrid import (  # noqa: E402
     BGE_M3_HNSW,
     BGE_RERANKER_V2_M3,
     CrossEncoderReranker,
-    EncoderConfig,
     FusionStrategy,
     HybridEncoder,
-    RerankerConfig,
     RetrieveConfig,
     Retriever,
+    autoconfig,
 )
 
 SONNET = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
@@ -52,25 +53,28 @@ _COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", BGE_M3_HNSW.name)
 omlx = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
 qd = QdrantClient(url="http://127.0.0.1:6333")
 
-# One HybridEncoder instance — works for both hybrid (sparse on) and dense
-# (sparse skipped). Saves a duplicate model load when callers switch
-# collections within one process.
-_encoder = HybridEncoder(EncoderConfig(spec=_M, use_fp16=False, default_batch_size=64))
+# System-aware config: probes device + memory + CPU and produces matching
+# encoder/reranker/ingest configs. On MPS this gives encoder fp16=False
+# (BGE-M3 sparse-head NaN risk) and reranker fp16=True (cross-encoder safe).
+# On CUDA both flip to True. autoconfig.notes is the audit trail.
+_cfg = autoconfig.recommend(_M, _R)
 
-# fp16=True preserves the prior retrieve.py behavior (the .half() call on
-# the loaded reranker). Cross-encoder is fp16-safe; ~30% latency win on MPS.
-_reranker = CrossEncoderReranker(RerankerConfig(spec=_R, fp16=True))
+# Reranker fp16 stays opt-in to preserve the frozen comparison.json hash.
+# autoconfig already recommends True on MPS/CUDA; explicit replace() makes
+# the choice visible at the callsite.
+_encoder = HybridEncoder(_cfg.encoder)
+_reranker = CrossEncoderReranker(dataclasses.replace(_cfg.reranker, fp16=True))
 
 # fusion=MANUAL_RRF preserves the frozen comparison.json hash for W2.5 eval.
-# Switch to NATIVE_RRF for one-roundtrip Qdrant-side fusion in a future
-# step; produces the same RRF ranking but ties may break differently.
+# Switch to NATIVE_RRF for one-roundtrip Qdrant-side fusion in phase 8b;
+# produces the same RRF ranking but ties may break differently.
 _retriever = Retriever(
     qd=qd,
     collection=_COLLECTION_NAME,
     encoder=_encoder,
     cfg=RetrieveConfig(fusion=FusionStrategy.MANUAL_RRF),
 )
-print(f"[retrieve] collection={_COLLECTION_NAME!r} mode={_retriever.mode}")
+print(f"[retrieve] collection={_COLLECTION_NAME!r} mode={_retriever.mode} | " + " | ".join(_cfg.notes))
 
 
 _ANSWER_PROMPT = """Using ONLY the context below, answer the query in 1-3 sentences. If the context doesn't contain the answer, reply exactly: insufficient context.

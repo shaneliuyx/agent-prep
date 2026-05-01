@@ -103,6 +103,24 @@ def recommend_encode_batch(probe: SystemProbe) -> int:
     return 32
 
 
+def encoder_config_for(embed_spec: EmbedModelSpec) -> EncoderConfig:
+    """One-line encoder config from a system probe. Use when a script only
+    needs an encoder (ingest pipeline) and doesn't care about reranker tuning."""
+    probe = probe_system()
+    return EncoderConfig(
+        spec=embed_spec,
+        device=probe.device,
+        use_fp16=probe.fp16_safe_for_encoder,
+        default_batch_size=recommend_encode_batch(probe),
+    )
+
+
+def ingest_config() -> IngestConfig:
+    """One-line ingest config from the memory probe. Pairs with
+    ``encoder_config_for`` for ingest-only scripts."""
+    return IngestConfig(encode_batch=recommend_encode_batch(probe_system()))
+
+
 def recommend(
     embed_spec: EmbedModelSpec,
     reranker_spec: RerankerSpec,

@@ -31,10 +31,9 @@ from qdrant_client import QdrantClient
 from rag_hybrid import (  # noqa: E402
     BGE_M3,
     CollectionSpec,
-    EncoderConfig,
     HybridEncoder,
-    IngestConfig,
     Ingestor,
+    autoconfig,
     char_window_chunks,
     chunk_corpus,
 )
@@ -65,11 +64,15 @@ def main() -> None:
     )
 
     qd = QdrantClient(url="http://127.0.0.1:6333", timeout=60)
-    # Use HybridEncoder with sparse skip (matches original which used
-    # BGEM3FlagModel(return_sparse=False)). Ingestor's dense path dispatches
-    # on spec type, so HybridEncoder is fine for dense collections too.
-    encoder = HybridEncoder(EncoderConfig(spec=BGE_M3, default_batch_size=64))
-    ing = Ingestor(qd=qd, encoder=encoder, cfg=IngestConfig(encode_batch=64))
+    # System-aware config: probes device + memory, picks encode_batch from
+    # memory tier (8GB→32, 16GB→64, 32+GB→128). Replaces the hand-tuned 64
+    # which was based on the wrong reasoning ("passages are shorter").
+    encoder_cfg = autoconfig.encoder_config_for(BGE_M3)
+    print(f"[autoconfig] device={encoder_cfg.device} batch={encoder_cfg.default_batch_size}")
+    # HybridEncoder works for dense collections too — Ingestor's dense path
+    # dispatches on spec type and skips the sparse output.
+    encoder = HybridEncoder(encoder_cfg)
+    ing = Ingestor(qd=qd, encoder=encoder, cfg=autoconfig.ingest_config())
     ing.run(payloads, SPEC)
 
 
