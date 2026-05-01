@@ -80,15 +80,50 @@ class HybridEncoder:
 
         ``batch_size=None`` uses ``cfg.default_batch_size``. ``with_sparse``
         controls the sparse head — set False to skip lexical weights when
-        callers only need dense (saves ~25% encode time)."""
+        callers only need dense (saves ~25% encode time).
+
+        When ``cfg.use_fp16=True`` the output is NaN-guarded: any NaN in
+        dense or sparse output raises ``RuntimeError`` so the Ingestor halts
+        before writing corrupted vectors to Qdrant. Cheap check (~µs/batch)
+        and only runs in fp16 mode where the risk exists.
+        """
         self._ensure_loaded()
-        return self._model.encode(
+        out = self._model.encode(
             list(texts),
             batch_size=batch_size if batch_size is not None else self.cfg.default_batch_size,
             return_dense=True,
             return_sparse=with_sparse,
             return_colbert_vecs=with_colbert,
         )
+        if self.cfg.use_fp16:
+            self._check_no_nan(out, with_sparse)
+        return out
+
+    def _check_no_nan(self, out: dict, with_sparse: bool) -> None:
+        """Fail-fast on NaN in fp16 output. Without this guard, NaN sparse
+        values silently flow to Qdrant where they break that point's index
+        entry without raising — discoverable only at retrieval time as
+        empty/wrong results."""
+        import math
+
+        import numpy as np
+
+        dense = out.get("dense_vecs")
+        if dense is not None and np.isnan(dense).any():
+            raise RuntimeError(
+                f"BGE-M3 dense output contains NaN — fp16 corruption detected on "
+                f"device {self.cfg.device!r}. Set use_fp16=False to recover, then "
+                f"file an issue with sample text + FlagEmbedding/torch versions."
+            )
+        if with_sparse:
+            sparse = out.get("lexical_weights") or []
+            for sd in sparse:
+                if sd and any(math.isnan(float(v)) for v in sd.values()):
+                    raise RuntimeError(
+                        f"BGE-M3 sparse output contains NaN — fp16 corruption "
+                        f"detected on device {self.cfg.device!r}. "
+                        f"Set use_fp16=False to recover."
+                    )
 
 
 class DenseEncoder:

@@ -79,9 +79,13 @@ def probe_system() -> SystemProbe:
     device = _detect_device()
     return SystemProbe(
         device=device,
-        # BGE-M3 specifically — its sparse head has been observed to emit NaNs
-        # on MPS in fp16. Only flip on CUDA where the issue doesn't reproduce.
-        fp16_safe_for_encoder=(device == "cuda"),
+        # BGE-M3 sparse-head + dense-head both verified clean on MPS in fp16
+        # against 10K passages spanning 47-1050 char lengths (5K MS MARCO +
+        # 5K tech corpus, all 10 length deciles, batch=128). See
+        # shared/tests/probe_bge_m3_fp16_mps.py — re-run to refresh evidence
+        # after FlagEmbedding/torch upgrades. Conservative fallback: CPU stays
+        # fp32 (no win there anyway).
+        fp16_safe_for_encoder=(device in ("cuda", "mps")),
         # Cross-encoder rerank is fp16-safe on both MPS and CUDA; only CPU stays fp32.
         fp16_safe_for_reranker=(device in ("cuda", "mps")),
         total_memory_gb=_total_memory_gb(),

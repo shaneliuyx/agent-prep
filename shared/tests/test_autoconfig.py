@@ -29,7 +29,15 @@ def test_probe_returns_sensible_values() -> None:
     # fp16 invariants:
     if p.device == "cuda":
         assert p.fp16_safe_for_encoder, "fp16 should be safe on CUDA"
+        assert p.fp16_safe_for_reranker, "fp16 should be safe on CUDA reranker"
+    if p.device == "mps":
+        # Empirically verified clean across 10K passages (5K MS MARCO + 5K
+        # tech corpus, all 10 length deciles, batch=128) on 2026-05-01.
+        # Re-run shared/tests/probe_bge_m3_fp16_mps.py to refresh evidence.
+        assert p.fp16_safe_for_encoder, "fp16 should be enabled on MPS (verified clean)"
+        assert p.fp16_safe_for_reranker, "fp16 should be safe on MPS reranker"
     if p.device == "cpu":
+        assert not p.fp16_safe_for_encoder, "fp16 not useful on CPU"
         assert not p.fp16_safe_for_reranker, "fp16 not useful on CPU"
 
 
