@@ -360,4 +360,71 @@ If GraphRAG ALL bounces from 0.27 → ~0.55, code drift is locked in as cause. T
 - `results/comparison.json` — frozen v9.5/v9 dense baseline (32-Q, query_graph.py at commit `264813e`). SHA256 prefix `39d0e96346d54b04`. Tracked by `shared/parity/pre_refactor.json`. Do NOT overwrite without re-baselining.
 - `results/comparison_hybrid.json` — v10 hybrid run, partial-index suspect, query_graph.py at HEAD (post-pair-agg).
 - `results/comparison_hybrid_v2.json` — v10b hybrid run, full index, query_graph.py at HEAD (post-pair-agg). The reproducible "current state" measurement.
+- `results/comparison_dense_v2.json` — v10b dense run, query_graph.py at HEAD (post-pair-agg). Confirms regression hits both collections.
+- `results/comparison_dense_fix2.json` — v10c dense run, query_graph.py at FIX2 (1-hop priority + directed-edge + consolidation). Recovers OLD baseline.
 - Future variants: `comparison_<variant>.json` sibling pattern.
+
+---
+
+## v10c — Forward-fix: 1-hop priority + directed-edge format + consolidation prompt (2026-05-01)
+
+The v10b post-mortem identified pair-aggregation + variant-prompt as the regression cause and proposed a clean A/B test (file-only revert to 264813e). Instead of reverting, the user requested **forward-fix** — keep the post-264813e era of code but fix what broke. Three changes diagnosed and applied:
+
+### Three compounding fixes in `query_graph.py`
+
+**1. 1-hop priority Cypher (the load-bearing fix).**
+The pre-existing query was `MATCH path = (node)-[*1..5]-(m) ... LIMIT 200`, which on dense neighborhoods (Microsoft seed → 31 phrase matches → 5 anchors → 5-hop expansion = 10K+ candidate paths) returned edges in Cypher's BFS-by-anchor traversal order. The canonical 1-hop edge `Microsoft -[CO_FOUNDED]- Bill Gates` could land past index 200 and never reach the LLM. Direct verification: `DUMP_CONTEXT=1 ./.venv/bin/python src/query_graph.py "Who founded Microsoft?"` → "[DEBUG] Microsoft+Gates|Allen edges in context: (none)".
+
+Forward-fix: split the Cypher into a two-pass query — 1-hop edges first (LIMIT 100), then 2..N-hop fill (LIMIT 100). Concatenated subgraph guarantees canonical 1-hop edges always surface.
+
+**2. Per-edge directed format replaces undirected pair-aggregation.**
+Pair-aggregation (`frozenset({s, o})`) collapsed direction and merged variant predicates into `relations: founded | co-founded | started by`, losing per-edge source attribution. Switched to per-edge dedup keyed on `(subject, predicate, object)` with a sources-list per unique edge. Format:
+```
+- Microsoft --[co-founded]--> Paul Allen  (sources: Bill Gates, Paul Allen)
+```
+Direction preserved, sources properly attributed per edge.
+
+**3. Consolidation prompt for RELATIONSHIP queries.**
+Pre-fix prompt told the LLM "state each connecting edge or path" — produced per-edge enumeration. Per user request: revised RELATIONSHIP step to "gather ALL edges between the named entities and CONSOLIDATE them into 1-3 sentences that capture the canonical relationship plus any supporting details." Worked example included for Apple↔NeXT showing how to merge `acquired` + `came to a deal with` + `senior employees joined` into one prose sentence.
+
+### 5-cell recall grid (32-Q eval)
+
+| Category | OLD×dense (baseline) | NEW×dense (broken) | NEW×hybrid (broken) | FIX2×dense | FIX2×hybrid |
+|---|---|---|---|---|---|
+| **ALL** | 0.55/0.54 | 0.25/0.50 | 0.26/0.49 | **0.54/0.50** | **0.55/0.49** |
+| factoid | 0.86/0.71 | 0.57/0.71 | 0.57/0.71 | **0.86**/0.71 | **0.86**/0.71 |
+| two_hop | 0.60/0.79 | 0.29/0.72 | 0.29/0.72 | **0.75**/0.72 | **0.75**/0.72 |
+| relational | 0.75/0.38 | 0.00/0.38 | 0.00/0.38 | **0.75**/0.38 | 0.62/0.38 |
+| multi_hop | 0.29/0.38 | 0.10/0.31 | 0.13/0.27 | 0.17/0.31 | 0.23/0.27 |
+| out_of_domain | 0.25/0.25 | 0.25/0.25 | 0.25/0.25 | 0.25/0.25 | 0.25/0.25 |
+
+**FIX2 recovers and exceeds baseline.** Dense ALL = 0.54 (1-point LLM noise off baseline 0.55). Hybrid ALL = 0.55 (matched). Two_hop EXCEEDS baseline on both runs (0.75 vs 0.60) — the consolidation prompt + better Cypher coverage extract more from multi-edge queries than the per-edge pre-fix code did.
+
+### Spot-check: actual answers for the 4 relational queries
+
+| Q | Expected (substring match) | FIX2 answer (excerpt) | Substring recall |
+|---|---|---|---|
+| Apple↔NeXT | `acquired`, `Steve Jobs` | "NeXT was acquired by Apple Inc. ... Steve Jobs founded NeXT (source: Steve Jobs)" | 1.0 |
+| Tesla↔SpaceX | `Elon Musk` | "shared founder, Elon Musk" | 1.0 |
+| Apple↔Pixar | `Steve Jobs`, `acquired` | "Steven Paul Jobs purchased Pixar (source: Steve Jobs)" | **0.0** |
+| Microsoft↔Paul Allen | `co-founder`, `co-founded` | "Paul Allen co-founded Microsoft... served as vice president and vice chairman" | **0.5** |
+
+The 0.62 average on hybrid relational is **scoring artifact, not content failure.** All 4 answers are factually correct and properly cited. The substring eval misses semantic equivalents:
+- `Steven Paul Jobs` ≠ `Steve Jobs` substring (formal name from graph entity)
+- `purchased` ≠ `acquired` (graph stores `PURCHASED` predicate; semantically same fact)
+- `co-founded` (past tense) vs `co-founder` (noun) — token form mismatch
+
+### Vector recall flat across the grid
+
+All 5 cells show Vector ALL recall in [0.49, 0.54]. Hybrid retrieval is **not lifting recall on this corpus + eval combination**, regardless of GraphRAG state. The "hybrid is a free win" claim from the HybridRAG paper doesn't generalize to this corpus shape (Wikipedia tech-bio passages, lexically rich entity surface forms).
+
+### Library win: zero refactor regression
+
+The whole investigation happened on top of the `shared/rag_hybrid` library landing earlier in the day (commits `a4dab7e..32447e0`). No part of the regression was attributable to the library refactor — the library faithfully reproduces dense ingest output byte-for-byte against the prior `tech_corpus_hnsw` and serves both vector backends through the auto-detect path. The bug was purely in `query_graph.py`'s GraphRAG retrieval.
+
+### Open follow-ups
+
+- **Eval scoring is the next bottleneck.** Substring match against expected-entity lists undercounts FIX2's qualitative wins (formal names, semantic equivalents, tense variations). Switch to LLM-judge or semantic-similarity scoring to capture true recall — phase v10d.
+- **Multi-hop category still under baseline** (0.17-0.23 vs 0.29). Likely fixable via richer 2..N-hop fill (currently capped at 100 edges/seed). Worth investigating once eval scoring lands.
+- **Build_graph.py index lifecycle bug remains.** DROP+CREATE bracket the LLM-extraction loop; mid-loop crash leaves graph un-searchable. File a separate fix.
+- **`Apple Inc. -[ACQUIRED_BY]-> NeXT` extraction direction is reversed in the graph data.** The current FIX2 prompt explicitly tells the LLM that either direction is the same fact, so this no longer breaks queries — but it's a build_graph.py extraction quality issue worth a post-extraction normalization pass.

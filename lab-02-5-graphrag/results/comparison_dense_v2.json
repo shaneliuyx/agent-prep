@@ -1,0 +1,592 @@
+[
+  {
+    "q": "Who founded Microsoft?",
+    "type": "factoid",
+    "expected": [
+      "Bill Gates",
+      "Paul Allen"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 2.45,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 9.57
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "Who is the CEO of Apple?",
+    "type": "factoid",
+    "expected": [
+      "Tim Cook"
+    ],
+    "graphrag": {
+      "recall": 1.0,
+      "latency": 2.7,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 4.04
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "Who founded Tesla?",
+    "type": "factoid",
+    "expected": [
+      "Elon Musk"
+    ],
+    "graphrag": {
+      "recall": 1.0,
+      "latency": 5.8,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 4.3
+    },
+    "winner": "graph"
+  },
+  {
+    "q": "Who founded SpaceX?",
+    "type": "factoid",
+    "expected": [
+      "Elon Musk"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 4.09,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 2.39
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "What university did Mark Zuckerberg attend?",
+    "type": "factoid",
+    "expected": [
+      "Harvard"
+    ],
+    "graphrag": {
+      "recall": 1.0,
+      "latency": 4.24,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 2.0
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "Who founded Oracle Corporation?",
+    "type": "factoid",
+    "expected": [
+      "Larry Ellison"
+    ],
+    "graphrag": {
+      "recall": 1.0,
+      "latency": 4.54,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 3.32
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "Where did Bill Gates go to university?",
+    "type": "factoid",
+    "expected": [
+      "Harvard"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 2.38,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 2.08
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies did Steve Jobs co-found?",
+    "type": "two_hop",
+    "expected": [
+      "Apple",
+      "NeXT",
+      "Pixar"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 3.05,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.6666666666666666,
+      "latency": 3.35
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies has Elon Musk founded or led?",
+    "type": "two_hop",
+    "expected": [
+      "Tesla",
+      "SpaceX",
+      "PayPal",
+      "Neuralink",
+      "OpenAI"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 6.54,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.4,
+      "latency": 3.26
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies has Mark Zuckerberg founded?",
+    "type": "two_hop",
+    "expected": [
+      "Facebook",
+      "Meta"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 5.39,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 2.4
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies has Jeff Bezos founded?",
+    "type": "two_hop",
+    "expected": [
+      "Amazon",
+      "Blue Origin"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 2.44,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 2.19
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies did Peter Thiel co-found?",
+    "type": "two_hop",
+    "expected": [
+      "PayPal",
+      "Palantir"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 4.84,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 3.94
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies has Marc Andreessen founded?",
+    "type": "two_hop",
+    "expected": [
+      "Netscape",
+      "Andreessen Horowitz",
+      "Loudcloud"
+    ],
+    "graphrag": {
+      "recall": 0.3333333333333333,
+      "latency": 4.04,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.6666666666666666,
+      "latency": 2.21
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies did Sergey Brin co-found?",
+    "type": "two_hop",
+    "expected": [
+      "Google",
+      "Alphabet"
+    ],
+    "graphrag": {
+      "recall": 1.0,
+      "latency": 6.93,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 2.15
+    },
+    "winner": "graph"
+  },
+  {
+    "q": "What companies did Larry Page co-found?",
+    "type": "two_hop",
+    "expected": [
+      "Google",
+      "Alphabet"
+    ],
+    "graphrag": {
+      "recall": 1.0,
+      "latency": 5.91,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 1.58
+    },
+    "winner": "graph"
+  },
+  {
+    "q": "What is the relationship between Apple and NeXT?",
+    "type": "relational",
+    "expected": [
+      "acquired",
+      "Steve Jobs"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 3.71,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 4.75
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What is the relationship between Tesla and SpaceX?",
+    "type": "relational",
+    "expected": [
+      "Elon Musk"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 3.37,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 3.81
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "What is the relationship between Apple and Pixar?",
+    "type": "relational",
+    "expected": [
+      "Steve Jobs",
+      "acquired"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 4.45,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 4.99
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What is the relationship between Microsoft and Paul Allen?",
+    "type": "relational",
+    "expected": [
+      "co-founder",
+      "co-founded"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 3.32,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 3.84
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "Which companies did founders of PayPal later start?",
+    "type": "multi_hop",
+    "expected": [
+      "Tesla",
+      "SpaceX",
+      "LinkedIn",
+      "YouTube",
+      "Palantir"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 5.96,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.4,
+      "latency": 4.58
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies were founded by Stanford alumni?",
+    "type": "multi_hop",
+    "expected": [
+      "Google",
+      "Yahoo",
+      "Sun Microsystems",
+      "Hewlett-Packard"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 10.4,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 4.12
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "Which Apple acquisitions involved Steve Jobs?",
+    "type": "multi_hop",
+    "expected": [
+      "NeXT",
+      "Pixar"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 5.17,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 1.0,
+      "latency": 4.08
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "What companies have been founded by Harvard dropouts?",
+    "type": "multi_hop",
+    "expected": [
+      "Microsoft",
+      "Facebook",
+      "Meta"
+    ],
+    "graphrag": {
+      "recall": 0.3333333333333333,
+      "latency": 5.55,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.6666666666666666,
+      "latency": 4.86
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "List companies founded by people who later led Tesla.",
+    "type": "multi_hop",
+    "expected": [
+      "PayPal",
+      "SpaceX",
+      "Tesla"
+    ],
+    "graphrag": {
+      "recall": 0.6666666666666666,
+      "latency": 11.57,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 1.42
+    },
+    "winner": "graph"
+  },
+  {
+    "q": "Which billionaires from the corpus founded social media companies?",
+    "type": "multi_hop",
+    "expected": [
+      "Mark Zuckerberg",
+      "Jack Dorsey",
+      "Evan Spiegel"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 6.57,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 2.53
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "Who founded both a payments company and a space company?",
+    "type": "multi_hop",
+    "expected": [
+      "Elon Musk",
+      "Peter Thiel"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 8.44,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 5.03
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "Which Microsoft co-founder also founded a basketball team or sports investment?",
+    "type": "multi_hop",
+    "expected": [
+      "Paul Allen"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 6.87,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 3.37
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "What companies has Reid Hoffman invested in or co-founded?",
+    "type": "multi_hop",
+    "expected": [
+      "LinkedIn",
+      "PayPal"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 8.17,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.5,
+      "latency": 7.95
+    },
+    "winner": "vector"
+  },
+  {
+    "q": "Which founders attended both Stanford and went on to found a Silicon Valley company?",
+    "type": "multi_hop",
+    "expected": [
+      "Larry Page",
+      "Sergey Brin",
+      "Reid Hoffman",
+      "Reed Hastings",
+      "Marissa Mayer"
+    ],
+    "graphrag": {
+      "recall": 0.0,
+      "latency": 5.97,
+      "edges": 400
+    },
+    "vectorrag": {
+      "recall": 0.0,
+      "latency": 3.54
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "What is the boiling point of helium?",
+    "type": "out_of_domain",
+    "expected": [
+      "insufficient",
+      "do not contain",
+      "no relevant",
+      "cannot answer"
+    ],
+    "graphrag": {
+      "recall": 0.25,
+      "latency": 2.92,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.25,
+      "latency": 1.6
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "Who composed Symphony No. 9?",
+    "type": "out_of_domain",
+    "expected": [
+      "insufficient",
+      "do not contain",
+      "no relevant",
+      "cannot answer"
+    ],
+    "graphrag": {
+      "recall": 0.25,
+      "latency": 5.53,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.25,
+      "latency": 1.52
+    },
+    "winner": "tie"
+  },
+  {
+    "q": "What is the capital of France?",
+    "type": "out_of_domain",
+    "expected": [
+      "insufficient",
+      "do not contain",
+      "no relevant",
+      "cannot answer"
+    ],
+    "graphrag": {
+      "recall": 0.25,
+      "latency": 4.6,
+      "edges": 200
+    },
+    "vectorrag": {
+      "recall": 0.25,
+      "latency": 1.97
+    },
+    "winner": "tie"
+  }
+]

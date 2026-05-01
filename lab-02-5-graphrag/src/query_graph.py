@@ -178,21 +178,52 @@ def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dic
             # Two-stage: first find best-scored entity nodes via fulltext index,
             # then expand from those nodes via graph traversal. LIMIT 5 anchors
             # the expansion to a manageable starting set.
-            result = session.run(
-                f"""
+            # Two-pass: 1-hop edges first (canonical direct neighbors that
+            # the LLM needs for relational + factoid questions), then 2..N-hop
+            # fill (for true multi-hop bridges). Concatenating ensures the
+            # final 200-edge per-seed budget always surfaces 1-hop edges,
+            # even on dense neighborhoods where 5-hop expansion produces
+            # 10K+ candidate paths and would otherwise crowd them out.
+            #
+            # Bug history: a single `MATCH path = (node)-[*1..5]-(m) ... LIMIT 200`
+            # without path-length ordering returns edges in Cypher's internal
+            # path-traversal order, which prefers BFS-by-anchor expansion over
+            # hop-distance ordering. On Microsoft (31 phrase matches → 5
+            # anchors → 5-hop expansion), the canonical
+            # `Microsoft -[CO_FOUNDED]- Bill Gates` 1-hop edge landed past
+            # index 200 and never reached the LLM context — exactly the
+            # symptom the v10 hybrid eval was diagnosing as "GraphRAG
+            # collapsed to 0.27 ALL recall".
+            edges: list[dict] = []
+            r1 = session.run(
+                """
                 CALL db.index.fulltext.queryNodes("entity_names", $lucene)
                 YIELD node, score
-                WITH node, score ORDER BY score DESC LIMIT 5
-                MATCH path = (node)-[*1..{max_hops}]-(m)
-                WITH DISTINCT relationships(path) AS rels
-                UNWIND rels AS r
+                WITH node ORDER BY score DESC LIMIT 5
+                MATCH (node)-[r]-(m)
                 RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
                                 endNode(r).name AS o, r.source_title AS src
-                LIMIT 200
+                LIMIT 100
                 """,
                 lucene=lucene_used,
             )
-            edges = [dict(record) for record in result]
+            edges.extend(dict(record) for record in r1)
+            if max_hops > 1:
+                rn = session.run(
+                    f"""
+                    CALL db.index.fulltext.queryNodes("entity_names", $lucene)
+                    YIELD node, score
+                    WITH node ORDER BY score DESC LIMIT 5
+                    MATCH path = (node)-[*2..{max_hops}]-(m)
+                    WITH DISTINCT relationships(path) AS rels
+                    UNWIND rels AS r
+                    RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                                    endNode(r).name AS o, r.source_title AS src
+                    LIMIT 100
+                    """,
+                    lucene=lucene_used,
+                )
+                edges.extend(dict(record) for record in rn)
             subgraph.extend(edges)
             matches_per_seed[seed] = {
                 "phrase":   phrase_n,
@@ -243,105 +274,89 @@ def answer(query: str) -> dict:
             "edges_used": 0,
         }
 
-    # Pair-aggregation: group edges by undirected entity pair, collapse
-    # variant predicates ("founded" / "co-founded" / "started by") and
-    # multiple sources into a single grouped record per pair. Addresses
-    # Leak 5 (open-vocab predicate fragmentation from W2.5 §"Production
-    # Design") at query time without re-extracting at build time.
+    # Per-edge dedup with multi-source aggregation. Each unique directed
+    # edge (subject, predicate, object) becomes one fact line; the sources
+    # list collapses repeats of the SAME edge across multiple source articles.
     #
-    # Why undirected pairs (frozenset key) instead of directed (tuple):
-    # the graph stores `(Apple)-[acquired]->(NeXT)` and
-    # `(NeXT)-[was_acquired_by]->(Apple)` as separate edges. Both express
-    # the same fact. Grouping them into one pair-record collapses the
-    # variant evidence into one citation block for the LLM.
-    #
-    # The aggregated format also turns multiple predicate variants into
-    # a confidence signal: 4 sources expressing the same fact with 4
-    # different verb phrases is stronger evidence than 1 source. The
-    # LLM sees the convergence and picks a canonical phrasing.
-    pair_aggs: dict[frozenset, dict] = defaultdict(
-        lambda: {"relations": [], "sources": set()}
-    )
-    for t in subgraph[:200]:
+    # Why per-edge instead of pair-aggregation (the prior frozenset-keyed
+    # bucket approach that regressed eval recall):
+    # - **Direction matters.** "Apple --[acquired]--> NeXT" is not the same
+    #   as "NeXT --[acquired by]--> Apple". The undirected frozenset key
+    #   collapsed both into one bucket and lost subject-object orientation,
+    #   which the LLM needs to phrase the answer correctly.
+    # - **Per-edge source attribution.** Pair-aggregation listed all sources
+    #   under one bucket regardless of which source mentioned which variant,
+    #   so the LLM couldn't cite the right article for the right fact.
+    # - **No silent edge truncation.** Pair-aggregation sliced
+    #   `subgraph[:200]` BEFORE aggregating; on dense neighborhoods (e.g.
+    #   Apple matches 24 entities, each walking a 2-hop neighborhood → 400+
+    #   edges), the canonical `Apple Inc. --[acquired by]--> NeXT` could land
+    #   past index 200 and never reach the LLM context.
+    # Empirical: pair-aggregation regressed dense baseline 0.55 → 0.25 ALL
+    # recall on the 32-Q eval (relational category collapsed entirely from
+    # 0.75 → 0.00). Forward-fix uses per-edge format with no pre-slice.
+    edge_groups: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    for t in subgraph:
         s, o, rel, src = t.get("s"), t.get("o"), t.get("rel"), t.get("src")
-        if not (s and o):
+        if not (s and o and rel):
             continue
-        key = frozenset({s, o})
-        if rel:
-            pair_aggs[key]["relations"].append(rel)
-        if src:
-            pair_aggs[key]["sources"].add(src)
+        edge_groups[(s, rel, o)].add(src or "")
 
-    # Format aggregated context. Cap variants and sources per pair to
-    # bound token cost while preserving signal.
+    # Format: cap at 300 unique edges (~10K tokens of context) for
+    # Gemma-4-26B's effective window. 264813e used 200; 300 leaves room for
+    # richer subgraphs while staying well under the model's prompt limit.
+    # For sparse graphs the cap is a no-op.
     context_lines: list[str] = []
-    for pair, agg in pair_aggs.items():
-        members = sorted(pair)  # deterministic ordering
-        if len(members) == 2:
-            a, b = members
-            label = f"{a} ↔ {b}"
+    for (s, rel, o), sources in list(edge_groups.items())[:300]:
+        srcs = sorted(x for x in sources if x)
+        if not srcs:
+            src_text = ""
+        elif len(srcs) == 1:
+            src_text = f"  (source: {srcs[0]})"
         else:
-            # Self-loop edges (rare — same entity as both subject and object).
-            label = members[0]
-        # Dedupe relation variants while preserving order.
-        seen: set[str] = set()
-        unique_rels: list[str] = []
-        for r in agg["relations"]:
-            if r and r not in seen:
-                seen.add(r)
-                unique_rels.append(r)
-        rels_text = " | ".join(unique_rels[:8])
-        sources_text = ", ".join(sorted(agg["sources"])[:4])
-        context_lines.append(
-            f"- {label}\n    relations: {rels_text}\n    sources: {sources_text}"
-        )
+            src_text = f"  (sources: {', '.join(srcs[:4])})"
+        context_lines.append(f"- {s} --[{rel}]--> {o}{src_text}")
     context = "\n".join(context_lines)
 
-    # Chain-of-thought + question-type-aware + pair-aggregation prompt.
+    # Chain-of-thought + question-type-aware system prompt.
     #
-    # The aggregated format means each "graph fact" line shows one entity-
-    # pair connection with multiple predicate variants and multiple
-    # sources, so the LLM should synthesize from the convergent evidence
-    # rather than treat each variant as a distinct fact. The CoT pattern
-    # (identify question type → enumerate matching facts → synthesize)
-    # still applies; the change is the meaning of "fact" — now a pair
-    # connection rather than a single edge.
+    # Production GraphRAG prompts (Microsoft GraphRAG, LangChain GraphCypherQAChain,
+    # Singh et al. 2025 survey) consistently outperform single-shot answer prompts
+    # on aggregation/list questions when they:
+    #   1. Force the LLM to enumerate matching facts before synthesizing prose.
+    #   2. Branch behavior by question type (factoid / list / relational / unknown).
+    #   3. Make the citation contract explicit (every claim ↦ a source article).
+    #
+    # The two-step pattern (extract matching facts as a list, then synthesize)
+    # makes the list the load-bearing artifact — empirically lifts list /
+    # aggregation recall without hurting factoid or relational answers.
     SYSTEM_PROMPT = """You are a fact synthesizer for a knowledge graph. Answer using ONLY the graph facts below.
 
 GRAPH FACT FORMAT:
-Each fact line shows one connection between two entities, aggregated across
-the corpus. Format:
-  - Entity A ↔ Entity B
-        relations: <variant 1> | <variant 2> | <variant 3> | ...
-        sources: <article 1>, <article 2>, ...
+Each line is one directed edge: `Subject --[relation]--> Object  (source: ArticleTitle)`.
+When the same edge is corroborated by multiple articles, sources are listed:
+`Subject --[relation]--> Object  (sources: Article1, Article2)` — treat that
+as multi-source evidence for ONE fact, not multiple facts.
 
-The 'relations' list is multiple ways the same connection is expressed in
-different sources (e.g. "founded" | "co-founded" | "was started by"). Treat
-the list as evidence FOR the connection, not as 4 separate facts.
-
-**Use the variants for semantic precision.** The variants encode nuance —
-not every list member means the same thing:
-- A list containing "co-founded" or "founded with X" implies multiple founders.
-  A list containing only "founded" suggests solo founding.
-- A list containing "acquired" + "merged with" suggests structural variation
-  (asset purchase vs share swap) — pick "acquired" if the question is about
-  ownership, "merged with" if about corporate structure.
-- A list containing "married" + "divorced" describes a current state — pick
-  the temporally-most-recent variant if the question is about present.
-- A list containing "served as CEO of" + "was a board member of" describes
-  different roles — pick the one matching the question's role.
-
-Pick the variant whose semantic best answers the question. If multiple
-variants apply, lead with the most specific.
+Edge direction matters but the SAME relationship can be expressed either
+direction in the graph. Examples (treat as the same fact):
+  - "Apple --[acquired]--> NeXT" and "NeXT --[acquired by]--> Apple"
+  - "Steve Jobs --[co-founded]--> Apple" and "Apple --[was co-founded by]--> Steve Jobs"
 
 REQUIRED PROCESS:
 1. **Identify the question type:**
    - LIST/ENUMERATION: "what companies", "which X", "list all", "who founded", "what universities".
    - RELATIONSHIP: "what is the relationship between X and Y", "how is X connected to Y".
    - FACTOID: "who is the CEO of X", "where is X based", "when did X happen".
-2. **Extract matching pair connections.** Scan every fact line. For LIST questions, extract EVERY pair that matches the category — do not skip any. For RELATIONSHIP, find every pair connecting the named entities directly OR through shared intermediate entities. For FACTOID, find the most-direct pair.
-3. **Synthesize the answer.** For LIST: produce a bulleted or comma-separated list with one canonical phrasing + multi-source citation per item. For RELATIONSHIP: state each connecting pair clearly. For FACTOID: 1-2 sentence direct answer.
-4. **Cite every claim with the full source set.** Format: "<fact> (sources: A, B, C)". Multi-source citations express stronger evidence — include all sources from the pair's source list, capped reasonably.
+2. **Extract matching facts.** Scan every graph fact line. For LIST questions, extract EVERY edge that matches the question's category — do not skip any. For RELATIONSHIP, find every edge connecting the two named entities directly OR through shared intermediate entities. For FACTOID, find the most-direct edge.
+3. **Synthesize the answer.**
+   - **LIST:** produce a bulleted or comma-separated list with one citation per item.
+   - **RELATIONSHIP:** gather ALL edges between the named entities (in either direction) and CONSOLIDATE them into 1-3 sentences that capture the canonical relationship plus any supporting details. Don't just list each edge separately — synthesize. The strongest relation (e.g. "acquired") should lead; supporting relations (e.g. "senior employees joined") add color. Multiple edges between the same pair are evidence for ONE consolidated answer.
+     Example for "What is the relationship between Apple and NeXT?":
+       Edges in graph: `Apple --[ACQUIRED_BY]--> NeXT (Steve Jobs)`, `Apple --[CAME_TO_A_DEAL_WITH]--> NeXT (Steve Jobs)`, `Senior Apple employees --[JOINED]--> NeXT (Steve Jobs)`.
+       Consolidated answer: "Apple acquired NeXT, and as part of the deal several senior Apple employees joined NeXT (source: Steve Jobs)."
+   - **FACTOID:** 1-2 sentence direct answer.
+4. **Cite every claim.** Format: "<fact> (source: <article>)". When multiple sources are listed for one edge, include them all: "(sources: A, B)". When consolidating multiple edges from the same source, cite that source once at the end: "<consolidated sentence> (source: A)".
 5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts."""
     resp = omlx.chat.completions.create(
         model=MODEL,
