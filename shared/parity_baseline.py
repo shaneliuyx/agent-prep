@@ -76,8 +76,11 @@ def vector_signature(client: QdrantClient, collection: str, point_id: int) -> di
         return {"id": point_id, "status": "missing"}
     v = pts[0].vector
     if isinstance(v, dict):
+        # Sort named-vector keys — qdrant doesn't guarantee response key order,
+        # which would otherwise make snapshot diffs noisy across runs.
         sig = {}
-        for name, vec in v.items():
+        for name in sorted(v.keys()):
+            vec = v[name]
             if hasattr(vec, "indices"):
                 sig[name] = {
                     "type": "sparse",

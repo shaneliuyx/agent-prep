@@ -70,11 +70,6 @@
           "id": 0,
           "status": "ok",
           "vectors": {
-            "sparse": {
-              "type": "sparse",
-              "nnz": 49,
-              "sum_values": 5.85064
-            },
             "dense": {
               "type": "dense",
               "norm": 1.0,
@@ -83,6 +78,11 @@
                 0.00578,
                 0.003751
               ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 49,
+              "sum_values": 5.85064
             }
           }
         },
@@ -90,11 +90,6 @@
           "id": 1,
           "status": "ok",
           "vectors": {
-            "sparse": {
-              "type": "sparse",
-              "nnz": 33,
-              "sum_values": 5.359368
-            },
             "dense": {
               "type": "dense",
               "norm": 1.0,
@@ -103,6 +98,11 @@
                 0.026966,
                 0.000352
               ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 33,
+              "sum_values": 5.359368
             }
           }
         },
@@ -110,11 +110,6 @@
           "id": 100,
           "status": "ok",
           "vectors": {
-            "sparse": {
-              "type": "sparse",
-              "nnz": 36,
-              "sum_values": 4.573914
-            },
             "dense": {
               "type": "dense",
               "norm": 1.0,
@@ -123,6 +118,11 @@
                 0.021155,
                 -0.047224
               ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 36,
+              "sum_values": 4.573914
             }
           }
         },
@@ -176,11 +176,6 @@
           "id": 0,
           "status": "ok",
           "vectors": {
-            "sparse": {
-              "type": "sparse",
-              "nnz": 60,
-              "sum_values": 6.963854
-            },
             "dense": {
               "type": "dense",
               "norm": 1.0,
@@ -189,6 +184,11 @@
                 -0.016512,
                 -0.02879
               ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 60,
+              "sum_values": 6.963854
             }
           }
         },
@@ -196,11 +196,6 @@
           "id": 1,
           "status": "ok",
           "vectors": {
-            "sparse": {
-              "type": "sparse",
-              "nnz": 67,
-              "sum_values": 6.145794
-            },
             "dense": {
               "type": "dense",
               "norm": 1.0,
@@ -209,6 +204,11 @@
                 -0.009093,
                 -0.037912
               ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 67,
+              "sum_values": 6.145794
             }
           }
         },
@@ -216,11 +216,6 @@
           "id": 100,
           "status": "ok",
           "vectors": {
-            "sparse": {
-              "type": "sparse",
-              "nnz": 80,
-              "sum_values": 7.143331
-            },
             "dense": {
               "type": "dense",
               "norm": 1.0,
@@ -229,6 +224,11 @@
                 0.023718,
                 -0.001088
               ]
+            },
+            "sparse": {
+              "type": "sparse",
+              "nnz": 80,
+              "sum_values": 7.143331
             }
           }
         },
