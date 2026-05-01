@@ -584,3 +584,130 @@ Plus duplicate-entity issue: graph has both `Reid Hoffman` and `Reid Garrett Hof
 - `results/comparison_hybrid.json` — v10 hybrid preliminary.
 - `results/comparison_hybrid_v2.json` — v10b hybrid stable.
 - `results/comparison_hybrid_v11.json` — **v11 hybrid all-fixes + judge (this commit).** Per-question detail with `__decomposition__` audit field on multi-hop questions.
+
+---
+
+## v12 — Wikidata QID linking at extraction time (2026-05-01)
+
+The v11 multi-hop ceiling at recall@2-hop = 0.21-0.34 was diagnosed (Q20 PayPal post-mortem) as caused by **entity surface-form fragmentation**: `"Reid Hoffman"` and `"Reid Garrett Hoffman"` became two separate `Entity` nodes, splitting edges across both and breaking 2-hop chains that traverse through the person. v11.5 attempted two fixes (BGE-M3 cosine clustering + reverse-edge inference); both dry-runs surfaced quality issues — BGE-M3 cosine produced catastrophic false positives (`Bill Gates` ≈ `Bill Thompson` at sim 0.93), reverse-edge inference solved a non-problem (Cypher bidirectional traversal already handles reverse direction).
+
+**v12 ships the production-grade fix: link entities to canonical Wikidata QIDs at extraction time.** Wikidata maintains a SHARED canonical knowledge graph: every entity has exactly one QID, regardless of which surface form was used in source text. Two articles mentioning the same person under different surface forms now write to ONE node — restoring the multi-hop chain.
+
+### Mechanism
+
+For every (subject, relation, object) triple the LLM extracts, before the Cypher MERGE we resolve the subject + object surface forms to canonical Wikidata QIDs via the `wbsearchentities` API:
+
+```
+"Bill Gates"             → Q5284
+"William Henry Gates III" → Q5284
+"Reid Hoffman"           → Q211098
+"Reid Garrett Hoffman"   → Q211098
+"Apple Inc."             → Q312
+"Microsoft"              → Q2283
+```
+
+The Neo4j MERGE then keys on QID (when resolvable) instead of name:
+
+```
+MERGE (a:Entity {qid: "Q211098"})
+ON CREATE SET a.name = "Reid Hoffman", a.aliases = ["Reid Hoffman"]
+ON MATCH  SET a.aliases = a.aliases + "Reid Garrett Hoffman" (deduped)
+```
+
+When Wikidata returns no match (~10-15% of names — fictional entities, very-minor people, unusual surface forms), MERGE falls back to name-based keying — preserving the v11 baseline for unmappable entities.
+
+### Two implementation modules
+
+**`src/wikidata_qid.py` (NEW, 150 lines).** `QIDResolver` class with thread-safe disk-backed cache at `data/wikidata_qid_cache.json`. Two methods:
+
+- `resolve(name)` — single-name lookup, cache-first.
+- `resolve_batch(names, max_workers=16)` — concurrent HTTPS calls via `ThreadPoolExecutor`. **10× speedup** over serial: 49 names in 3.3s parallel vs 33s serial. Wikidata anonymous API limit is ~50 req/s, so 16-way concurrency is safely under.
+
+The first run hits the API for ~13K unique entity names (~1-2 min total at 16-way concurrency). Subsequent rebuilds use the cached file — instant.
+
+**`src/build_graph.py` (modified).** Three changes:
+
+1. Initialize a shared `QIDResolver` at start of `main()`. Pass into worker via `executor.submit(_extract_one, article, resolver)`.
+2. After extraction, each worker calls `resolver.resolve_batch(unique_names)` to populate a per-article `qid_map: dict[str, str | None]`.
+3. `write_triples_to_neo4j` accepts the map and uses `apoc.merge.node` for clean dynamic-key MERGE: `{qid: <Q-id>}` when QID present, `{name: <surface form>}` when null.
+
+Two new range indexes (`Entity.qid`, `Entity.name`) are created alongside the fulltext index so the dynamic-key MERGE is fast at build time. End-of-build summary now reports **QID coverage** — number of names mapped vs total, cache hit rate, API errors.
+
+### Smoke-test verification (live Neo4j)
+
+Two test articles mentioning Reid Hoffman + Bill Gates under different surface forms:
+
+```
+=== Q211098 (Reid Hoffman) ===
+  name='Reid Hoffman', aliases=['Reid Hoffman', 'Reid Garrett Hoffman']
+
+=== Q5284 (Bill Gates) ===
+  name='Bill Gates', aliases=['Bill Gates', 'William Henry Gates III']
+
+=== Reid Hoffman edges — single node, both edges ===
+  -[CO_FOUNDED]-> 'LinkedIn'
+  -[WAS_EMPLOYEE_OF]-> 'PayPal'
+```
+
+✓ Two surface forms collapse to ONE node. ✓ Both edges hang off it (PayPal ← Hoffman → LinkedIn 2-hop chain reconstructed). ✓ FictionalCharacterXYZ falls back to name-MERGE (no QID returned).
+
+### Why not the v11.5 BGE-M3 / reverse-edge approaches
+
+**BGE-M3 cosine clustering rejected.** At threshold 0.92 the dry-run produced 1,204 proposed merges — most wrong. `Bill Gates ↔ Bill Thompson` at sim 0.93 (token overlap on "Bill"), `Hastings ↔ laughing` at sim 0.94 (rare-token shape match), `Epstein ↔ Silverstein` at sim 0.97. **BGE-M3 was trained on passage-level semantics, not entity-name disambiguation** — using it as a name-similarity tool runs the embedder out of distribution. Production-grade alternatives (rapidfuzz token_set_ratio + structural-neighbor gate) would work but with lower recall than QID linking, and Wikidata QID is the canonical source-of-truth that side-steps the false-positive problem entirely.
+
+**Reverse-edge inference rejected.** Adding `B founded_by A` automatically when seeing `A founded B` would double the graph edge count (~17K new edges) with marginal benefit — Cypher bidirectional `MATCH (a)-[r]-(b)` (no arrow) already traverses both directions natively. The "physical reverse edges" approach is solving a problem that's already solved by query-time bidirectional Cypher. Production knowledge graphs use OWL `inverseOf` annotations as semantic metadata, not duplicated edges.
+
+### Cost + tradeoff
+
+| Cost | Pre-v12 | v12 |
+|---|---|---|
+| Build wall (cold cache) | ~40 min | ~42 min (~2 min QID API) |
+| Build wall (warm cache) | ~40 min | ~40 min (instant cache hits) |
+| API dependency | none | Wikidata wbsearchentities — free, no auth, ~50 req/s |
+| Cache footprint | n/a | `data/wikidata_qid_cache.json`, ~1-3 MB for 13K names |
+| Coverage | n/a | ~85-90% of canonical entities; ~10-15% fall back to name |
+
+QID linking is **a data-source choice, not a post-hoc fix**. Wikipedia-derived corpora carry Wikidata QIDs as a side benefit — most production GraphRAG pipelines do this at extraction time precisely because it eliminates entity resolution at the source.
+
+### Eval results (v12 post-repair, 2026-05-02)
+
+`compare.py` re-run after the v12 corpus rebuild + QID cache repair (4,553 QIDs recovered via hybrid SPARQL/fuzzy batch resolver; 447 Case-A merges + 4,104 Case-B promotions applied to the live graph):
+
+```
+CATEGORY       N   Graph sub|jud/lat    Vector sub|jud/lat   W/L/T (judge)
+──────────────────────────────────────────────────────────────────────────
+ALL           32   0.53 | 0.64 / 5.0s   0.06 | 0.06 / 1.7s   22 / 2 / 8
+  factoid      7   0.86 | 1.00 / 3.6s   0.00 | 0.00 / 4.7s    7 / 0 / 0
+  two_hop      8   0.71 | 0.71 / 3.6s   0.07 | 0.07 / 0.8s    6 / 1 / 1
+  relational   4   0.38 | 0.50 / 4.6s   0.12 | 0.12 / 0.8s    2 / 1 / 1
+  multi_hop   10   0.29 | 0.29 / 8.1s   0.03 | 0.03 / 0.8s    4 / 0 / 6
+  out_domain   3   0.25 | 1.00 / 2.5s   0.17 | 0.17 / 1.0s    3 / 0 / 0
+```
+
+**What improved vs expected:**
+
+- **factoid judge = 1.00** — every factoid answered correctly by LLM judge. The QID repair collapsed surface-form fragments: "Tesla" / "Tesla, Inc." / "Tesla Motors" → single node. Q03 (who founded Tesla) and Q04 (who founded SpaceX) now 1.00. Expected ~flat; actual improvement is a meaningful signal that the *data* was correct but string-match scoring was penalising valid semantic equivalents.
+- **two_hop judge = 0.71** — solid; Q09 (Elon Musk companies) and Q12 (Peter Thiel companies) both 1.00 after alias collapse.
+- **Graph wins 22/32 (69%)** — up from pre-repair where relational/multi_hop regressions pulled the win count down.
+
+**What did NOT improve:**
+
+- **Q17 (Tesla ↔ SpaceX) = 0.00** — the relational regression is **not fixed by the QID repair**. Root cause is `query_graph.py`, not the data. Q17 needs a 2-hop intermediate-node traversal (`Tesla→Elon Musk→SpaceX`), but the current relational query only retrieves direct edges between the two named entities. The graph returns 239 edges yet the answer never surfaces "Elon Musk". Separately: Q03 and Q04 both return 1.00 — the individual founder facts ARE in the graph.
+- **multi_hop ceiling = 0.29** — within the predicted 0.21–0.34 range. QID repair addresses entity fragmentation; multi_hop scores are bottlenecked by *predicate completeness* (the indirect chains noted in Q20 PayPal post-mortem) and *query traversal depth* — separate problems.
+- **Q08 (Steve Jobs co-found) = 0.00** — graph fails. Both Apple and Pixar are in the graph (Q16 Apple/NeXT = 1.00). Likely a node-lookup miss: "Steve Jobs" surface form may key to a QID that doesn't have a `CO_FOUNDED` edge in the extracted graph (extraction coverage gap, not entity-resolution gap).
+
+**Cache-poisoning hotfix (2026-05-02):** `wikidata_qid.py` had a silent bug where transient API errors (timeouts, 429s) were cached as `None`, permanently poisoning 9,746 entries in `data/wikidata_qid_cache.json`. Fix: `_lookup_api` now returns sentinel `_API_ERROR = "__API_ERROR__"` on transient failure; `resolve()` and `resolve_batch()` skip cache writes for that sentinel. Future builds will re-resolve failed names rather than reading stale nulls.
+
+### Open follow-ups (post-v12)
+
+- **Q17 relational query architecture** ✅ **FIXED (2026-05-02)**: Added `_find_bridge_edges(e1, e2)` to `query_graph.py`. General shared-neighbor intersection — no hardcoded relation types. Fetches each entity's 1-hop edge set (≤150 edges each via full-text index), intersects neighbor names in Python, prepends bridge edges to subgraph so LLM sees them first. Result: relational substring 0.38→0.75; Q17 0.00→1.00; Q16 no regression. Triggered when `len(seeds)==2 AND query contains relational keyword AND decomp_plan is None`.
+- **Q08 Steve Jobs co-found (MEDIUM priority)**: graph returns 0.00 while Q16 Apple/NeXT = 1.00 (Apple IS in graph). Likely `query_graph.py` looks up "Steve Jobs" by name and hits a QID-keyed node whose edges use a different relation type than the query expects. Needs graph inspection: `MATCH (n {qid:"Q19837"})-[r]-() RETURN type(r), r` to see what edge types exist.
+- **Disambiguation**: when a surface form has multiple QID candidates ("Apple" → Q312 company OR Q89 fruit OR Q210127 Apple Records), `wbsearchentities` returns top-1 by likelihood. For tech corpora almost always correct. For ambiguous corpora a context-aware disambiguator (LLM picks from top-K given surrounding sentence) would improve precision.
+- **Cross-domain corpora**: tech corpus has high Wikidata coverage. A medical / legal / niche-domain corpus would have far more name fallback. Worth measuring `qid_coverage` per-domain at build time.
+- **Multi-pass extraction for indirect chains** (Musk-via-X.com-merger from Q20 post-mortem) is still open — QID linking helps the entity-fragmentation half of the multi_hop ceiling but not the predicate-completeness half.
+- **Two-phase `QIDResolver` for v13 builds**: integrate SPARQL batch fast-path into `wikidata_qid.py` (not just repair). SPARQL exact-label match resolves 50 names/call vs 50 individual REST calls → ~50x fewer HTTP round-trips at build time. `stats()` SPARQL-vs-fuzzy split ratio gives a build-time corpus-quality signal (15.6% SPARQL hit rate = dirty extraction).
+
+### Artifact policy update (provisional)
+
+- `data/wikidata_qid_cache.json` — first build creates this file (~1-3 MB). Persisted across rebuilds. Editable by hand if a wrong QID needs correcting.
+- `results/comparison_hybrid_v12.json` — **v12 hybrid all-fixes + QID linking + judge** (planned, post-rebuild).

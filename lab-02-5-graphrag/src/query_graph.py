@@ -442,6 +442,54 @@ def _step_one_intermediates(session, anchor: str, edge_filter: str, limit: int) 
         return []
 
 
+_RELATIONAL_KWS = frozenset(
+    ["relationship", "connection", "connected", "related", "between", "link"]
+)
+
+
+def _find_bridge_edges(e1: str, e2: str) -> list[dict]:
+    """Find edges incident to entities shared by e1's and e2's 1-hop neighborhoods.
+
+    General shared-neighbor intersection — no hardcoded relation types.
+    Works for founders, investors, board members, alumni, or any other bridge.
+
+    Strategy: fetch each entity's 1-hop edge set (≤150 edges each), intersect
+    neighbor names in Python, return all edges touching shared intermediates.
+    The caller prepends these to the main subgraph so the LLM sees bridge
+    edges first within the 300-edge context cap."""
+    def _get_neighbor_edges(session, lucene: str) -> dict[str, list[dict]]:
+        rows = session.run(
+            """
+            CALL db.index.fulltext.queryNodes("entity_names", $lucene) YIELD node, score
+            WITH node ORDER BY score DESC LIMIT 3
+            MATCH (node)-[r]-(m:Entity)
+            RETURN m.name AS name,
+                   startNode(r).name AS s, r.raw_relation AS rel,
+                   endNode(r).name   AS o, r.source_title  AS src
+            LIMIT 150
+            """,
+            lucene=lucene,
+        )
+        buckets: dict[str, list[dict]] = defaultdict(list)
+        for row in rows:
+            buckets[row["name"]].append(
+                {"s": row["s"], "rel": row["rel"], "o": row["o"], "src": row["src"]}
+            )
+        return dict(buckets)
+
+    l1 = _lucene_phrase_query(e1) or _lucene_or_query(e1) or e1
+    l2 = _lucene_phrase_query(e2) or _lucene_or_query(e2) or e2
+    with driver.session() as session:
+        nbrs_a = _get_neighbor_edges(session, l1)
+        nbrs_b = _get_neighbor_edges(session, l2)
+    shared = set(nbrs_a.keys()) & set(nbrs_b.keys())
+    bridge: list[dict] = []
+    for intermediate in sorted(shared):
+        bridge.extend(nbrs_a[intermediate])
+        bridge.extend(nbrs_b[intermediate])
+    return bridge
+
+
 def answer(query: str) -> dict:
     seeds = extract_seed_entities(query)
     subgraph, matches_per_seed = fetch_subgraph(seeds)
@@ -462,6 +510,22 @@ def answer(query: str) -> dict:
                 "plan_type": decomp_plan.get("type", "bridge"),
                 "edges_added": len(decomp_edges),
             }
+
+    # Relational bridge: when exactly 2 seeds and no decomp plan was found,
+    # compute shared-neighbor edges via Python-side intersection.
+    # Prepend bridge edges so they land first in the 300-edge LLM context
+    # window — prevents them from being crowded out by the larger per-seed
+    # neighborhood expansion that fetch_subgraph already ran.
+    query_lower = query.lower()
+    if (
+        len(seeds) == 2
+        and decomp_plan is None
+        and any(kw in query_lower for kw in _RELATIONAL_KWS)
+    ):
+        bridge_edges = _find_bridge_edges(seeds[0], seeds[1])
+        if bridge_edges:
+            subgraph = bridge_edges + subgraph
+            matches_per_seed["__bridge__"] = {"edges_added": len(bridge_edges)}
 
     # Two precondition surfaces:
     # (a) strategy == "none" → corpus does not contain any token of the seed.

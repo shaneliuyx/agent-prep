@@ -8,14 +8,25 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 13.84,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Bill Gates": true,
+        "Paul Allen": true
+      },
+      "latency": 6.33,
       "edges": 200
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.45
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Bill Gates": false,
+        "Paul Allen": false
+      },
+      "latency": 27.85
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "Who is the CEO of Apple?",
@@ -25,14 +36,23 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 3.2,
-      "edges": 200
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Tim Cook": true
+      },
+      "latency": 2.02,
+      "edges": 106
     },
     "vectorrag": {
       "recall": 0.0,
-      "latency": 1.85
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Tim Cook": false
+      },
+      "latency": 1.11
     },
-    "winner": "graph"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "Who founded Tesla?",
@@ -41,15 +61,24 @@
       "Elon Musk"
     ],
     "graphrag": {
-      "recall": 0.0,
-      "latency": 2.89,
-      "edges": 200
+      "recall": 1.0,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Elon Musk": true
+      },
+      "latency": 3.12,
+      "edges": 120
     },
     "vectorrag": {
       "recall": 0.0,
-      "latency": 0.98
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Elon Musk": false
+      },
+      "latency": 1.01
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "Who founded SpaceX?",
@@ -59,14 +88,23 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 2.96,
-      "edges": 200
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Elon Musk": true
+      },
+      "latency": 2.77,
+      "edges": 119
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.12
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Elon Musk": false
+      },
+      "latency": 0.73
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What university did Mark Zuckerberg attend?",
@@ -76,14 +114,23 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 3.09,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Harvard": true
+      },
+      "latency": 3.92,
       "edges": 200
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.09
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Harvard": false
+      },
+      "latency": 0.74
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "Who founded Oracle Corporation?",
@@ -92,15 +139,24 @@
       "Larry Ellison"
     ],
     "graphrag": {
-      "recall": 1.0,
-      "latency": 3.31,
+      "recall": 0.0,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Larry Ellison": true
+      },
+      "latency": 3.39,
       "edges": 200
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.25
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Larry Ellison": false
+      },
+      "latency": 0.8
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "graph"
   },
   {
     "q": "Where did Bill Gates go to university?",
@@ -110,14 +166,23 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 2.92,
-      "edges": 200
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Harvard": true
+      },
+      "latency": 3.36,
+      "edges": 173
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.15
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Harvard": false
+      },
+      "latency": 0.78
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies did Steve Jobs co-found?",
@@ -128,15 +193,28 @@
       "Pixar"
     ],
     "graphrag": {
-      "recall": 0.3333333333333333,
-      "latency": 3.37,
-      "edges": 200
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Apple": false,
+        "NeXT": false,
+        "Pixar": false
+      },
+      "latency": 2.47,
+      "edges": 104
     },
     "vectorrag": {
-      "recall": 0.6666666666666666,
-      "latency": 1.6
+      "recall": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333,
+      "judge_detail": {
+        "Apple": true,
+        "NeXT": false,
+        "Pixar": false
+      },
+      "latency": 0.9
     },
-    "winner": "vector"
+    "winner": "vector",
+    "winner_judge": "vector"
   },
   {
     "q": "What companies has Elon Musk founded or led?",
@@ -150,14 +228,31 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 6.25,
-      "edges": 200
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Tesla": true,
+        "SpaceX": true,
+        "PayPal": true,
+        "Neuralink": true,
+        "OpenAI": true
+      },
+      "latency": 5.6,
+      "edges": 158
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.68
+      "recall": 0.2,
+      "recall_judge": 0.2,
+      "judge_detail": {
+        "Tesla": true,
+        "SpaceX": false,
+        "PayPal": false,
+        "Neuralink": false,
+        "OpenAI": false
+      },
+      "latency": 1.14
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies has Mark Zuckerberg founded?",
@@ -168,14 +263,25 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 3.26,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Facebook": true,
+        "Meta": true
+      },
+      "latency": 4.56,
       "edges": 200
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.17
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Facebook": false,
+        "Meta": false
+      },
+      "latency": 0.83
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies has Jeff Bezos founded?",
@@ -185,15 +291,26 @@
       "Blue Origin"
     ],
     "graphrag": {
-      "recall": 0.5,
-      "latency": 3.03,
-      "edges": 200
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Amazon": false,
+        "Blue Origin": false
+      },
+      "latency": 1.46,
+      "edges": 1
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.23
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Amazon": false,
+        "Blue Origin": false
+      },
+      "latency": 0.78
     },
-    "winner": "vector"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "What companies did Peter Thiel co-found?",
@@ -204,14 +321,25 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 4.6,
-      "edges": 200
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "PayPal": true,
+        "Palantir": true
+      },
+      "latency": 5.19,
+      "edges": 152
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.42
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "PayPal": false,
+        "Palantir": false
+      },
+      "latency": 0.77
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies has Marc Andreessen founded?",
@@ -222,15 +350,28 @@
       "Loudcloud"
     ],
     "graphrag": {
-      "recall": 0.0,
-      "latency": 3.42,
-      "edges": 200
+      "recall": 0.6666666666666666,
+      "recall_judge": 0.6666666666666666,
+      "judge_detail": {
+        "Netscape": true,
+        "Andreessen Horowitz": true,
+        "Loudcloud": false
+      },
+      "latency": 3.6,
+      "edges": 125
     },
     "vectorrag": {
-      "recall": 0.6666666666666666,
-      "latency": 1.27
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Netscape": false,
+        "Andreessen Horowitz": false,
+        "Loudcloud": false
+      },
+      "latency": 0.72
     },
-    "winner": "vector"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies did Sergey Brin co-found?",
@@ -240,15 +381,26 @@
       "Alphabet"
     ],
     "graphrag": {
-      "recall": 0.5,
-      "latency": 2.97,
-      "edges": 200
+      "recall": 1.0,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Google": true,
+        "Alphabet": true
+      },
+      "latency": 2.94,
+      "edges": 133
     },
     "vectorrag": {
-      "recall": 0.5,
-      "latency": 0.91
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Google": false,
+        "Alphabet": false
+      },
+      "latency": 0.78
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies did Larry Page co-found?",
@@ -258,15 +410,26 @@
       "Alphabet"
     ],
     "graphrag": {
-      "recall": 0.5,
-      "latency": 2.99,
-      "edges": 200
+      "recall": 1.0,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Google": true,
+        "Alphabet": true
+      },
+      "latency": 3.0,
+      "edges": 127
     },
     "vectorrag": {
-      "recall": 0.5,
-      "latency": 0.93
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Google": false,
+        "Alphabet": false
+      },
+      "latency": 0.74
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What is the relationship between Apple and NeXT?",
@@ -277,14 +440,25 @@
     ],
     "graphrag": {
       "recall": 1.0,
-      "latency": 3.03,
-      "edges": 400
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "acquired": true,
+        "Steve Jobs": true
+      },
+      "latency": 5.17,
+      "edges": 316
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.38
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "acquired": false,
+        "Steve Jobs": false
+      },
+      "latency": 0.68
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What is the relationship between Tesla and SpaceX?",
@@ -293,15 +467,24 @@
       "Elon Musk"
     ],
     "graphrag": {
-      "recall": 1.0,
-      "latency": 3.63,
-      "edges": 400
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Elon Musk": false
+      },
+      "latency": 4.06,
+      "edges": 239
     },
     "vectorrag": {
       "recall": 0.0,
-      "latency": 0.96
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Elon Musk": false
+      },
+      "latency": 0.71
     },
-    "winner": "graph"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "What is the relationship between Apple and Pixar?",
@@ -312,14 +495,25 @@
     ],
     "graphrag": {
       "recall": 0.0,
-      "latency": 3.1,
-      "edges": 400
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Steve Jobs": false,
+        "acquired": false
+      },
+      "latency": 4.51,
+      "edges": 305
     },
     "vectorrag": {
-      "recall": 0.0,
-      "latency": 1.33
+      "recall": 0.5,
+      "recall_judge": 0.5,
+      "judge_detail": {
+        "Steve Jobs": true,
+        "acquired": false
+      },
+      "latency": 1.05
     },
-    "winner": "tie"
+    "winner": "vector",
+    "winner_judge": "vector"
   },
   {
     "q": "What is the relationship between Microsoft and Paul Allen?",
@@ -329,15 +523,26 @@
       "co-founded"
     ],
     "graphrag": {
-      "recall": 1.0,
-      "latency": 4.05,
-      "edges": 400
+      "recall": 0.5,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "co-founder": true,
+        "co-founded": true
+      },
+      "latency": 4.67,
+      "edges": 326
     },
     "vectorrag": {
-      "recall": 0.5,
-      "latency": 1.4
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "co-founder": false,
+        "co-founded": false
+      },
+      "latency": 0.88
     },
-    "winner": "graph"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "Which companies did founders of PayPal later start?",
@@ -350,15 +555,32 @@
       "Palantir"
     ],
     "graphrag": {
-      "recall": 0.4,
-      "latency": 5.61,
-      "edges": 400
+      "recall": 0.6,
+      "recall_judge": 0.6,
+      "judge_detail": {
+        "Tesla": true,
+        "SpaceX": true,
+        "LinkedIn": false,
+        "YouTube": false,
+        "Palantir": true
+      },
+      "latency": 6.66,
+      "edges": 279
     },
     "vectorrag": {
-      "recall": 0.4,
-      "latency": 1.54
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Tesla": false,
+        "SpaceX": false,
+        "LinkedIn": false,
+        "YouTube": false,
+        "Palantir": false
+      },
+      "latency": 0.72
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies were founded by Stanford alumni?",
@@ -371,14 +593,29 @@
     ],
     "graphrag": {
       "recall": 0.0,
-      "latency": 3.07,
-      "edges": 200
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Google": false,
+        "Yahoo": false,
+        "Sun Microsystems": false,
+        "Hewlett-Packard": false
+      },
+      "latency": 7.81,
+      "edges": 212
     },
     "vectorrag": {
       "recall": 0.0,
-      "latency": 1.23
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Google": false,
+        "Yahoo": false,
+        "Sun Microsystems": false,
+        "Hewlett-Packard": false
+      },
+      "latency": 0.76
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "Which Apple acquisitions involved Steve Jobs?",
@@ -389,14 +626,25 @@
     ],
     "graphrag": {
       "recall": 0.5,
-      "latency": 3.37,
-      "edges": 400
+      "recall_judge": 0.5,
+      "judge_detail": {
+        "NeXT": true,
+        "Pixar": false
+      },
+      "latency": 12.38,
+      "edges": 307
     },
     "vectorrag": {
-      "recall": 1.0,
-      "latency": 1.46
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "NeXT": false,
+        "Pixar": false
+      },
+      "latency": 0.69
     },
-    "winner": "vector"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What companies have been founded by Harvard dropouts?",
@@ -407,15 +655,28 @@
       "Meta"
     ],
     "graphrag": {
-      "recall": 0.3333333333333333,
-      "latency": 4.32,
-      "edges": 200
+      "recall": 1.0,
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "Microsoft": true,
+        "Facebook": true,
+        "Meta": true
+      },
+      "latency": 7.14,
+      "edges": 257
     },
     "vectorrag": {
-      "recall": 0.6666666666666666,
-      "latency": 1.57
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Microsoft": false,
+        "Facebook": false,
+        "Meta": false
+      },
+      "latency": 0.97
     },
-    "winner": "vector"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "List companies founded by people who later led Tesla.",
@@ -426,15 +687,28 @@
       "Tesla"
     ],
     "graphrag": {
-      "recall": 0.6666666666666666,
-      "latency": 4.51,
-      "edges": 600
+      "recall": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333,
+      "judge_detail": {
+        "PayPal": false,
+        "SpaceX": false,
+        "Tesla": true
+      },
+      "latency": 7.81,
+      "edges": 335
     },
     "vectorrag": {
       "recall": 0.3333333333333333,
-      "latency": 1.35
+      "recall_judge": 0.3333333333333333,
+      "judge_detail": {
+        "PayPal": false,
+        "SpaceX": false,
+        "Tesla": true
+      },
+      "latency": 1.16
     },
-    "winner": "graph"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "Which billionaires from the corpus founded social media companies?",
@@ -446,14 +720,27 @@
     ],
     "graphrag": {
       "recall": 0.0,
-      "latency": 3.85,
-      "edges": 400
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Mark Zuckerberg": false,
+        "Jack Dorsey": false,
+        "Evan Spiegel": false
+      },
+      "latency": 10.91,
+      "edges": 216
     },
     "vectorrag": {
       "recall": 0.0,
-      "latency": 1.28
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Mark Zuckerberg": false,
+        "Jack Dorsey": false,
+        "Evan Spiegel": false
+      },
+      "latency": 0.71
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "Who founded both a payments company and a space company?",
@@ -463,15 +750,26 @@
       "Peter Thiel"
     ],
     "graphrag": {
-      "recall": 0.5,
-      "latency": 3.38,
-      "edges": 400
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Elon Musk": false,
+        "Peter Thiel": false
+      },
+      "latency": 5.25,
+      "edges": 225
     },
     "vectorrag": {
-      "recall": 0.5,
-      "latency": 1.49
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Elon Musk": false,
+        "Peter Thiel": false
+      },
+      "latency": 0.74
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "Which Microsoft co-founder also founded a basketball team or sports investment?",
@@ -481,14 +779,23 @@
     ],
     "graphrag": {
       "recall": 0.0,
-      "latency": 3.26,
-      "edges": 200
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Paul Allen": false
+      },
+      "latency": 8.41,
+      "edges": 102
     },
     "vectorrag": {
       "recall": 0.0,
-      "latency": 1.45
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Paul Allen": false
+      },
+      "latency": 0.78
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "What companies has Reid Hoffman invested in or co-founded?",
@@ -499,14 +806,25 @@
     ],
     "graphrag": {
       "recall": 0.5,
-      "latency": 3.52,
-      "edges": 400
+      "recall_judge": 0.5,
+      "judge_detail": {
+        "LinkedIn": true,
+        "PayPal": false
+      },
+      "latency": 6.86,
+      "edges": 276
     },
     "vectorrag": {
-      "recall": 0.5,
-      "latency": 1.52
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "LinkedIn": false,
+        "PayPal": false
+      },
+      "latency": 0.85
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "Which founders attended both Stanford and went on to found a Silicon Valley company?",
@@ -520,14 +838,31 @@
     ],
     "graphrag": {
       "recall": 0.0,
-      "latency": 3.57,
-      "edges": 400
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Larry Page": false,
+        "Sergey Brin": false,
+        "Reid Hoffman": false,
+        "Reed Hastings": false,
+        "Marissa Mayer": false
+      },
+      "latency": 7.9,
+      "edges": 298
     },
     "vectorrag": {
-      "recall": 0.4,
-      "latency": 1.47
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "Larry Page": false,
+        "Sergey Brin": false,
+        "Reid Hoffman": false,
+        "Reed Hastings": false,
+        "Marissa Mayer": false
+      },
+      "latency": 0.78
     },
-    "winner": "vector"
+    "winner": "tie",
+    "winner_judge": "tie"
   },
   {
     "q": "What is the boiling point of helium?",
@@ -540,14 +875,29 @@
     ],
     "graphrag": {
       "recall": 0.25,
-      "latency": 0.33,
-      "edges": 0
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "insufficient": true,
+        "do not contain": true,
+        "no relevant": true,
+        "cannot answer": true
+      },
+      "latency": 2.36,
+      "edges": 112
     },
     "vectorrag": {
       "recall": 0.25,
-      "latency": 0.94
+      "recall_judge": 0.25,
+      "judge_detail": {
+        "insufficient": true,
+        "do not contain": false,
+        "no relevant": false,
+        "cannot answer": false
+      },
+      "latency": 1.02
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "graph"
   },
   {
     "q": "Who composed Symphony No. 9?",
@@ -560,14 +910,29 @@
     ],
     "graphrag": {
       "recall": 0.25,
-      "latency": 0.86,
-      "edges": 1
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "insufficient": true,
+        "do not contain": true,
+        "no relevant": true,
+        "cannot answer": true
+      },
+      "latency": 2.92,
+      "edges": 108
     },
     "vectorrag": {
-      "recall": 0.25,
-      "latency": 0.88
+      "recall": 0.0,
+      "recall_judge": 0.0,
+      "judge_detail": {
+        "insufficient": false,
+        "do not contain": false,
+        "no relevant": false,
+        "cannot answer": false
+      },
+      "latency": 1.16
     },
-    "winner": "tie"
+    "winner": "graph",
+    "winner_judge": "graph"
   },
   {
     "q": "What is the capital of France?",
@@ -580,13 +945,28 @@
     ],
     "graphrag": {
       "recall": 0.25,
-      "latency": 0.77,
-      "edges": 1
+      "recall_judge": 1.0,
+      "judge_detail": {
+        "insufficient": true,
+        "do not contain": true,
+        "no relevant": true,
+        "cannot answer": true
+      },
+      "latency": 2.2,
+      "edges": 106
     },
     "vectorrag": {
       "recall": 0.25,
-      "latency": 0.88
+      "recall_judge": 0.25,
+      "judge_detail": {
+        "insufficient": true,
+        "do not contain": false,
+        "no relevant": false,
+        "cannot answer": false
+      },
+      "latency": 0.79
     },
-    "winner": "tie"
+    "winner": "tie",
+    "winner_judge": "graph"
   }
 ]
