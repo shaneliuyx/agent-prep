@@ -70,7 +70,14 @@ SEED_CATEGORIES: list[str] = [
 PER_CATEGORY_PAGE = 500  # max anon page size for categorymembers
 MAX_PAGES_PER_CATEGORY = 5  # cap pagination — bound worst-case round-trips
 MAX_ARTICLES = 400
-ARTICLE_TEXT_CHARS = 4000
+# Bumped 4000 → 50000 so build_graph.py's sliding-window extractor can see
+# the full Wikipedia bio. Most tech-founder articles are 8-30K chars; at
+# 4000 chars we were silently dropping ~80% of biographical content
+# (Education, Personal Life, Awards sections all live past char 5000),
+# which capped GraphRAG hit rate on bio-event questions like "Who dropped
+# out of Harvard?". 50000 covers full-length articles for ~99% of the
+# tech-founders corpus; longer articles still get tail-truncated.
+ARTICLE_TEXT_CHARS = 50000
 
 
 def _api_get(params: dict) -> dict:
