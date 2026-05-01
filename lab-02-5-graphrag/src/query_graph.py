@@ -233,9 +233,235 @@ def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dic
     return subgraph, matches_per_seed
 
 
+_DECOMPOSE_SYSTEM = """You are a query planner for a knowledge-graph QA system.
+
+Decide if a question is a MULTI-HOP BRIDGE question that requires:
+  Step 1: identify an INTERMEDIATE set of entities (e.g. "founders of PayPal")
+  Step 2: follow another edge type from those intermediates to find the answer
+         (e.g. "what THEY later started")
+
+If yes, output a 2-step decomposition plan as JSON. If no (single-hop, simple
+relational, factoid, or out-of-domain), output {"plan": null}.
+
+The plan format for a 2-step bridge is:
+{
+  "plan": {
+    "step1": {"anchor": "<seed entity>", "edge_filter": "<verb regex pattern>", "yield_var": "<intermediate name>"},
+    "step2": {"from_var": "<step1 yield_var>", "edge_filter": "<verb regex pattern>", "exclude_anchor": true|false, "yield_var": "<answer name>"}
+  }
+}
+
+For an INTERSECTION (must satisfy two filters):
+{
+  "plan": {
+    "type": "intersection",
+    "step1a": {"anchor": "<entity 1>", "edge_filter": "<verb pattern>", "yield_var": "<bridge name>"},
+    "step1b": {"anchor": "<entity 2>", "edge_filter": "<verb pattern>", "yield_var": "<bridge name>"}
+  }
+}
+
+Edge_filter is a regex pattern matched against r.raw_relation (case-insensitive substring match).
+Use '|' to OR multiple verbs: "found|start|launch|co-found".
+
+Examples:
+
+Q: "Which companies did founders of PayPal later start?"
+{"plan": {
+  "step1": {"anchor": "PayPal", "edge_filter": "found|co-found|start", "yield_var": "founder"},
+  "step2": {"from_var": "founder", "edge_filter": "found|co-found|start|launch", "exclude_anchor": true, "yield_var": "company"}
+}}
+
+Q: "What companies were founded by Stanford alumni?"
+{"plan": {
+  "step1": {"anchor": "Stanford", "edge_filter": "attend|graduate|stud|alumn", "yield_var": "alumnus"},
+  "step2": {"from_var": "alumnus", "edge_filter": "found|co-found|start", "yield_var": "company"}
+}}
+
+Q: "What companies have been founded by Harvard dropouts?"
+{"plan": {
+  "step1": {"anchor": "Harvard", "edge_filter": "drop|attend|stud", "yield_var": "dropout"},
+  "step2": {"from_var": "dropout", "edge_filter": "found|co-found|start", "yield_var": "company"}
+}}
+
+Q: "Who founded both a payments company and a space company?"
+{"plan": {
+  "type": "intersection",
+  "step1a": {"anchor": "payments", "edge_filter": "found|co-found", "yield_var": "founder"},
+  "step1b": {"anchor": "space", "edge_filter": "found|co-found", "yield_var": "founder"}
+}}
+
+Q: "Who founded Microsoft?"
+{"plan": null}
+
+Q: "What is the relationship between Apple and NeXT?"
+{"plan": null}
+
+Q: "Where did Bill Gates go to university?"
+{"plan": null}
+
+Output strict JSON only. Use null when not multi-hop."""
+
+
+def _decompose_multihop(query: str) -> dict | None:
+    """LLM-based query classifier + decomposition planner. Returns a plan dict
+    when the question is multi-hop (bridge or intersection), else None.
+    Falls back to None on any LLM/JSON parse error — the caller continues
+    with the default fetch_subgraph path."""
+    try:
+        resp = omlx.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": _DECOMPOSE_SYSTEM},
+                {"role": "user",   "content": f"Q: {query}"},
+            ],
+            temperature=0.0, max_tokens=500,
+            response_format={"type": "json_object"},
+        )
+        content = resp.choices[0].message.content or "{}"
+        parsed = json.loads(content)
+        plan = parsed.get("plan")
+        if not isinstance(plan, dict):
+            return None
+        return plan
+    except Exception as e:
+        print(f"[WARN] decompose_multihop failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return None
+
+
+def _execute_decomposition(plan: dict, max_intermediate: int = 30) -> list[dict]:
+    """Execute a 2-step decomposition plan against Neo4j. Returns edges
+    suitable for the LLM context (same shape as fetch_subgraph output).
+
+    Two patterns supported:
+      - 2-step bridge: anchor → intermediates (filter1) → answers (filter2)
+      - intersection: two independent step-1s, intersect intermediates by name,
+        return all edges incident to the intersected entities
+
+    Edge filter regex matches r.raw_relation case-insensitively (substring)."""
+    edges: list[dict] = []
+    plan_type = plan.get("type", "bridge")
+
+    with driver.session() as session:
+        if plan_type == "intersection":
+            # Run two independent step-1 queries, intersect intermediate names,
+            # then collect all edges incident to the intersection.
+            step1a, step1b = plan.get("step1a"), plan.get("step1b")
+            if not (step1a and step1b):
+                return []
+            inter_a = _step_one_intermediates(session, step1a["anchor"], step1a["edge_filter"], max_intermediate)
+            inter_b = _step_one_intermediates(session, step1b["anchor"], step1b["edge_filter"], max_intermediate)
+            common = sorted(set(inter_a) & set(inter_b))
+            if not common:
+                return []
+            # Collect all edges incident to common entities (≤ max_intermediate of each)
+            r = session.run("""
+                UNWIND $names AS name
+                MATCH (n:Entity {name: name})-[r]-(m:Entity)
+                RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                                endNode(r).name AS o, r.source_title AS src
+                LIMIT 200
+            """, names=common[:max_intermediate])
+            edges.extend(dict(rec) for rec in r)
+            return edges
+
+        # Default: 2-step bridge
+        step1, step2 = plan.get("step1"), plan.get("step2")
+        if not (step1 and step2):
+            return []
+        intermediates = _step_one_intermediates(session, step1["anchor"], step1["edge_filter"], max_intermediate)
+        if not intermediates:
+            return []
+
+        # Step 2: from each intermediate entity, follow edge_filter to a target.
+        # Collect both the step-1 edges (anchor↔intermediate) AND step-2 edges
+        # (intermediate↔target) so the LLM has full chain context.
+        anchor = step1["anchor"]
+        edge_filter1 = step1["edge_filter"]
+        edge_filter2 = step2["edge_filter"]
+        exclude_anchor = step2.get("exclude_anchor", False)
+
+        # Step-1 edges (anchor neighborhood, filtered)
+        anchor_lucene = _lucene_phrase_query(anchor) or _lucene_or_query(anchor) or anchor
+        r_anchor = session.run("""
+            CALL db.index.fulltext.queryNodes("entity_names", $lucene)
+            YIELD node, score
+            WITH node ORDER BY score DESC LIMIT 5
+            MATCH (node)-[r]-(m)
+            WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
+            RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                            endNode(r).name AS o, r.source_title AS src
+            LIMIT 100
+        """, lucene=anchor_lucene, filter=edge_filter1)
+        edges.extend(dict(rec) for rec in r_anchor)
+
+        # Step-2 edges (each intermediate's outgoing neighborhood, filtered)
+        params = {
+            "names":  intermediates[:max_intermediate],
+            "filter": edge_filter2,
+            "anchor": anchor.lower(),
+        }
+        if exclude_anchor:
+            r_step2 = session.run("""
+                UNWIND $names AS iname
+                MATCH (n:Entity {name: iname})-[r]-(m:Entity)
+                WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
+                  AND NOT toLower(m.name) CONTAINS $anchor
+                RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                                endNode(r).name AS o, r.source_title AS src
+                LIMIT 200
+            """, **params)
+        else:
+            r_step2 = session.run("""
+                UNWIND $names AS iname
+                MATCH (n:Entity {name: iname})-[r]-(m:Entity)
+                WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
+                RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                                endNode(r).name AS o, r.source_title AS src
+                LIMIT 200
+            """, **params)
+        edges.extend(dict(rec) for rec in r_step2)
+    return edges
+
+
+def _step_one_intermediates(session, anchor: str, edge_filter: str, limit: int) -> list[str]:
+    """Return up to `limit` distinct entity names connected to `anchor` via
+    edges whose r.raw_relation matches edge_filter regex."""
+    anchor_lucene = _lucene_phrase_query(anchor) or _lucene_or_query(anchor) or anchor
+    try:
+        rows = list(session.run("""
+            CALL db.index.fulltext.queryNodes("entity_names", $lucene)
+            YIELD node, score
+            WITH node ORDER BY score DESC LIMIT 5
+            MATCH (node)-[r]-(m:Entity)
+            WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
+            RETURN DISTINCT m.name AS name LIMIT $lim
+        """, lucene=anchor_lucene, filter=edge_filter, lim=limit))
+        return [r["name"] for r in rows]
+    except Exception as e:
+        print(f"[WARN] step_one_intermediates failed for anchor={anchor!r}: {type(e).__name__}: {e}", file=sys.stderr)
+        return []
+
+
 def answer(query: str) -> dict:
     seeds = extract_seed_entities(query)
     subgraph, matches_per_seed = fetch_subgraph(seeds)
+
+    # Multi-hop query decomposition (Option B from W2.5 follow-up analysis).
+    # Detects bridge / intersection question shapes via LLM classifier; if
+    # detected, runs targeted 2-step Cypher and concatenates the result with
+    # the default subgraph. Default fetch_subgraph already covers 1-hop
+    # priority + multi-hop fill; decomposition adds high-precision bridge
+    # edges that the shotgun multi-hop fill tends to crowd out.
+    # Per-edge dedup later in this function collapses any duplicates.
+    decomp_plan = _decompose_multihop(query)
+    if decomp_plan:
+        decomp_edges = _execute_decomposition(decomp_plan)
+        if decomp_edges:
+            subgraph.extend(decomp_edges)
+            matches_per_seed["__decomposition__"] = {
+                "plan_type": decomp_plan.get("type", "bridge"),
+                "edges_added": len(decomp_edges),
+            }
 
     # Two precondition surfaces:
     # (a) strategy == "none" → corpus does not contain any token of the seed.
@@ -246,8 +472,14 @@ def answer(query: str) -> dict:
     #     Weaker match — typically means the named entity isn't in the
     #     corpus but some token of the name is. Warning fires too because
     #     downstream answers from this case have low precision.
-    unmatched = [s for s, m in matches_per_seed.items() if m["strategy"] == "none"]
-    weak_match = [s for s, m in matches_per_seed.items() if m["strategy"] == "or"]
+    unmatched = [
+        s for s, m in matches_per_seed.items()
+        if not s.startswith("__") and m.get("strategy") == "none"
+    ]
+    weak_match = [
+        s for s, m in matches_per_seed.items()
+        if not s.startswith("__") and m.get("strategy") == "or"
+    ]
     if unmatched:
         print(
             f"[WARN] No graph entity matched the following seed(s): {unmatched}. "
