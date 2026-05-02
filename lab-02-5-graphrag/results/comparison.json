@@ -13,7 +13,7 @@
         "Bill Gates": true,
         "Paul Allen": true
       },
-      "latency": 5.22,
+      "latency": 26.15,
       "edges": 400
     },
     "vectorrag": {
@@ -23,7 +23,7 @@
         "Bill Gates": false,
         "Paul Allen": false
       },
-      "latency": 6.23
+      "latency": 6.17
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -40,7 +40,7 @@
       "judge_detail": {
         "Tim Cook": true
       },
-      "latency": 8.08,
+      "latency": 12.19,
       "edges": 200
     },
     "vectorrag": {
@@ -49,7 +49,7 @@
       "judge_detail": {
         "Tim Cook": false
       },
-      "latency": 0.93
+      "latency": 0.8
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -66,7 +66,7 @@
       "judge_detail": {
         "Elon Musk": true
       },
-      "latency": 5.56,
+      "latency": 19.96,
       "edges": 325
     },
     "vectorrag": {
@@ -75,7 +75,7 @@
       "judge_detail": {
         "Elon Musk": false
       },
-      "latency": 1.0
+      "latency": 0.98
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -92,7 +92,7 @@
       "judge_detail": {
         "Elon Musk": true
       },
-      "latency": 2.44,
+      "latency": 12.74,
       "edges": 323
     },
     "vectorrag": {
@@ -101,7 +101,7 @@
       "judge_detail": {
         "Elon Musk": false
       },
-      "latency": 0.72
+      "latency": 0.71
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -118,7 +118,7 @@
       "judge_detail": {
         "Harvard": true
       },
-      "latency": 3.83,
+      "latency": 13.86,
       "edges": 400
     },
     "vectorrag": {
@@ -127,7 +127,7 @@
       "judge_detail": {
         "Harvard": false
       },
-      "latency": 0.7
+      "latency": 0.73
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -139,12 +139,12 @@
       "Larry Ellison"
     ],
     "graphrag": {
-      "recall": 0.0,
+      "recall": 1.0,
       "recall_judge": 1.0,
       "judge_detail": {
         "Larry Ellison": true
       },
-      "latency": 3.7,
+      "latency": 15.08,
       "edges": 400
     },
     "vectorrag": {
@@ -153,9 +153,9 @@
       "judge_detail": {
         "Larry Ellison": false
       },
-      "latency": 0.77
+      "latency": 0.78
     },
-    "winner": "tie",
+    "winner": "graph",
     "winner_judge": "graph"
   },
   {
@@ -170,7 +170,7 @@
       "judge_detail": {
         "Harvard": true
       },
-      "latency": 5.87,
+      "latency": 18.44,
       "edges": 400
     },
     "vectorrag": {
@@ -179,7 +179,7 @@
       "judge_detail": {
         "Harvard": false
       },
-      "latency": 0.77
+      "latency": 0.85
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -198,8 +198,8 @@
         "Apple": true,
         "NeXT": true
       },
-      "latency": 4.82,
-      "edges": 367
+      "latency": 17.81,
+      "edges": 400
     },
     "vectorrag": {
       "recall": 0.5,
@@ -208,7 +208,7 @@
         "Apple": true,
         "NeXT": false
       },
-      "latency": 0.89
+      "latency": 0.88
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -224,17 +224,17 @@
       "OpenAI"
     ],
     "graphrag": {
-      "recall": 1.0,
-      "recall_judge": 1.0,
+      "recall": 0.8,
+      "recall_judge": 0.8,
       "judge_detail": {
         "Tesla": true,
         "SpaceX": true,
         "PayPal": true,
-        "Neuralink": true,
+        "Neuralink": false,
         "OpenAI": true
       },
-      "latency": 22.2,
-      "edges": 364
+      "latency": 38.91,
+      "edges": 400
     },
     "vectorrag": {
       "recall": 0.2,
@@ -246,7 +246,7 @@
         "Neuralink": false,
         "OpenAI": false
       },
-      "latency": 1.16
+      "latency": 1.13
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -265,7 +265,7 @@
         "Facebook": true,
         "Meta": true
       },
-      "latency": 8.46,
+      "latency": 30.05,
       "edges": 400
     },
     "vectorrag": {
@@ -275,7 +275,7 @@
         "Facebook": false,
         "Meta": false
       },
-      "latency": 0.77
+      "latency": 0.78
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -294,8 +294,8 @@
         "Amazon": true,
         "Blue Origin": true
       },
-      "latency": 7.19,
-      "edges": 332
+      "latency": 30.01,
+      "edges": 400
     },
     "vectorrag": {
       "recall": 0.0,
@@ -304,7 +304,7 @@
         "Amazon": false,
         "Blue Origin": false
       },
-      "latency": 0.75
+      "latency": 0.74
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -323,8 +323,8 @@
         "PayPal": true,
         "Palantir": true
       },
-      "latency": 20.34,
-      "edges": 377
+      "latency": 28.97,
+      "edges": 400
     },
     "vectorrag": {
       "recall": 0.0,
@@ -347,15 +347,15 @@
       "Loudcloud"
     ],
     "graphrag": {
-      "recall": 0.6666666666666666,
-      "recall_judge": 0.6666666666666666,
+      "recall": 1.0,
+      "recall_judge": 1.0,
       "judge_detail": {
         "Netscape": true,
         "Andreessen Horowitz": true,
-        "Loudcloud": false
+        "Loudcloud": true
       },
-      "latency": 14.71,
-      "edges": 335
+      "latency": 24.88,
+      "edges": 400
     },
     "vectorrag": {
       "recall": 0.0,
@@ -365,7 +365,7 @@
         "Andreessen Horowitz": false,
         "Loudcloud": false
       },
-      "latency": 0.71
+      "latency": 0.72
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -384,8 +384,8 @@
         "Google": true,
         "Alphabet": true
       },
-      "latency": 3.7,
-      "edges": 334
+      "latency": 17.74,
+      "edges": 387
     },
     "vectorrag": {
       "recall": 0.0,
@@ -394,7 +394,7 @@
         "Google": false,
         "Alphabet": false
       },
-      "latency": 0.76
+      "latency": 0.73
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -413,8 +413,8 @@
         "Google": true,
         "Alphabet": true
       },
-      "latency": 3.55,
-      "edges": 330
+      "latency": 17.01,
+      "edges": 400
     },
     "vectorrag": {
       "recall": 0.0,
@@ -423,7 +423,7 @@
         "Google": false,
         "Alphabet": false
       },
-      "latency": 0.76
+      "latency": 0.7
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -442,7 +442,7 @@
         "acquired": true,
         "Steve Jobs": true
       },
-      "latency": 6.2,
+      "latency": 14.71,
       "edges": 543
     },
     "vectorrag": {
@@ -452,7 +452,7 @@
         "acquired": false,
         "Steve Jobs": false
       },
-      "latency": 0.65
+      "latency": 0.66
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -469,7 +469,7 @@
       "judge_detail": {
         "Elon Musk": true
       },
-      "latency": 13.8,
+      "latency": 18.58,
       "edges": 460
     },
     "vectorrag": {
@@ -478,7 +478,7 @@
       "judge_detail": {
         "Elon Musk": false
       },
-      "latency": 0.71
+      "latency": 0.68
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -497,7 +497,7 @@
         "Steve Jobs": true,
         "acquired": true
       },
-      "latency": 3.58,
+      "latency": 14.54,
       "edges": 519
     },
     "vectorrag": {
@@ -507,7 +507,7 @@
         "Steve Jobs": true,
         "acquired": false
       },
-      "latency": 1.05
+      "latency": 1.08
     },
     "winner": "tie",
     "winner_judge": "graph"
@@ -526,8 +526,8 @@
         "co-founder": true,
         "co-founded": true
       },
-      "latency": 6.07,
-      "edges": 546
+      "latency": 17.69,
+      "edges": 611
     },
     "vectorrag": {
       "recall": 0.0,
@@ -536,7 +536,7 @@
         "co-founder": false,
         "co-founded": false
       },
-      "latency": 0.75
+      "latency": 0.72
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -547,21 +547,17 @@
     "expected": [
       "Tesla",
       "SpaceX",
-      "LinkedIn",
-      "YouTube",
       "Palantir"
     ],
     "graphrag": {
-      "recall": 0.6,
-      "recall_judge": 0.6,
+      "recall": 1.0,
+      "recall_judge": 1.0,
       "judge_detail": {
         "Tesla": true,
         "SpaceX": true,
-        "LinkedIn": false,
-        "YouTube": false,
         "Palantir": true
       },
-      "latency": 34.15,
+      "latency": 52.95,
       "edges": 287
     },
     "vectorrag": {
@@ -570,11 +566,9 @@
       "judge_detail": {
         "Tesla": false,
         "SpaceX": false,
-        "LinkedIn": false,
-        "YouTube": false,
         "Palantir": false
       },
-      "latency": 0.72
+      "latency": 0.73
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -595,7 +589,7 @@
         "Yahoo": true,
         "Nvidia": false
       },
-      "latency": 57.26,
+      "latency": 61.38,
       "edges": 342
     },
     "vectorrag": {
@@ -606,7 +600,7 @@
         "Yahoo": false,
         "Nvidia": false
       },
-      "latency": 0.78
+      "latency": 0.8
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -623,8 +617,8 @@
       "judge_detail": {
         "NeXT": true
       },
-      "latency": 37.55,
-      "edges": 376
+      "latency": 44.85,
+      "edges": 409
     },
     "vectorrag": {
       "recall": 0.0,
@@ -632,7 +626,7 @@
       "judge_detail": {
         "NeXT": false
       },
-      "latency": 0.71
+      "latency": 0.69
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -646,14 +640,14 @@
       "Meta"
     ],
     "graphrag": {
-      "recall": 0.6666666666666666,
-      "recall_judge": 0.6666666666666666,
+      "recall": 1.0,
+      "recall_judge": 1.0,
       "judge_detail": {
         "Microsoft": true,
         "Facebook": true,
-        "Meta": false
+        "Meta": true
       },
-      "latency": 23.63,
+      "latency": 44.06,
       "edges": 385
     },
     "vectorrag": {
@@ -685,7 +679,7 @@
         "SpaceX": true,
         "Tesla": true
       },
-      "latency": 22.75,
+      "latency": 38.09,
       "edges": 396
     },
     "vectorrag": {
@@ -696,7 +690,7 @@
         "SpaceX": false,
         "Tesla": true
       },
-      "latency": 1.14
+      "latency": 1.17
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -719,7 +713,7 @@
         "Jawed Karim": true,
         "Google": true
       },
-      "latency": 9.6,
+      "latency": 17.26,
       "edges": 341
     },
     "vectorrag": {
@@ -731,7 +725,7 @@
         "Jawed Karim": false,
         "Google": false
       },
-      "latency": 0.82
+      "latency": 0.78
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -754,7 +748,7 @@
         "Founders Fund": true,
         "OpenGov": true
       },
-      "latency": 52.91,
+      "latency": 67.01,
       "edges": 372
     },
     "vectorrag": {
@@ -766,7 +760,7 @@
         "Founders Fund": false,
         "OpenGov": false
       },
-      "latency": 0.86
+      "latency": 0.91
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -789,8 +783,8 @@
         "Loudcloud": false,
         "Hewlett-Packard": true
       },
-      "latency": 10.11,
-      "edges": 327
+      "latency": 22.99,
+      "edges": 401
     },
     "vectorrag": {
       "recall": 0.0,
@@ -801,7 +795,7 @@
         "Loudcloud": false,
         "Hewlett-Packard": false
       },
-      "latency": 0.84
+      "latency": 0.82
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -810,25 +804,22 @@
     "q": "What companies has Reid Hoffman invested in or co-founded?",
     "type": "multi_hop",
     "expected": [
-      "LinkedIn",
-      "PayPal"
+      "LinkedIn"
     ],
     "graphrag": {
-      "recall": 0.5,
-      "recall_judge": 0.5,
+      "recall": 1.0,
+      "recall_judge": 1.0,
       "judge_detail": {
-        "LinkedIn": true,
-        "PayPal": false
+        "LinkedIn": true
       },
-      "latency": 17.89,
-      "edges": 289
+      "latency": 35.63,
+      "edges": 361
     },
     "vectorrag": {
       "recall": 0.0,
       "recall_judge": 0.0,
       "judge_detail": {
-        "LinkedIn": false,
-        "PayPal": false
+        "LinkedIn": false
       },
       "latency": 0.86
     },
@@ -846,16 +837,16 @@
       "Jensen Huang"
     ],
     "graphrag": {
-      "recall": 0.6,
-      "recall_judge": 0.6,
+      "recall": 0.4,
+      "recall_judge": 0.4,
       "judge_detail": {
         "Larry Page": true,
         "Sergey Brin": true,
         "Reid Hoffman": false,
         "Reed Hastings": false,
-        "Jensen Huang": true
+        "Jensen Huang": false
       },
-      "latency": 17.38,
+      "latency": 27.84,
       "edges": 555
     },
     "vectorrag": {
@@ -868,7 +859,7 @@
         "Reed Hastings": false,
         "Jensen Huang": false
       },
-      "latency": 0.72
+      "latency": 0.75
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -891,7 +882,7 @@
         "no relevant": true,
         "cannot answer": true
       },
-      "latency": 1.45,
+      "latency": 5.8,
       "edges": 116
     },
     "vectorrag": {
@@ -926,7 +917,7 @@
         "no relevant": true,
         "cannot answer": true
       },
-      "latency": 1.55,
+      "latency": 5.83,
       "edges": 108
     },
     "vectorrag": {
@@ -938,7 +929,7 @@
         "no relevant": false,
         "cannot answer": false
       },
-      "latency": 0.99
+      "latency": 1.0
     },
     "winner": "graph",
     "winner_judge": "graph"
@@ -961,7 +952,7 @@
         "no relevant": true,
         "cannot answer": true
       },
-      "latency": 1.71,
+      "latency": 11.89,
       "edges": 316
     },
     "vectorrag": {
@@ -973,7 +964,7 @@
         "no relevant": false,
         "cannot answer": false
       },
-      "latency": 0.72
+      "latency": 0.7
     },
     "winner": "tie",
     "winner_judge": "graph"

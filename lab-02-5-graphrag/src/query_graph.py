@@ -296,6 +296,29 @@ def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dic
                 }
                 continue
 
+            # Substring-token expansion: when the seed is a multi-token proper
+            # noun (e.g. "Marc Andreessen", "Tesla Motors"), also surface any
+            # entity whose canonical name is one rare token of the seed (e.g.
+            # the bare "Andreessen" node, or "Tesla"). The graph may store
+            # edges under both the full and substring-only surface form due
+            # to extraction-LLM surface-form drift; QID disambiguation +
+            # surface-form-drift instructions in the LLM context let the
+            # answer LLM merge them based on edge context. Generic across
+            # person names, multi-word company names, and any compound proper
+            # noun — not surname-specific.
+            proper_tokens = [w for w in seed.split() if w and w[0].isupper() and len(w) >= 4]
+            if len(proper_tokens) >= 2:
+                last_token = proper_tokens[-1]
+                if last_token not in anchor_names:
+                    extra = session.run(
+                        "MATCH (n:Entity) WHERE n.name = $name "
+                        "  AND n.qid IS NOT NULL AND coalesce(n.degree, 0) >= 2 "
+                        "RETURN n.name AS name LIMIT 1",
+                        name=last_token,
+                    ).single()
+                    if extra and extra["name"] not in anchor_names:
+                        anchor_names = anchor_names + [extra["name"]]
+
             # Two-pass: 1-hop edges first (canonical direct neighbors for relational +
             # factoid questions), then 2..N-hop fill (bridge queries). Concatenating
             # guarantees 1-hop edges appear in the LLM context budget even on dense
@@ -962,6 +985,22 @@ The QID identifies a specific real-world entity. **Same name + different QID = d
 entities.** Example: `Tesla [Q9036]` (the inventor Nikola Tesla) is a different entity
 from `Tesla, Inc. [Q478214]` (the car company), even though both render as "Tesla" in
 informal English. Use QID to disambiguate when multiple entities share a name.
+
+**Surface-form-drift exception:** Sometimes the SAME real-world person/company
+appears under TWO different QIDs because the extraction step recorded two surface
+forms (e.g. "Marc Andreessen [Q62882]" and "Andreessen [Q83339284]"). Indicators
+they refer to the SAME entity:
+  - One name is a substring of the other (e.g. last name vs full name)
+  - They share co-founders, employers, or affiliations in the edges
+  - Their edges describe a coherent biography (no contradictions)
+When these indicators all hold, MERGE the two entities for the purpose of the
+answer. Concretely: if the question asks about Entity X and surface-form drift
+adds Entity X' (same surname, overlapping context), then EVERY edge from X' is
+ALSO valid evidence for X. List items from X' in your LIST/COMPOUND/RELATIONSHIP
+answer alongside items from X. Do not skip X' edges just because they have a
+different QID — the merge instruction makes them count. Cite both QIDs once at
+the start of the answer to make the merge transparent (e.g. "Marc Andreessen
+[Q62882, also Q83339284]").
 When the same edge is corroborated by multiple articles, sources are listed:
 `Subject --[relation]--> Object  (sources: Article1, Article2)` — treat that
 as multi-source evidence for ONE fact, not multiple facts.
@@ -1004,25 +1043,37 @@ REQUIRED PROCESS:
 4. **Cite every claim.** Format: "<fact> (source: <article>)". When multiple sources are listed for one edge, include them all: "(sources: A, B)". When consolidating multiple edges from the same source, cite that source once at the end: "<consolidated sentence> (source: A)".
 5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts.
 
-OUTPUT FORMAT (mandatory; for COMPOUND, three-pass; otherwise two-pass):
+OUTPUT FORMAT (mandatory):
 
-For all question types, emit `RELEVANT FACTS:` listing every edge from the graph
-context that contributes to your answer — one edge per bullet, copied verbatim
-with QID tags and source. Include direct edges AND bridge edges (through shared
-intermediates) for RELATIONSHIP. List every matching edge — do not deduplicate
-by surface form. For LIST, every list-item in the final answer must trace to one
-or more bullets here. Then emit `ANSWER:` followed by synthesized prose.
+For FACTOID (single direct answer), use two-pass: `RELEVANT FACTS:` + `ANSWER:`.
 
-For COMPOUND questions, prepend a `THINKING:` block walking each sub-clause as
-chain-of-thought. Format:
-  THINKING:
-  Sub-clause (a) "<re-state sub-clause>": <reason from facts; cite edge>
-  Sub-clause (b) "<re-state sub-clause>": <reason from facts; cite edge>
-  Sub-clause (c) "<re-state sub-clause>": <reason from facts; cite edge>
-  Final chain: A → B → C
-The THINKING block forces explicit reasoning about every sub-clause before
-synthesis. Do not skip sub-clauses; if a sub-clause has no supporting edge in
-RELEVANT FACTS, say so explicitly in THINKING.
+For LIST, RELATIONSHIP, and COMPOUND, use three-pass:
+  `THINKING:` (walk each candidate edge / sub-clause)
+  `RELEVANT FACTS:` (verbatim edges from graph context)
+  `ANSWER:` (synthesized prose)
+
+`THINKING:` rules per question type:
+
+  LIST: walk each candidate edge that could contribute to the list.
+    For each: "Edge X → decision (include / exclude / merged from drift) → why".
+    Apply the surface-form-drift exception EXPLICITLY in this walk: when
+    you see edges from a surname-only entity that shares the seed's surname,
+    state the merge decision in THINKING and INCLUDE that entity's items
+    in the final ANSWER list. Do not silently drop them.
+
+  RELATIONSHIP: walk each edge between (or through bridges connecting) the
+    two named entities. Identify the canonical relation and the supporting
+    relations.
+
+  COMPOUND: walk each sub-clause:
+    Sub-clause (a) "<re-state>": <reason; cite edge>
+    Sub-clause (b) "<re-state>": <reason; cite edge>
+    Final chain: A → B → C
+    Do not skip sub-clauses; if a sub-clause has no supporting edge, say so.
+
+The THINKING block forces explicit reasoning about every candidate before
+synthesis. The ANSWER must be consistent with THINKING — every "include"
+decision in THINKING must produce a corresponding item in ANSWER.
 
 Example shape (RELATIONSHIP):
 RELEVANT FACTS:
