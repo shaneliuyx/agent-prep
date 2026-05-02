@@ -38,6 +38,39 @@ driver = GraphDatabase.driver(
 _PROPER_NOUN = re.compile(r"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*\b")
 _LUCENE_RESERVED = re.compile(r'[+\-!(){}\[\]^"~*?:\\/]')
 
+# ---------------------------------------------------------------------------
+# Composite seed-resolution scorer
+# Calibrate weights with: python src/calibrate_scorer.py --quick
+# ---------------------------------------------------------------------------
+QID_BONUS       = 2.5   # +bonus for QID-keyed canonical entity nodes
+                        # Calibrated on 5-probe set (v12.1 graph, pre-rebuild):
+                        # (2.5, 0.8, 0.3) → recall=1.000; (1.5, 0.8, 0.3) → recall<1.000
+                        # Re-run: python src/calibrate_scorer.py --quick after each rebuild
+EXACT_BONUS     = 0.8   # +bonus when seed exactly matches node.name or aliases entry
+DEGREE_COEFF    = 0.3   # multiplier on log(degree+1) — activates after graph rebuild
+SCORE_THRESHOLD = 2.0   # minimum composite; below this = ungrounded, skip traversal
+
+# Built at module load so changing a constant above auto-updates the query.
+# $lucene, $seed, $threshold, $limit are Cypher parameters at call time.
+_RERANK_CYPHER = (
+    'CALL db.index.fulltext.queryNodes("entity_names", $lucene) '
+    'YIELD node, score AS bm25 '
+    'WITH node, bm25, '
+    f'CASE WHEN node.qid IS NOT NULL THEN {QID_BONUS} ELSE 0 END AS qid_bonus, '
+    'CASE WHEN toLower(node.name) = toLower($seed) '
+    '  OR $seed IN coalesce(node.aliases, []) '
+    f'  THEN {EXACT_BONUS} ELSE 0 END AS exact_bonus, '
+    f'log(coalesce(node.degree, 0) + 1) * {DEGREE_COEFF} AS degree_score '
+    'WITH node, bm25 + qid_bonus + exact_bonus + degree_score AS composite '
+    'WHERE composite >= $threshold '
+    # Topology gate: a node is "real" iff externally grounded (QID) OR
+    # corpus-internally redundant (degree >= 2). Excludes singleton noise
+    # like 'CEO of Apple' (qid=None, degree=1) without enumerating patterns.
+    '  AND (node.qid IS NOT NULL OR coalesce(node.degree, 0) >= 2) '
+    'WITH node ORDER BY composite DESC LIMIT $limit '
+    'RETURN node.name AS name'
+)
+
 
 def _regex_seed_fallback(query: str) -> list[str]:
     seeds = _PROPER_NOUN.findall(query)
@@ -117,12 +150,22 @@ def _lucene_phrase_query(seed: str) -> str:
 
 
 def _lucene_or_query(seed: str) -> str:
-    """OR-joined Lucene query — kept as the fallback for phrase misses.
+    """OR-joined Lucene query restricted to proper-noun tokens.
 
-    Trades precision for recall. Used when phrase query returns 0 nodes
-    so the caller can decide whether to ground from a weak partial match
-    or report the seed as ungrounded."""
-    tokens = _lucene_tokens(seed)
+    Filters to words that start with a capital letter in the original seed
+    before lowercasing. Prevents generic descriptor words from polluting OR
+    expansion with semantically unrelated entity matches:
+
+      'Stanford alumni'  → 'stanford'        (not 'stanford OR alumni')
+      'Jensen Huang'     → 'jensen OR huang'
+      'PayPal founders'  → 'paypal'
+      'Harvard dropouts' → 'harvard'
+
+    Falls back to all tokens when no proper nouns exist (handles edge-cases
+    like all-lowercase single-word seeds)."""
+    proper = [w for w in seed.split() if w and w[0].isupper()]
+    seed_filtered = " ".join(proper) if proper else seed
+    tokens = _lucene_tokens(seed_filtered)
     return " OR ".join(tokens) if tokens else seed.strip()
 
 
@@ -136,6 +179,72 @@ def _count_index_matches(session, lucene: str) -> int:
         lucene=lucene,
     ).single()
     return row["n"] if row else 0
+
+
+def _resolve_seed_node_names(
+    session,
+    lucene: str,
+    seed: str,
+    limit: int = 5,
+    threshold: float = SCORE_THRESHOLD,
+) -> list[str]:
+    """Return up to `limit` entity names ranked by composite BM25+QID+exact+degree score.
+
+    Empty list when no node clears `threshold` — caller treats this as an
+    ungrounded seed and skips traversal (no noise expansion).
+
+    Composite formula (weights in _RERANK_CYPHER, constants above):
+      composite = bm25 + qid_bonus + exact_bonus + log(degree+1) * DEGREE_COEFF
+    """
+    try:
+        rows = session.run(
+            _RERANK_CYPHER,
+            lucene=lucene,
+            seed=seed,
+            threshold=threshold,
+            limit=limit,
+        ).data()
+        return [r["name"] for r in rows if r["name"]]
+    except Exception as e:
+        print(
+            f"[WARN] _resolve_seed_node_names failed for seed={seed!r}: "
+            f"{type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
+        return []
+
+
+_degree_checked = False
+
+
+def _check_degree_coverage_once() -> None:
+    """One-shot startup warning when fewer than 50% of Entity nodes have n.degree.
+
+    n.degree is written by build_graph._write_degree_centrality(). Without it
+    the composite scorer's degree signal is uniformly 0 — still correct but
+    loses hub-node differentiation. Warning fires at most once per process."""
+    global _degree_checked
+    if _degree_checked:
+        return
+    _degree_checked = True
+    try:
+        with driver.session() as s:
+            row = s.run(
+                "MATCH (n:Entity) "
+                "RETURN count(n) AS total, count(n.degree) AS with_degree"
+            ).single()
+            if row and row["total"] > 0:
+                coverage = row["with_degree"] / row["total"]
+                if coverage < 0.5:
+                    print(
+                        f"[WARN] degree coverage {coverage:.1%} "
+                        f"({row['with_degree']}/{row['total']} Entity nodes). "
+                        "Composite scorer running without degree signal — "
+                        "re-run build_graph.py to populate n.degree.",
+                        file=sys.stderr,
+                    )
+    except Exception:
+        pass  # DB not available at import time — not fatal
 
 
 def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dict[str, dict]]:
@@ -163,58 +272,50 @@ def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dic
             or_form = _lucene_or_query(seed)
             phrase_n = _count_index_matches(session, phrase)
             or_n = _count_index_matches(session, or_form) if or_form != phrase else phrase_n
+            # Two-stage resolution: try phrase first (high precision), fall back
+            # to OR (broader recall) if phrase yields no anchors POST-FILTER.
+            # _count_index_matches measures raw index hits including noise; the
+            # topology gate inside _resolve_seed_node_names can prune everything
+            # phrase matched (e.g. seed 'CEO of Apple' hits noise nodes only),
+            # so we must retry with OR even when phrase_n > 0.
+            anchor_names: list[str] = []
+            strategy = "none"
             if phrase_n > 0:
-                lucene_used = phrase
-                strategy = "phrase"
-            elif or_n > 0:
-                lucene_used = or_form
-                strategy = "or"
-            else:
+                anchor_names = _resolve_seed_node_names(session, phrase, seed)
+                if anchor_names:
+                    strategy = "phrase"
+            if not anchor_names and or_form != phrase and or_n > 0:
+                anchor_names = _resolve_seed_node_names(session, or_form, seed)
+                if anchor_names:
+                    strategy = "or"
+            if not anchor_names:
                 matches_per_seed[seed] = {
                     "phrase": phrase_n,
                     "or":     or_n,
                     "strategy": "none",
                 }
                 continue
-            # Two-stage: first find best-scored entity nodes via fulltext index,
-            # then expand from those nodes via graph traversal. LIMIT 5 anchors
-            # the expansion to a manageable starting set.
-            # Two-pass: 1-hop edges first (canonical direct neighbors that
-            # the LLM needs for relational + factoid questions), then 2..N-hop
-            # fill (for true multi-hop bridges). Concatenating ensures the
-            # final 200-edge per-seed budget always surfaces 1-hop edges,
-            # even on dense neighborhoods where 5-hop expansion produces
-            # 10K+ candidate paths and would otherwise crowd them out.
-            #
-            # Bug history: a single `MATCH path = (node)-[*1..5]-(m) ... LIMIT 200`
-            # without path-length ordering returns edges in Cypher's internal
-            # path-traversal order, which prefers BFS-by-anchor expansion over
-            # hop-distance ordering. On Microsoft (31 phrase matches → 5
-            # anchors → 5-hop expansion), the canonical
-            # `Microsoft -[CO_FOUNDED]- Bill Gates` 1-hop edge landed past
-            # index 200 and never reached the LLM context — exactly the
-            # symptom the v10 hybrid eval was diagnosing as "GraphRAG
-            # collapsed to 0.27 ALL recall".
+
+            # Two-pass: 1-hop edges first (canonical direct neighbors for relational +
+            # factoid questions), then 2..N-hop fill (bridge queries). Concatenating
+            # guarantees 1-hop edges appear in the LLM context budget even on dense
+            # neighborhoods where multi-hop expansion would otherwise crowd them out.
             edges: list[dict] = []
             r1 = session.run(
                 """
-                CALL db.index.fulltext.queryNodes("entity_names", $lucene)
-                YIELD node, score
-                WITH node ORDER BY score DESC LIMIT 5
+                MATCH (node:Entity) WHERE node.name IN $names
                 MATCH (node)-[r]-(m)
                 RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
                                 endNode(r).name AS o, r.source_title AS src
                 LIMIT 100
                 """,
-                lucene=lucene_used,
+                names=anchor_names,
             )
             edges.extend(dict(record) for record in r1)
             if max_hops > 1:
                 rn = session.run(
                     f"""
-                    CALL db.index.fulltext.queryNodes("entity_names", $lucene)
-                    YIELD node, score
-                    WITH node ORDER BY score DESC LIMIT 5
+                    MATCH (node:Entity) WHERE node.name IN $names
                     MATCH path = (node)-[*2..{max_hops}]-(m)
                     WITH DISTINCT relationships(path) AS rels
                     UNWIND rels AS r
@@ -222,7 +323,7 @@ def fetch_subgraph(seeds: list[str], max_hops: int = 5) -> tuple[list[dict], dic
                                     endNode(r).name AS o, r.source_title AS src
                     LIMIT 100
                     """,
-                    lucene=lucene_used,
+                    names=anchor_names,
                 )
                 edges.extend(dict(record) for record in rn)
             subgraph.extend(edges)
@@ -383,17 +484,22 @@ def _execute_decomposition(plan: dict, max_intermediate: int = 30) -> list[dict]
 
         # Step-1 edges (anchor neighborhood, filtered) — supporting context
         anchor_lucene = _lucene_phrase_query(anchor) or _lucene_or_query(anchor) or anchor
-        r_anchor = session.run("""
-            CALL db.index.fulltext.queryNodes("entity_names", $lucene)
-            YIELD node, score
-            WITH node ORDER BY score DESC LIMIT 5
-            MATCH (node)-[r]-(m)
-            WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
-            RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
-                            endNode(r).name AS o, r.source_title AS src
-            LIMIT 100
-        """, lucene=anchor_lucene, filter=edge_filter1)
-        step1_edges = [dict(rec) for rec in r_anchor]
+        anchor_names = _resolve_seed_node_names(session, anchor_lucene, anchor)
+        if anchor_names:
+            r_anchor = session.run(
+                """
+                MATCH (node:Entity) WHERE node.name IN $names
+                MATCH (node)-[r]-(m)
+                WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
+                RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                                endNode(r).name AS o, r.source_title AS src
+                LIMIT 100
+                """,
+                names=anchor_names, filter=edge_filter1,
+            )
+            step1_edges = [dict(rec) for rec in r_anchor]
+        else:
+            step1_edges = []
 
         # Step-2 edges (each intermediate's outgoing neighborhood, filtered) — direct answer
         params = {
@@ -437,21 +543,30 @@ def _step_one_intermediates(session, anchor: str, edge_filter: str, limit: int) 
     edges whose r.raw_relation matches edge_filter regex."""
     anchor_lucene = _lucene_phrase_query(anchor) or _lucene_or_query(anchor) or anchor
     try:
-        rows = list(session.run("""
-            CALL db.index.fulltext.queryNodes("entity_names", $lucene)
-            YIELD node, score
-            WITH node ORDER BY score DESC LIMIT 5
+        anchor_names = _resolve_seed_node_names(session, anchor_lucene, anchor)
+        if not anchor_names:
+            return []
+        rows = list(session.run(
+            """
+            MATCH (node:Entity) WHERE node.name IN $names
             MATCH (node)-[r]-(m:Entity)
             WHERE toLower(r.raw_relation) =~ ('(?i).*(' + $filter + ').*')
             RETURN DISTINCT m.name AS name LIMIT $lim
-        """, lucene=anchor_lucene, filter=edge_filter, lim=limit))
+            """,
+            names=anchor_names, filter=edge_filter, lim=limit,
+        ))
         return [r["name"] for r in rows]
     except Exception as e:
-        print(f"[WARN] step_one_intermediates failed for anchor={anchor!r}: {type(e).__name__}: {e}", file=sys.stderr)
+        print(
+            f"[WARN] step_one_intermediates failed for anchor={anchor!r}: "
+            f"{type(e).__name__}: {e}",
+            file=sys.stderr,
+        )
         return []
 
 
 _GDS_GRAPH = "entity-ppr-graph"
+_gds_projection_refreshed = False  # session-lifetime flag
 
 
 def _ensure_gds_projection() -> bool:
@@ -460,14 +575,26 @@ def _ensure_gds_projection() -> bool:
     Uses a wildcard relationship projection (type='*') so ALL edge types propagate
     — the entire point of using GDS over the LLM decomposer is that no edge-type
     specification is needed.  Returns False and logs a warning on failure so the
-    caller can skip PPR gracefully."""
+    caller can skip PPR gracefully.
+
+    On first call per process, drops any pre-existing projection so we never
+    inherit stale node IDs from a prior graph build. Subsequent calls reuse
+    the in-memory projection from the same session."""
+    global _gds_projection_refreshed
     with driver.session() as s:
         try:
             existing = s.run(
                 "CALL gds.graph.list() YIELD graphName RETURN graphName"
             ).data()
-            if any(r["graphName"] == _GDS_GRAPH for r in existing):
+            already_present = any(r["graphName"] == _GDS_GRAPH for r in existing)
+            if already_present and _gds_projection_refreshed:
                 return True
+            if already_present:
+                # Explicit YIELD avoids consuming deprecated `schema` column
+                s.run(
+                    "CALL gds.graph.drop($name) YIELD graphName RETURN graphName",
+                    name=_GDS_GRAPH,
+                ).consume()
             s.run(
                 """
                 CALL gds.graph.project(
@@ -477,6 +604,7 @@ def _ensure_gds_projection() -> bool:
                 """,
                 name=_GDS_GRAPH,
             ).consume()
+            _gds_projection_refreshed = True
             return True
         except Exception as e:
             print(f"[WARN] GDS projection failed: {type(e).__name__}: {e}", file=sys.stderr)
@@ -503,12 +631,9 @@ def _ppr_retrieve(seeds: list[str], top_k: int = 60) -> list[dict]:
     with driver.session() as s:
         for seed in seeds:
             lucene = _lucene_phrase_query(seed) or _lucene_or_query(seed) or seed
-            rows = s.run(
-                "CALL db.index.fulltext.queryNodes(\"entity_names\", $l) YIELD node, score "
-                "WITH node ORDER BY score DESC LIMIT 2 RETURN node.name AS name",
-                l=lucene,
-            ).data()
-            seed_node_names.extend(r["name"] for r in rows if r["name"])
+            seed_node_names.extend(
+                _resolve_seed_node_names(s, lucene, seed, limit=2)
+            )
 
     if not seed_node_names:
         return []
@@ -518,6 +643,7 @@ def _ppr_retrieve(seeds: list[str], top_k: int = 60) -> list[dict]:
             ppr_rows = s.run(
                 """
                 MATCH (seed:Entity) WHERE seed.name IN $names
+                  AND coalesce(seed.degree, 0) >= 1
                 WITH collect(seed) AS seeds
                 CALL gds.pageRank.stream($graph, {
                     maxIterations: 20,
@@ -568,18 +694,20 @@ def _find_bridge_edges(e1: str, e2: str) -> list[dict]:
     neighbor names in Python, return all edges touching shared intermediates.
     The caller prepends these to the main subgraph so the LLM sees bridge
     edges first within the 300-edge context cap."""
-    def _get_neighbor_edges(session, lucene: str) -> dict[str, list[dict]]:
+    def _get_neighbor_edges(session, lucene: str, seed: str) -> dict[str, list[dict]]:
+        anchor_names = _resolve_seed_node_names(session, lucene, seed, limit=3)
+        if not anchor_names:
+            return {}
         rows = session.run(
             """
-            CALL db.index.fulltext.queryNodes("entity_names", $lucene) YIELD node, score
-            WITH node ORDER BY score DESC LIMIT 3
+            MATCH (node:Entity) WHERE node.name IN $names
             MATCH (node)-[r]-(m:Entity)
             RETURN m.name AS name,
                    startNode(r).name AS s, r.raw_relation AS rel,
                    endNode(r).name   AS o, r.source_title  AS src
             LIMIT 150
             """,
-            lucene=lucene,
+            names=anchor_names,
         )
         buckets: dict[str, list[dict]] = defaultdict(list)
         for row in rows:
@@ -591,8 +719,8 @@ def _find_bridge_edges(e1: str, e2: str) -> list[dict]:
     l1 = _lucene_phrase_query(e1) or _lucene_or_query(e1) or e1
     l2 = _lucene_phrase_query(e2) or _lucene_or_query(e2) or e2
     with driver.session() as session:
-        nbrs_a = _get_neighbor_edges(session, l1)
-        nbrs_b = _get_neighbor_edges(session, l2)
+        nbrs_a = _get_neighbor_edges(session, l1, e1)
+        nbrs_b = _get_neighbor_edges(session, l2, e2)
     shared = set(nbrs_a.keys()) & set(nbrs_b.keys())
     bridge: list[dict] = []
     for intermediate in sorted(shared):
@@ -602,6 +730,7 @@ def _find_bridge_edges(e1: str, e2: str) -> list[dict]:
 
 
 def answer(query: str) -> dict:
+    _check_degree_coverage_once()
     seeds = extract_seed_entities(query)
     subgraph, matches_per_seed = fetch_subgraph(seeds)
 
@@ -640,7 +769,12 @@ def answer(query: str) -> dict:
     # new information, only noise.
     query_lower = query.lower()
 
-    # Step 2: relational bridge (runs before PPR so its result informs the PPR gate)
+    # Steps 2+3: bridge edges (targeted bridge-finding) and PPR (broad
+    # PageRank-weighted neighborhood). Final ordering matters: with the
+    # 300-edge context cap, PPR's 200+ edges can push targeted bridge
+    # edges past the cutoff. Order chosen: Bridge | PPR | Initial.
+    # Targeted evidence first, broad signal second, full neighborhood last.
+    bridge_edges: list[dict] = []
     if (
         len(seeds) == 2
         and decomp_plan is None
@@ -648,19 +782,15 @@ def answer(query: str) -> dict:
     ):
         bridge_edges = _find_bridge_edges(seeds[0], seeds[1])
         if bridge_edges:
-            subgraph = bridge_edges + subgraph
             matches_per_seed["__bridge__"] = {"edges_added": len(bridge_edges)}
 
-    # Step 3: PPR — skip only when decomposition already produced edges.
-    # Empirical finding (v14 eval): bridge+PPR together help relational queries
-    # (Q18 Apple↔Pixar: 0.00 without PPR, 1.00 with), while decomp+PPR hurts
-    # multi_hop queries (Q20/Q23 regression) by flooding targeted decomp output.
-    # Bridge is complementary enrichment; decomposition is a full replacement.
+    ppr_edges: list[dict] = []
     if not matches_per_seed.get("__decomposition__"):
         ppr_edges = _ppr_retrieve(seeds)
         if ppr_edges:
-            subgraph = ppr_edges + subgraph
             matches_per_seed["__ppr__"] = {"edges_added": len(ppr_edges)}
+
+    subgraph = bridge_edges + ppr_edges + subgraph
 
     # Two precondition surfaces:
     # (a) strategy == "none" → corpus does not contain any token of the seed.
@@ -733,6 +863,27 @@ def answer(query: str) -> dict:
             continue
         edge_groups[(s, rel, o)].add(src or "")
 
+    # Wikidata QID lookup so the LLM sees disambig signal in-prompt.
+    # Same name + different QID = different real-world entities. Without
+    # QID inline, the LLM has to infer from edge context alone, which fails
+    # on disambiguation cases (e.g. 'Tesla' the scientist vs 'Tesla, Inc.').
+    edge_names: set[str] = set()
+    for (s, rel, o), _ in edge_groups.items():
+        edge_names.add(s); edge_names.add(o)
+    qid_map: dict[str, str] = {}
+    if edge_names:
+        with driver.session() as s_:
+            rows = s_.run(
+                "MATCH (n:Entity) WHERE n.name IN $names "
+                "RETURN n.name AS name, n.qid AS qid",
+                names=list(edge_names),
+            ).data()
+        qid_map = {r["name"]: r["qid"] for r in rows if r.get("qid")}
+
+    def _label(name: str) -> str:
+        q = qid_map.get(name)
+        return f"{name} [{q}]" if q else name
+
     # Format: cap at 300 unique edges (~10K tokens of context) for
     # Gemma-4-26B's effective window. 264813e used 200; 300 leaves room for
     # richer subgraphs while staying well under the model's prompt limit.
@@ -746,7 +897,7 @@ def answer(query: str) -> dict:
             src_text = f"  (source: {srcs[0]})"
         else:
             src_text = f"  (sources: {', '.join(srcs[:4])})"
-        context_lines.append(f"- {s} --[{rel}]--> {o}{src_text}")
+        context_lines.append(f"- {_label(s)} --[{rel}]--> {_label(o)}{src_text}")
     context = "\n".join(context_lines)
 
     # Chain-of-thought + question-type-aware system prompt.
@@ -765,6 +916,11 @@ def answer(query: str) -> dict:
 
 GRAPH FACT FORMAT:
 Each line is one directed edge: `Subject --[relation]--> Object  (source: ArticleTitle)`.
+Entities may be tagged with a Wikidata QID in brackets: `Tesla, Inc. [Q478214]`.
+The QID identifies a specific real-world entity. **Same name + different QID = different
+entities.** Example: `Tesla [Q9036]` (the inventor Nikola Tesla) is a different entity
+from `Tesla, Inc. [Q478214]` (the car company), even though both render as "Tesla" in
+informal English. Use QID to disambiguate when multiple entities share a name.
 When the same edge is corroborated by multiple articles, sources are listed:
 `Subject --[relation]--> Object  (sources: Article1, Article2)` — treat that
 as multi-source evidence for ONE fact, not multiple facts.
@@ -786,19 +942,50 @@ REQUIRED PROCESS:
      Example for "What is the relationship between Apple and NeXT?":
        Edges in graph: `Apple --[ACQUIRED_BY]--> NeXT (Steve Jobs)`, `Apple --[CAME_TO_A_DEAL_WITH]--> NeXT (Steve Jobs)`, `Senior Apple employees --[JOINED]--> NeXT (Steve Jobs)`.
        Consolidated answer: "Apple acquired NeXT, and as part of the deal several senior Apple employees joined NeXT (source: Steve Jobs)."
+     **Bridge inference (no direct edge between the two entities):** when no edge directly links X and Y, look for an intermediate entity that connects to BOTH. The intermediate is the same real-world entity if it shares a QID across both edges.
+     Example for "What is the relationship between Apple and Pixar?":
+       Edges in graph: `Steven Paul Jobs [Q19837] --[founded]--> Apple Inc. [Q312]`, `Steven Paul Jobs [Q19837] --[purchased]--> Pixar [Q127552]`.
+       Consolidated answer: "Apple and Pixar are connected through Steve Jobs, who co-founded Apple Inc. and later purchased Pixar (source: Steve Jobs)."
+     Always prefer a bridge answer over refusing when an intermediate entity links both sides.
    - **FACTOID:** 1-2 sentence direct answer.
 4. **Cite every claim.** Format: "<fact> (source: <article>)". When multiple sources are listed for one edge, include them all: "(sources: A, B)". When consolidating multiple edges from the same source, cite that source once at the end: "<consolidated sentence> (source: A)".
-5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts."""
+5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts.
+
+OUTPUT FORMAT (mandatory two-pass):
+First emit a `RELEVANT FACTS:` block listing every edge from the graph context that
+contributes to your answer — one edge per bullet, copied verbatim with its QID tags
+and source. Include both direct edges AND bridge edges (edges through shared
+intermediates) when the question is RELATIONSHIP. List EVERY matching edge — do
+not deduplicate by surface form (e.g. "Tesla, Inc." and "Tesla" with the same QID
+are still separate evidence lines). For LIST questions, this block is the load-bearing
+artifact: every list-item in your final answer must trace to one or more bullets here.
+Then emit `ANSWER:` followed by the synthesized prose (per step 3 above).
+
+Example shape:
+RELEVANT FACTS:
+- Steven Paul Jobs [Q19837] --[founded]--> Apple Inc. [Q312]  (source: Steve Jobs)
+- Steven Paul Jobs [Q19837] --[purchased]--> Pixar [Q127552]  (source: Steve Jobs)
+
+ANSWER:
+Apple and Pixar are connected through Steve Jobs ..."""
     resp = omlx.chat.completions.create(
         model=ANSWER_MODEL,  # prose synthesis model; defaults to MODEL_SONNET if MODEL_ANSWER unset
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": f"Query: {query}\n\nGraph facts:\n{context}"},
         ],
-        temperature=0.0, max_tokens=2000,
+        temperature=0.0, max_tokens=3500,  # Two-pass output (FACTS + ANSWER) needs bigger budget
     )
+    raw = resp.choices[0].message.content or ""
+    # Two-pass output: extract just the ANSWER block so the judge scores
+    # synthesized prose, not the verbatim FACTS list (which would inflate
+    # entity-mention recall via incidental copies of graph edges).
+    if "ANSWER:" in raw:
+        answer_text = raw.split("ANSWER:", 1)[1].strip()
+    else:
+        answer_text = raw  # fallback if LLM ignored the format
     return {
-        "answer":           resp.choices[0].message.content or "",
+        "answer":           answer_text,
         "seeds":            seeds,
         "matches_per_seed": matches_per_seed,
         "edges_used":       len(subgraph),

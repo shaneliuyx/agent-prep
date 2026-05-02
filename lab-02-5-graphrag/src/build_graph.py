@@ -206,6 +206,64 @@ def write_triples_to_neo4j(
         )
 
 
+def _write_degree_centrality() -> None:
+    """Write total relationship count to n.degree on every Entity node.
+
+    query_graph.py's composite scorer uses log(degree+1)*DEGREE_COEFF to
+    prefer high-degree canonical nodes over low-degree noise nodes that
+    happen to share a BM25-relevant token.
+
+    Tries GDS gds.degree.write first (one-pass O(n)). Falls back to a plain
+    Cypher COUNT query if GDS is unavailable — correct but slower. Both paths
+    are wrapped in try/except so a GDS failure never aborts the build.
+    """
+    with driver.session() as s:
+        try:
+            graph_name = "entity-degree-build"
+            existing = s.run(
+                "CALL gds.graph.list() YIELD graphName RETURN graphName"
+            ).data()
+            if not any(r["graphName"] == graph_name for r in existing):
+                s.run(
+                    """
+                    CALL gds.graph.project(
+                        $name, 'Entity',
+                        {__ALL__: {type: '*', orientation: 'UNDIRECTED'}}
+                    )
+                    """,
+                    name=graph_name,
+                ).consume()
+            s.run(
+                "CALL gds.degree.write($name, {writeProperty: 'degree'}) "
+                "YIELD nodePropertiesWritten",
+                name=graph_name,
+            ).consume()
+            s.run("CALL gds.graph.drop($name, false)", name=graph_name).consume()
+            print("[build] degree centrality written via GDS gds.degree.write")
+        except Exception as gds_err:
+            print(
+                f"[build] GDS degree.write failed ({type(gds_err).__name__}: {gds_err}); "
+                "falling back to Cypher COUNT ...",
+                file=sys.stderr,
+            )
+            try:
+                s.run(
+                    """
+                    MATCH (n:Entity)
+                    OPTIONAL MATCH (n)-[r]-()
+                    WITH n, count(DISTINCT r) AS deg
+                    SET n.degree = deg
+                    """
+                ).consume()
+                print("[build] degree centrality written via Cypher COUNT fallback")
+            except Exception as cypher_err:
+                print(
+                    f"[build] degree fallback also failed: "
+                    f"{type(cypher_err).__name__}: {cypher_err}",
+                    file=sys.stderr,
+                )
+
+
 def _extract_one(
     article: dict,
     resolver: QIDResolver | None = None,
@@ -351,6 +409,10 @@ def main() -> None:
     # Persist cache one last time (worker writes are best-effort interim;
     # final save is the source of truth for next-run cache).
     resolver.save()
+
+    # Write degree centrality — must run after all MERGE writes are committed
+    # so relationship counts are final. Populates n.degree for composite scorer.
+    _write_degree_centrality()
 
     elapsed = time.time() - t0
     rs = resolver.stats()
