@@ -104,6 +104,9 @@ Rules:
     "served as", "studied at".
   * Education / employment: "attended", "earned a degree from", "worked at",
     "interned at", "served on the board of".
+- Subject and object must be proper named entities: people, companies, organizations, universities, products, or places. Every entity name must begin with a capital letter (proper noun). Do NOT emit: lowercase descriptive phrases ("the gathering of business intelligence", "integrating payment services"), monetary amounts ("a $22.5 million fundraising effort"), percentages, numeric quantities, event descriptions, bare noun phrases, or job titles as standalone entities. Do NOT emit book titles, article headlines, documentary names, or publication titles — only the author or publisher.
+- If a subject or object is a comma-separated list of named entities (e.g. "Yoshua Bengio, Yann LeCun, and Geoffrey Hinton"), emit one triple per entity — never use a comma-separated list as a single subject or object value.
+- Drop leading articles from entity names: write "New York Times" not "The New York Times", "Los Angeles" not "the Los Angeles area".
 - Include 10-15 triples per text segment. Skip if the segment has no clear entities.
 - Do not invent facts. Every triple must be supported by the segment text.
 - A single segment may repeat facts that appeared in earlier segments — that's
@@ -283,7 +286,7 @@ def main() -> None:
         # substring matching that produced "meta" → "metal" false positives).
         session.run(
             "CREATE FULLTEXT INDEX entity_names IF NOT EXISTS "
-            "FOR (n:Entity) ON EACH [n.name]"
+            "FOR (n:Entity) ON EACH [n.name, n.aliases]"
         )
         # v12: also index Entity.qid (used as canonical key in MERGE). A
         # range index speeds up qid-based MERGE during the build (~13K
@@ -368,7 +371,7 @@ def main() -> None:
     print(f"Top 10 predicates:           {predicate_counts.most_common(10)}")
     print(f"Wall time:                   {elapsed:.0f}s ({elapsed / 60:.1f} min)")
     print(f"Extraction rate:             {total_triples / elapsed:.1f} triples/sec  (MAX_WORKERS={MAX_WORKERS})")
-    print(f"Full-text index:             entity_names (over Entity.name)")
+    print(f"Full-text index:             entity_names (over Entity.name, Entity.aliases)")
     print()
     print("WIKIDATA QID RESOLUTION")
     print("-" * 72)
