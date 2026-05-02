@@ -24,6 +24,7 @@ load_dotenv()
 omlx = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
 MODEL = os.getenv("MODEL_SONNET")
 HAIKU = os.getenv("MODEL_HAIKU")
+ANSWER_MODEL = os.getenv("MODEL_ANSWER", MODEL)  # prose synthesis; defaults to MODEL if unset
 driver = GraphDatabase.driver(
     os.getenv("NEO4J_URI"),
     auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD")),
@@ -60,7 +61,7 @@ def extract_seed_entities(query: str) -> list[str]:
             {"role": "system", "content": "Extract 1-5 entities from the query as a JSON object {\"entities\": [...]}. Include any noun phrase a graph could store: people, places, products, organizations, movements, ideologies, events, concepts, time periods. Prefer specific surface forms over generic ones (e.g., 'anarchism' not 'movement'). If the query is generic (e.g. 'tell me about X'), extract X."},
             {"role": "user",   "content": query},
         ],
-        temperature=0.0, max_tokens=400,
+        temperature=0.0, max_tokens=2000,
         response_format={"type": "json_object"},
     )
     content = resp.choices[0].message.content
@@ -273,14 +274,14 @@ Q: "Which companies did founders of PayPal later start?"
 
 Q: "What companies were founded by Stanford alumni?"
 {"plan": {
-  "step1": {"anchor": "Stanford", "edge_filter": "attend|graduate|stud|alumn", "yield_var": "alumnus"},
-  "step2": {"from_var": "alumnus", "edge_filter": "found|co-found|start", "yield_var": "company"}
+  "step1": {"anchor": "Stanford", "edge_filter": "attend|graduate|stud|alum|enroll|earn|receiv|drop|transfer|pursu", "yield_var": "alumnus"},
+  "step2": {"from_var": "alumnus", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company"}
 }}
 
 Q: "What companies have been founded by Harvard dropouts?"
 {"plan": {
-  "step1": {"anchor": "Harvard", "edge_filter": "drop|attend|stud", "yield_var": "dropout"},
-  "step2": {"from_var": "dropout", "edge_filter": "found|co-found|start", "yield_var": "company"}
+  "step1": {"anchor": "Harvard", "edge_filter": "drop|attend|stud|enroll|earn|receiv", "yield_var": "dropout"},
+  "step2": {"from_var": "dropout", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company"}
 }}
 
 Q: "Who founded both a payments company and a space company?"
@@ -314,7 +315,7 @@ def _decompose_multihop(query: str) -> dict | None:
                 {"role": "system", "content": _DECOMPOSE_SYSTEM},
                 {"role": "user",   "content": f"Q: {query}"},
             ],
-            temperature=0.0, max_tokens=500,
+            temperature=0.0, max_tokens=2000,
             response_format={"type": "json_object"},
         )
         content = resp.choices[0].message.content or "{}"
@@ -380,7 +381,7 @@ def _execute_decomposition(plan: dict, max_intermediate: int = 30) -> list[dict]
         edge_filter2 = step2["edge_filter"]
         exclude_anchor = step2.get("exclude_anchor", False)
 
-        # Step-1 edges (anchor neighborhood, filtered)
+        # Step-1 edges (anchor neighborhood, filtered) — supporting context
         anchor_lucene = _lucene_phrase_query(anchor) or _lucene_or_query(anchor) or anchor
         r_anchor = session.run("""
             CALL db.index.fulltext.queryNodes("entity_names", $lucene)
@@ -392,9 +393,9 @@ def _execute_decomposition(plan: dict, max_intermediate: int = 30) -> list[dict]
                             endNode(r).name AS o, r.source_title AS src
             LIMIT 100
         """, lucene=anchor_lucene, filter=edge_filter1)
-        edges.extend(dict(rec) for rec in r_anchor)
+        step1_edges = [dict(rec) for rec in r_anchor]
 
-        # Step-2 edges (each intermediate's outgoing neighborhood, filtered)
+        # Step-2 edges (each intermediate's outgoing neighborhood, filtered) — direct answer
         params = {
             "names":  intermediates[:max_intermediate],
             "filter": edge_filter2,
@@ -419,7 +420,15 @@ def _execute_decomposition(plan: dict, max_intermediate: int = 30) -> list[dict]
                                 endNode(r).name AS o, r.source_title AS src
                 LIMIT 200
             """, **params)
-        edges.extend(dict(rec) for rec in r_step2)
+        step2_edges = [dict(rec) for rec in r_step2]
+
+        # Step-2 first (direct answer), step-1 second (supporting context).
+        # LLMs attend most reliably to the start of long contexts ("lost in
+        # the middle" effect). For bridge queries like "companies founded by
+        # Stanford alumni", the founding edges (step-2) are the primary answer
+        # and must appear early; the education edges (step-1) are supporting.
+        edges.extend(step2_edges)
+        edges.extend(step1_edges)
     return edges
 
 
@@ -607,29 +616,31 @@ def answer(query: str) -> dict:
     if decomp_plan:
         decomp_edges = _execute_decomposition(decomp_plan)
         if decomp_edges:
-            subgraph.extend(decomp_edges)
+            # Prepend decomp edges so they appear at the start of the LLM
+            # context. The basic subgraph from seed entities is appended after,
+            # keeping the high-precision targeted edges visible early (avoids
+            # "lost in the middle" suppression on 200+ edge contexts).
+            subgraph = decomp_edges + subgraph
             matches_per_seed["__decomposition__"] = {
                 "plan_type": decomp_plan.get("type", "bridge"),
                 "edges_added": len(decomp_edges),
             }
 
-    # PPR supplement — runs unconditionally for every query.
-    # GDS personalized PageRank propagates through ALL edge types (~50ms).
-    # No keyword list needed: PPR from seed "Microsoft" naturally ranks
-    # Bill Gates / Paul Allen highest regardless of query type.
-    # Edges prepended so they surface first within the 300-edge LLM context cap.
-    # Overlap with fetch_subgraph is collapsed by per-edge dedup below.
+    # Query-type router — priority chain (mirrors ToG/IRCoT retrieval ordering):
+    #   1. Decomposition (already ran above) — multi-hop bridge/intersection questions
+    #   2. Relational bridge — two-entity relationship questions
+    #   3. PPR — last resort when both structured methods produced nothing
+    #
+    # PPR fires ONLY if neither __decomposition__ nor __bridge__ produced edges.
+    # Unconditional PPR caused multi_hop regression (v13: Q20 0.60→0.20, Q23 1.00→0.33):
+    # for queries where decomposition already found targeted edges, PPR's 200 extra
+    # edges from global high-PageRank neighbors flooded context and buried the
+    # decomposition output. The novelty argument applies equally: if decomp/bridge
+    # already found the right neighborhood, PPR returns nodes already covered → no
+    # new information, only noise.
     query_lower = query.lower()
-    ppr_edges = _ppr_retrieve(seeds)
-    if ppr_edges:
-        subgraph = ppr_edges + subgraph
-        matches_per_seed["__ppr__"] = {"edges_added": len(ppr_edges)}
 
-    # Relational bridge: when exactly 2 seeds and no decomp plan was found,
-    # compute shared-neighbor edges via Python-side intersection.
-    # Prepend bridge edges so they land first in the 300-edge LLM context
-    # window — prevents them from being crowded out by the larger per-seed
-    # neighborhood expansion that fetch_subgraph already ran.
+    # Step 2: relational bridge (runs before PPR so its result informs the PPR gate)
     if (
         len(seeds) == 2
         and decomp_plan is None
@@ -639,6 +650,17 @@ def answer(query: str) -> dict:
         if bridge_edges:
             subgraph = bridge_edges + subgraph
             matches_per_seed["__bridge__"] = {"edges_added": len(bridge_edges)}
+
+    # Step 3: PPR — skip only when decomposition already produced edges.
+    # Empirical finding (v14 eval): bridge+PPR together help relational queries
+    # (Q18 Apple↔Pixar: 0.00 without PPR, 1.00 with), while decomp+PPR hurts
+    # multi_hop queries (Q20/Q23 regression) by flooding targeted decomp output.
+    # Bridge is complementary enrichment; decomposition is a full replacement.
+    if not matches_per_seed.get("__decomposition__"):
+        ppr_edges = _ppr_retrieve(seeds)
+        if ppr_edges:
+            subgraph = ppr_edges + subgraph
+            matches_per_seed["__ppr__"] = {"edges_added": len(ppr_edges)}
 
     # Two precondition surfaces:
     # (a) strategy == "none" → corpus does not contain any token of the seed.
@@ -768,15 +790,15 @@ REQUIRED PROCESS:
 4. **Cite every claim.** Format: "<fact> (source: <article>)". When multiple sources are listed for one edge, include them all: "(sources: A, B)". When consolidating multiple edges from the same source, cite that source once at the end: "<consolidated sentence> (source: A)".
 5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts."""
     resp = omlx.chat.completions.create(
-        model=MODEL,
+        model=ANSWER_MODEL,  # prose synthesis model; defaults to MODEL_SONNET if MODEL_ANSWER unset
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": f"Query: {query}\n\nGraph facts:\n{context}"},
         ],
-        temperature=0.2, max_tokens=800,
+        temperature=0.0, max_tokens=2000,
     )
     return {
-        "answer":           resp.choices[0].message.content,
+        "answer":           resp.choices[0].message.content or "",
         "seeds":            seeds,
         "matches_per_seed": matches_per_seed,
         "edges_used":       len(subgraph),

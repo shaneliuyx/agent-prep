@@ -71,6 +71,8 @@ def score_substring(answer_text: str, expected_entities: list[str]) -> float:
     backward-compat with frozen comparison.json hash."""
     if not expected_entities:
         return 0.0
+    if not answer_text:
+        return 0.0
     at = answer_text.lower()
     return sum(1 for e in expected_entities if e.lower() in at) / len(expected_entities)
 
@@ -82,6 +84,8 @@ def score_llm_judge(
     Returns (recall, per_entity_matches_dict). Falls back to substring score
     on JSON parse failure or LLM error."""
     if not expected_entities:
+        return 0.0, {}
+    if not answer_text:
         return 0.0, {}
     user_msg = (
         f"Question: {query}\n\n"
