@@ -442,6 +442,108 @@ def _step_one_intermediates(session, anchor: str, edge_filter: str, limit: int) 
         return []
 
 
+_GDS_GRAPH = "entity-ppr-graph"
+
+
+def _ensure_gds_projection() -> bool:
+    """Create undirected Entity projection for PPR if not already present.
+
+    Uses a wildcard relationship projection (type='*') so ALL edge types propagate
+    — the entire point of using GDS over the LLM decomposer is that no edge-type
+    specification is needed.  Returns False and logs a warning on failure so the
+    caller can skip PPR gracefully."""
+    with driver.session() as s:
+        try:
+            existing = s.run(
+                "CALL gds.graph.list() YIELD graphName RETURN graphName"
+            ).data()
+            if any(r["graphName"] == _GDS_GRAPH for r in existing):
+                return True
+            s.run(
+                """
+                CALL gds.graph.project(
+                    $name, 'Entity',
+                    {__ALL__: {type: '*', orientation: 'UNDIRECTED'}}
+                )
+                """,
+                name=_GDS_GRAPH,
+            ).consume()
+            return True
+        except Exception as e:
+            print(f"[WARN] GDS projection failed: {type(e).__name__}: {e}", file=sys.stderr)
+            return False
+
+
+def _ppr_retrieve(seeds: list[str], top_k: int = 60) -> list[dict]:
+    """Personalized PageRank via Neo4j GDS from seed entity names.
+
+    Two-step:
+      1. Resolve seed names → exact graph node names via full-text index.
+      2. MATCH those nodes → pass as sourceNodes to gds.pageRank.stream.
+
+    PPR propagates through ALL edge types without any regex specification —
+    "received a bachelor of science degree from Stanford" and "attended Stanford"
+    both reach the same alumni nodes because ALL edges are included.
+
+    Returns edges where both endpoints are in the top-K PPR-ranked nodes,
+    ready to be prepended to the LLM context."""
+    if not _ensure_gds_projection():
+        return []
+
+    seed_node_names: list[str] = []
+    with driver.session() as s:
+        for seed in seeds:
+            lucene = _lucene_phrase_query(seed) or _lucene_or_query(seed) or seed
+            rows = s.run(
+                "CALL db.index.fulltext.queryNodes(\"entity_names\", $l) YIELD node, score "
+                "WITH node ORDER BY score DESC LIMIT 2 RETURN node.name AS name",
+                l=lucene,
+            ).data()
+            seed_node_names.extend(r["name"] for r in rows if r["name"])
+
+    if not seed_node_names:
+        return []
+
+    with driver.session() as s:
+        try:
+            ppr_rows = s.run(
+                """
+                MATCH (seed:Entity) WHERE seed.name IN $names
+                WITH collect(seed) AS seeds
+                CALL gds.pageRank.stream($graph, {
+                    maxIterations: 20,
+                    dampingFactor: 0.85,
+                    sourceNodes: seeds
+                })
+                YIELD nodeId, score
+                RETURN gds.util.asNode(nodeId).name AS name, score
+                ORDER BY score DESC LIMIT $top_k
+                """,
+                names=seed_node_names,
+                graph=_GDS_GRAPH,
+                top_k=top_k,
+            ).data()
+        except Exception as e:
+            print(f"[WARN] PPR stream failed: {type(e).__name__}: {e}", file=sys.stderr)
+            return []
+
+        top_names = [r["name"] for r in ppr_rows if r["name"]]
+        if not top_names:
+            return []
+
+        edges = s.run(
+            """
+            MATCH (a:Entity)-[r]-(b:Entity)
+            WHERE a.name IN $names AND b.name IN $names
+            RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                            endNode(r).name   AS o, r.source_title  AS src
+            LIMIT 200
+            """,
+            names=top_names,
+        ).data()
+    return [dict(r) for r in edges]
+
+
 _RELATIONAL_KWS = frozenset(
     ["relationship", "connection", "connected", "related", "between", "link"]
 )
@@ -511,12 +613,23 @@ def answer(query: str) -> dict:
                 "edges_added": len(decomp_edges),
             }
 
+    # PPR supplement — runs unconditionally for every query.
+    # GDS personalized PageRank propagates through ALL edge types (~50ms).
+    # No keyword list needed: PPR from seed "Microsoft" naturally ranks
+    # Bill Gates / Paul Allen highest regardless of query type.
+    # Edges prepended so they surface first within the 300-edge LLM context cap.
+    # Overlap with fetch_subgraph is collapsed by per-edge dedup below.
+    query_lower = query.lower()
+    ppr_edges = _ppr_retrieve(seeds)
+    if ppr_edges:
+        subgraph = ppr_edges + subgraph
+        matches_per_seed["__ppr__"] = {"edges_added": len(ppr_edges)}
+
     # Relational bridge: when exactly 2 seeds and no decomp plan was found,
     # compute shared-neighbor edges via Python-side intersection.
     # Prepend bridge edges so they land first in the 300-edge LLM context
     # window — prevents them from being crowded out by the larger per-seed
     # neighborhood expansion that fetch_subgraph already ran.
-    query_lower = query.lower()
     if (
         len(seeds) == 2
         and decomp_plan is None
