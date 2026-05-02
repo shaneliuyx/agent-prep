@@ -96,15 +96,27 @@ Output JSON only: {"triples": [{"subject": str, "relation": str, "object": str},
 Rules:
 - Use the exact surface form that appears in the text for subject/object.
 - **Always emit triples in ACTIVE voice.** If the source text is passive ("Apple was acquired by NeXT"), invert subject/object so the agent is the subject: emit subject="NeXT", relation="acquired", object="Apple". Applies to all by-suffix passives ("X was founded by Y", "X was published by Y", "X was sold to Y"). For passives where the subject is genuinely the patient ("John was awarded the Nobel Prize", "John was named CEO"), keep subject=John — the relationship describes John, not the agent. Use linguistic judgment per triple, not a fixed list.
-- Relations are 1-4-word verb phrases. Include BOTH:
-  * Corporate / affiliation relations: "founded", "acquired by", "co-founded",
-    "led", "merged with", "invested in", "joined", "left".
-  * Biographical / life events: "dropped out of", "graduated from", "married",
-    "divorced", "donated to", "was sued by", "testified before", "moved to",
-    "served as", "studied at".
-  * Education / employment: "attended", "earned a degree from", "worked at",
-    "interned at", "served on the board of".
-- Subject and object must be proper named entities: people, companies, organizations, universities, products, or places. Every entity name must begin with a capital letter (proper noun). Do NOT emit: lowercase descriptive phrases ("the gathering of business intelligence", "integrating payment services"), monetary amounts ("a $22.5 million fundraising effort"), percentages, numeric quantities, event descriptions, bare noun phrases, or job titles as standalone entities. Do NOT emit book titles, article headlines, documentary names, or publication titles — only the author or publisher.
+- Relations are 1-4-word verb phrases describing how the subject acts on or
+  relates to the object. Capture any meaningful relationship the text states,
+  across categories such as:
+  * Action / causation (e.g. founded, created, discovered, acquired, signed)
+  * Affiliation / membership (e.g. joined, employed, member of, served as)
+  * Derivation / origin / lineage (e.g. derived from, descendant of, succeeded)
+  * State transition / life event (e.g. moved to, married, retired, deceased)
+  * Production / authorship (e.g. wrote, composed, invented, designed)
+  * Education / training (e.g. attended, graduated from, studied under)
+  * Location / containment (e.g. located in, headquartered in, born in)
+  * Temporal (e.g. occurred in, preceded, followed)
+  Do not restrict to a fixed list — extract whatever relation the text supports.
+- Subject and object must be proper named entities. An entity is any specific,
+  identifiable thing the text names: people, organizations, products, places,
+  works (books/papers/songs/art), events, biological/chemical/legal classifications,
+  abstract movements or concepts when used as proper nouns. Every entity name
+  must begin with a capital letter (proper noun). Do NOT emit: lowercase
+  descriptive phrases, monetary amounts, percentages, numeric quantities,
+  bare noun phrases, or job titles as standalone entities. Do NOT emit work
+  titles (book titles, article headlines, documentary names, publication
+  titles) — only the author/creator/publisher.
 - If a subject or object is a comma-separated list of named entities (e.g. "Yoshua Bengio, Yann LeCun, and Geoffrey Hinton"), emit one triple per entity — never use a comma-separated list as a single subject or object value.
 - Drop leading articles from entity names: write "New York Times" not "The New York Times", "Los Angeles" not "the Los Angeles area".
 - Include 10-15 triples per text segment. Skip if the segment has no clear entities.

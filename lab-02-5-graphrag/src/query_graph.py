@@ -395,6 +395,13 @@ For an INTERSECTION (must satisfy two filters):
   }
 }
 
+**Intersection eligibility rule:** Both step1a.anchor AND step1b.anchor MUST
+be specific named entities that exist as graph nodes (e.g. "PayPal", "Stanford",
+"Apple Inc."). If either would be a category or descriptor (e.g. "technology
+company", "enterprise software", "venture capitalists", "founders"), use the
+2-step bridge format instead — categories are not graph nodes and intersection
+on them returns empty.
+
 Edge_filter is a regex pattern matched against r.raw_relation (case-insensitive substring match).
 Use '|' to OR multiple verbs: "found|start|launch|co-found".
 
@@ -407,8 +414,10 @@ Q: "Which companies did founders of PayPal later start?"
 }}
 
 Q: "What companies were founded by Stanford alumni?"
+(Anchor uses canonical entity name "Stanford University", not the disambig
+page "Stanford" — the canonical entity has more attendance edges.)
 {"plan": {
-  "step1": {"anchor": "Stanford", "edge_filter": "attend|graduate|stud|alum|enroll|earn|receiv|drop|transfer|pursu", "yield_var": "alumnus"},
+  "step1": {"anchor": "Stanford University", "edge_filter": "attend|graduate|stud|alum|enroll|earn|receiv|drop|transfer|pursu", "yield_var": "alumnus"},
   "step2": {"from_var": "alumnus", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company", "expand_terminal": false}
 }}
 
@@ -424,11 +433,11 @@ Q: "Who co-founded Andreessen Horowitz with Marc Andreessen, and what enterprise
   "step2": {"from_var": "co_founder", "edge_filter": "found|co-found|start|launch|creat", "exclude_anchor": true, "yield_var": "company", "expand_terminal": true}
 }}
 
-Q: "Who founded both a payments company and a space company?"
+Q: "Who has worked at both Microsoft and Apple Inc.?"
 {"plan": {
   "type": "intersection",
-  "step1a": {"anchor": "payments", "edge_filter": "found|co-found", "yield_var": "founder"},
-  "step1b": {"anchor": "space", "edge_filter": "found|co-found", "yield_var": "founder"}
+  "step1a": {"anchor": "Microsoft", "edge_filter": "work|join|employ|hired|served", "yield_var": "person"},
+  "step1b": {"anchor": "Apple Inc.", "edge_filter": "work|join|employ|hired|served", "yield_var": "person"}
 }}
 
 Q: "Who founded Microsoft?"
@@ -986,21 +995,23 @@ entities.** Example: `Tesla [Q9036]` (the inventor Nikola Tesla) is a different 
 from `Tesla, Inc. [Q478214]` (the car company), even though both render as "Tesla" in
 informal English. Use QID to disambiguate when multiple entities share a name.
 
-**Surface-form-drift exception:** Sometimes the SAME real-world person/company
-appears under TWO different QIDs because the extraction step recorded two surface
-forms (e.g. "Marc Andreessen [Q62882]" and "Andreessen [Q83339284]"). Indicators
-they refer to the SAME entity:
-  - One name is a substring of the other (e.g. last name vs full name)
-  - They share co-founders, employers, or affiliations in the edges
-  - Their edges describe a coherent biography (no contradictions)
+**Surface-form-drift exception:** Sometimes the SAME real-world entity (person,
+organization, product, place, concept) appears under TWO different QIDs because
+the extraction step recorded two surface forms (a long form and a substring of
+it; e.g. "<Full Name> [Q1]" and "<Substring> [Q2]"). Indicators they refer to
+the SAME entity:
+  - One name is a substring of the other
+  - They share neighbors (collaborators, parents, affiliations, members, etc.)
+    in the edges
+  - Their edges describe a coherent profile (no contradictions)
 When these indicators all hold, MERGE the two entities for the purpose of the
 answer. Concretely: if the question asks about Entity X and surface-form drift
-adds Entity X' (same surname, overlapping context), then EVERY edge from X' is
-ALSO valid evidence for X. List items from X' in your LIST/COMPOUND/RELATIONSHIP
-answer alongside items from X. Do not skip X' edges just because they have a
-different QID — the merge instruction makes them count. Cite both QIDs once at
-the start of the answer to make the merge transparent (e.g. "Marc Andreessen
-[Q62882, also Q83339284]").
+adds Entity X' (sharing a substring + overlapping context), then EVERY edge
+from X' is ALSO valid evidence for X. Include items from X' in your
+LIST/COMPOUND/RELATIONSHIP answer alongside items from X. Do not skip X'
+edges just because they have a different QID — the merge instruction makes
+them count. Cite both QIDs once at the start of the answer to make the merge
+transparent (e.g. "<Canonical Full Name> [Q1, also Q2]").
 When the same edge is corroborated by multiple articles, sources are listed:
 `Subject --[relation]--> Object  (sources: Article1, Article2)` — treat that
 as multi-source evidence for ONE fact, not multiple facts.
@@ -1012,20 +1023,25 @@ direction in the graph. Examples (treat as the same fact):
 
 REQUIRED PROCESS:
 1. **Identify the question type:**
-   - LIST/ENUMERATION: "what companies", "which X", "list all", "who founded", "what universities".
-   - RELATIONSHIP: "what is the relationship between X and Y", "how is X connected to Y".
-   - FACTOID: "who is the CEO of X", "where is X based", "when did X happen".
+   - LIST/ENUMERATION: question expects multiple items as the answer ("which X",
+     "what are all", "list", "who has", "what entities", "what events").
+   - RELATIONSHIP: question asks how two named entities relate ("what is the
+     relationship between X and Y", "how is X connected to Y", "in what way
+     does X relate to Y").
+   - FACTOID: question expects a single direct fact ("who is the <role> of X",
+     "where is X located", "when did X occur", "what is the <attribute> of X").
    - **COMPOUND**: any question containing multiple sub-clauses joined by "and",
      "with", relative pronouns ("that", "which", "who"), or qualifying phrases
-     ("later acquired", "previously co-founded", "ultimately sold to"). Treat
+     that introduce additional constraints ("later <verb-ed>", "previously
+     <verb-ed>", "ultimately <verb-ed>", "subsequently <verb-ed>"). Treat
      each sub-clause as a separate sub-query. The final answer must address
      EVERY sub-clause, not just the first or main one.
-     Example: "Who co-founded X with Y, and what enterprise software company
-     had they previously co-founded together that was later acquired?" has
-     three sub-clauses: (a) co-founder of X with Y, (b) prior co-founded
-     enterprise company, (c) acquirer of that company. Answer must cover all
-     three. Sub-clause (c) requires finding an acquisition edge in the graph
-     that involves the entity from sub-clause (b).
+     Example structure: "Who <relation> X with Y, and what <kind-of-entity>
+     had they previously <relation> together that was later <relation>?" has
+     three sub-clauses: (a) co-actor with Y on X, (b) prior shared entity,
+     (c) successor/acquirer/owner of (b). Answer must cover all three.
+     Sub-clause (c) requires finding an edge in the graph for the qualifying
+     relation that involves the entity from sub-clause (b).
 2. **Extract matching facts.** Scan every graph fact line. For LIST questions, extract EVERY edge that matches the question's category — do not skip any. For RELATIONSHIP, find every edge connecting the two named entities directly OR through shared intermediate entities. For FACTOID, find the most-direct edge. For COMPOUND, extract facts for EVERY sub-clause; missing one sub-clause's evidence makes the answer incomplete even if the others are perfect.
 3. **Synthesize the answer.**
    - **LIST:** produce a bulleted or comma-separated list with one citation per item.
@@ -1043,37 +1059,57 @@ REQUIRED PROCESS:
 4. **Cite every claim.** Format: "<fact> (source: <article>)". When multiple sources are listed for one edge, include them all: "(sources: A, B)". When consolidating multiple edges from the same source, cite that source once at the end: "<consolidated sentence> (source: A)".
 5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts.
 
-OUTPUT FORMAT (mandatory):
+INTERNAL REASONING (do NOT output — apply silently, then write the final answer):
 
-For FACTOID (single direct answer), use two-pass: `RELEVANT FACTS:` + `ANSWER:`.
+  LIST queries: mentally walk each candidate edge that could contribute
+    to the list. For each: "Edge X → include / exclude / merged from
+    drift → why". Apply the surface-form-drift exception explicitly in
+    this walk: when an entity's name is a substring of the question's
+    target (and overlapping context per the indicators above), MERGE
+    them and INCLUDE that entity's items. Do not silently drop them.
 
-For LIST, RELATIONSHIP, and COMPOUND, use three-pass:
-  `THINKING:` (walk each candidate edge / sub-clause)
-  `RELEVANT FACTS:` (verbatim edges from graph context)
-  `ANSWER:` (synthesized prose)
+  RELATIONSHIP queries: mentally walk each edge between (or through
+    bridges connecting) the two named entities. Identify the canonical
+    relation and the supporting relations.
 
-`THINKING:` rules per question type:
+  COMPOUND queries: mentally walk each sub-clause: (a), (b), (c)... For
+    each, identify the supporting edge in the graph context. Do not skip
+    sub-clauses; if a sub-clause has no supporting edge, that's the
+    answer to that part.
 
-  LIST: walk each candidate edge that could contribute to the list.
-    For each: "Edge X → decision (include / exclude / merged from drift) → why".
-    Apply the surface-form-drift exception EXPLICITLY in this walk: when
-    you see edges from a surname-only entity that shares the seed's surname,
-    state the merge decision in THINKING and INCLUDE that entity's items
-    in the final ANSWER list. Do not silently drop them.
+The internal walk forces consistent reasoning. The visible answer must
+reflect every "include" decision from the walk, but DO NOT print the
+walk itself — output only the final concise answer.
 
-  RELATIONSHIP: walk each edge between (or through bridges connecting) the
-    two named entities. Identify the canonical relation and the supporting
-    relations.
+OUTPUT FORMAT (mandatory; visible output only):
 
-  COMPOUND: walk each sub-clause:
-    Sub-clause (a) "<re-state>": <reason; cite edge>
-    Sub-clause (b) "<re-state>": <reason; cite edge>
-    Final chain: A → B → C
-    Do not skip sub-clauses; if a sub-clause has no supporting edge, say so.
+For LIST, emit ONLY:
+  `ANSWER:` (bulleted list — one bullet per entity, citation inline in
+   the form "- <Entity> (source: X)"; bullets ARE the facts; do not skip
+   any candidate entity; do not add prose commentary)
 
-The THINKING block forces explicit reasoning about every candidate before
-synthesis. The ANSWER must be consistent with THINKING — every "include"
-decision in THINKING must produce a corresponding item in ANSWER.
+For FACTOID and RELATIONSHIP, use two-pass:
+  `RELEVANT FACTS:` (one bullet per edge; verbatim; no commentary)
+  `ANSWER:` (synthesized prose; concise)
+
+For COMPOUND, use two-pass:
+  `RELEVANT FACTS:` (verbatim edges; one bullet per edge)
+  `ANSWER:` (prose addressing every sub-clause; concise)
+
+ENUMERATION COMPLETENESS RULES:
+- For LIST: completeness over brevity. List EVERY candidate entity from the
+  graph context that satisfies the question's relation, even if the list is
+  long. Do not summarize ("...and several others"). Each entity gets its
+  own bullet with one citation.
+- For RELATIONSHIP / COMPOUND: FACTS section is one bullet per edge;
+  ANSWER prose synthesizes them concisely.
+- ANSWER must always be emitted last. If you are running low on output
+  budget, drop FACTS detail (for non-LIST) before truncating ANSWER list.
+
+Apply the surface-form-drift merge exception by including edges from BOTH
+QIDs in your enumeration (LIST) or evidence (RELATIONSHIP/COMPOUND), and
+mentioning both in ANSWER. Cite both QIDs once at the start of the
+canonical entity reference (e.g. "<Entity> [Q1, also Q2]").
 
 Example shape (RELATIONSHIP):
 RELEVANT FACTS:
@@ -1110,7 +1146,7 @@ Loudcloud), which was later acquired by Hewlett-Packard."""
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": f"Query: {query}\n\nGraph facts:\n{context}"},
         ],
-        temperature=0.0, max_tokens=3500,  # Two-pass output (FACTS + ANSWER) needs bigger budget
+        temperature=0.0, max_tokens=8000,  # Dense LIST queries with intermediate-expansion can need ample budget for full enumeration
     )
     raw = resp.choices[0].message.content or ""
     # Two-pass output: extract just the ANSWER block so the judge scores
