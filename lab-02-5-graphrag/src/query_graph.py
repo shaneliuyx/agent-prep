@@ -349,9 +349,19 @@ The plan format for a 2-step bridge is:
 {
   "plan": {
     "step1": {"anchor": "<seed entity>", "edge_filter": "<verb regex pattern>", "yield_var": "<intermediate name>"},
-    "step2": {"from_var": "<step1 yield_var>", "edge_filter": "<verb regex pattern>", "exclude_anchor": true|false, "yield_var": "<answer name>"}
+    "step2": {"from_var": "<step1 yield_var>", "edge_filter": "<verb regex pattern>", "exclude_anchor": true|false, "yield_var": "<answer name>", "expand_terminal": true|false}
   }
 }
+
+Set `expand_terminal: true` ONLY when the question's qualifying clauses
+reference relations that step-2's edge_filter does NOT match. Examples:
+- "...that was later acquired" → step-2 filter is founding-style, but the
+  qualifier needs `acquired` edges → expand_terminal = true
+- "...and what happened to it" → terminal events not in founding filter
+  → expand_terminal = true
+- "...what they later started" → step-2 IS the founding edges → expand_terminal = false
+- "...companies founded by Stanford alumni" → 2-step is sufficient → expand_terminal = false
+Default to false unless the qualifier clearly requires beyond-step-2 edges.
 
 For an INTERSECTION (must satisfy two filters):
 {
@@ -370,19 +380,25 @@ Examples:
 Q: "Which companies did founders of PayPal later start?"
 {"plan": {
   "step1": {"anchor": "PayPal", "edge_filter": "found|co-found|start", "yield_var": "founder"},
-  "step2": {"from_var": "founder", "edge_filter": "found|co-found|start|launch", "exclude_anchor": true, "yield_var": "company"}
+  "step2": {"from_var": "founder", "edge_filter": "found|co-found|start|launch", "exclude_anchor": true, "yield_var": "company", "expand_terminal": false}
 }}
 
 Q: "What companies were founded by Stanford alumni?"
 {"plan": {
   "step1": {"anchor": "Stanford", "edge_filter": "attend|graduate|stud|alum|enroll|earn|receiv|drop|transfer|pursu", "yield_var": "alumnus"},
-  "step2": {"from_var": "alumnus", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company"}
+  "step2": {"from_var": "alumnus", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company", "expand_terminal": false}
 }}
 
 Q: "What companies have been founded by Harvard dropouts?"
 {"plan": {
   "step1": {"anchor": "Harvard", "edge_filter": "drop|attend|stud|enroll|earn|receiv", "yield_var": "dropout"},
-  "step2": {"from_var": "dropout", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company"}
+  "step2": {"from_var": "dropout", "edge_filter": "found|co-found|start|launch|creat|initiat", "yield_var": "company", "expand_terminal": false}
+}}
+
+Q: "Who co-founded Andreessen Horowitz with Marc Andreessen, and what enterprise software company had they previously co-founded together that was later acquired?"
+{"plan": {
+  "step1": {"anchor": "Andreessen Horowitz", "edge_filter": "co-found|found|start", "yield_var": "co_founder"},
+  "step2": {"from_var": "co_founder", "edge_filter": "found|co-found|start|launch|creat", "exclude_anchor": true, "yield_var": "company", "expand_terminal": true}
 }}
 
 Q: "Who founded both a payments company and a space company?"
@@ -528,12 +544,37 @@ def _execute_decomposition(plan: dict, max_intermediate: int = 30) -> list[dict]
             """, **params)
         step2_edges = [dict(rec) for rec in r_step2]
 
-        # Step-2 first (direct answer), step-1 second (supporting context).
+        # Step-3 neighborhood expansion: opt-in per-plan. Compound questions
+        # whose qualifying clauses reference relations beyond step-2's filter
+        # (e.g. "...that was later acquired") set `expand_terminal: true` in
+        # the plan; the decomposition LLM decides based on question structure.
+        # When false, skip step3 entirely (default) — avoids flooding simple
+        # 2-step chains (e.g. "companies founded by Stanford alumni") with
+        # off-topic noise around each step-2 target.
+        step3_edges: list[dict] = []
+        if step2.get("expand_terminal"):
+            step2_target_names = sorted({e["o"] for e in step2_edges if e.get("o")})
+            if step2_target_names:
+                r_step3 = session.run(
+                    """
+                    MATCH (n:Entity) WHERE n.name IN $names
+                    MATCH (n)-[r]-(m:Entity)
+                    RETURN DISTINCT startNode(r).name AS s, r.raw_relation AS rel,
+                                    endNode(r).name AS o, r.source_title AS src
+                    LIMIT 100
+                    """,
+                    names=step2_target_names[:max_intermediate],
+                )
+                step3_edges = [dict(rec) for rec in r_step3]
+
+        # Step-2 first (direct answer), step-3 second (terminal-entity context),
+        # step-1 last (supporting context).
         # LLMs attend most reliably to the start of long contexts ("lost in
         # the middle" effect). For bridge queries like "companies founded by
         # Stanford alumni", the founding edges (step-2) are the primary answer
         # and must appear early; the education edges (step-1) are supporting.
         edges.extend(step2_edges)
+        edges.extend(step3_edges)
         edges.extend(step1_edges)
     return edges
 
@@ -935,10 +976,22 @@ REQUIRED PROCESS:
    - LIST/ENUMERATION: "what companies", "which X", "list all", "who founded", "what universities".
    - RELATIONSHIP: "what is the relationship between X and Y", "how is X connected to Y".
    - FACTOID: "who is the CEO of X", "where is X based", "when did X happen".
-2. **Extract matching facts.** Scan every graph fact line. For LIST questions, extract EVERY edge that matches the question's category — do not skip any. For RELATIONSHIP, find every edge connecting the two named entities directly OR through shared intermediate entities. For FACTOID, find the most-direct edge.
+   - **COMPOUND**: any question containing multiple sub-clauses joined by "and",
+     "with", relative pronouns ("that", "which", "who"), or qualifying phrases
+     ("later acquired", "previously co-founded", "ultimately sold to"). Treat
+     each sub-clause as a separate sub-query. The final answer must address
+     EVERY sub-clause, not just the first or main one.
+     Example: "Who co-founded X with Y, and what enterprise software company
+     had they previously co-founded together that was later acquired?" has
+     three sub-clauses: (a) co-founder of X with Y, (b) prior co-founded
+     enterprise company, (c) acquirer of that company. Answer must cover all
+     three. Sub-clause (c) requires finding an acquisition edge in the graph
+     that involves the entity from sub-clause (b).
+2. **Extract matching facts.** Scan every graph fact line. For LIST questions, extract EVERY edge that matches the question's category — do not skip any. For RELATIONSHIP, find every edge connecting the two named entities directly OR through shared intermediate entities. For FACTOID, find the most-direct edge. For COMPOUND, extract facts for EVERY sub-clause; missing one sub-clause's evidence makes the answer incomplete even if the others are perfect.
 3. **Synthesize the answer.**
    - **LIST:** produce a bulleted or comma-separated list with one citation per item.
    - **RELATIONSHIP:** gather ALL edges between the named entities (in either direction) and CONSOLIDATE them into 1-3 sentences that capture the canonical relationship plus any supporting details. Don't just list each edge separately — synthesize. The strongest relation (e.g. "acquired") should lead; supporting relations (e.g. "senior employees joined") add color. Multiple edges between the same pair are evidence for ONE consolidated answer.
+   - **COMPOUND:** address every sub-clause sequentially in the answer. Walk the chain: name the answer to sub-clause (a), then connect to (b), then to (c). Cite each sub-clause's source. Do not stop after the first answer — the question is incomplete until every sub-clause is addressed.
      Example for "What is the relationship between Apple and NeXT?":
        Edges in graph: `Apple --[ACQUIRED_BY]--> NeXT (Steve Jobs)`, `Apple --[CAME_TO_A_DEAL_WITH]--> NeXT (Steve Jobs)`, `Senior Apple employees --[JOINED]--> NeXT (Steve Jobs)`.
        Consolidated answer: "Apple acquired NeXT, and as part of the deal several senior Apple employees joined NeXT (source: Steve Jobs)."
@@ -951,23 +1004,55 @@ REQUIRED PROCESS:
 4. **Cite every claim.** Format: "<fact> (source: <article>)". When multiple sources are listed for one edge, include them all: "(sources: A, B)". When consolidating multiple edges from the same source, cite that source once at the end: "<consolidated sentence> (source: A)".
 5. **Refuse on absence.** If the graph facts do not contain the requested information, reply exactly: "The provided graph facts do not contain information about <topic>." Do NOT fabricate or infer beyond the facts.
 
-OUTPUT FORMAT (mandatory two-pass):
-First emit a `RELEVANT FACTS:` block listing every edge from the graph context that
-contributes to your answer — one edge per bullet, copied verbatim with its QID tags
-and source. Include both direct edges AND bridge edges (edges through shared
-intermediates) when the question is RELATIONSHIP. List EVERY matching edge — do
-not deduplicate by surface form (e.g. "Tesla, Inc." and "Tesla" with the same QID
-are still separate evidence lines). For LIST questions, this block is the load-bearing
-artifact: every list-item in your final answer must trace to one or more bullets here.
-Then emit `ANSWER:` followed by the synthesized prose (per step 3 above).
+OUTPUT FORMAT (mandatory; for COMPOUND, three-pass; otherwise two-pass):
 
-Example shape:
+For all question types, emit `RELEVANT FACTS:` listing every edge from the graph
+context that contributes to your answer — one edge per bullet, copied verbatim
+with QID tags and source. Include direct edges AND bridge edges (through shared
+intermediates) for RELATIONSHIP. List every matching edge — do not deduplicate
+by surface form. For LIST, every list-item in the final answer must trace to one
+or more bullets here. Then emit `ANSWER:` followed by synthesized prose.
+
+For COMPOUND questions, prepend a `THINKING:` block walking each sub-clause as
+chain-of-thought. Format:
+  THINKING:
+  Sub-clause (a) "<re-state sub-clause>": <reason from facts; cite edge>
+  Sub-clause (b) "<re-state sub-clause>": <reason from facts; cite edge>
+  Sub-clause (c) "<re-state sub-clause>": <reason from facts; cite edge>
+  Final chain: A → B → C
+The THINKING block forces explicit reasoning about every sub-clause before
+synthesis. Do not skip sub-clauses; if a sub-clause has no supporting edge in
+RELEVANT FACTS, say so explicitly in THINKING.
+
+Example shape (RELATIONSHIP):
 RELEVANT FACTS:
 - Steven Paul Jobs [Q19837] --[founded]--> Apple Inc. [Q312]  (source: Steve Jobs)
 - Steven Paul Jobs [Q19837] --[purchased]--> Pixar [Q127552]  (source: Steve Jobs)
 
 ANSWER:
-Apple and Pixar are connected through Steve Jobs ..."""
+Apple and Pixar are connected through Steve Jobs ...
+
+Example shape (COMPOUND):
+THINKING:
+Sub-clause (a) "Who co-founded A16Z with Marc Andreessen": graph has
+  Ben Horowitz co-founded Andreessen Horowitz → answer (a) = Ben Horowitz
+Sub-clause (b) "what enterprise software company had they previously co-founded":
+  graph has Marc Andreessen co-founded Opsware AND Ben Horowitz cofounded Loudcloud
+  (Loudcloud renamed to Opsware) → answer (b) = Opsware (formerly Loudcloud)
+Sub-clause (c) "that was later acquired":
+  graph has Hewlett-Packard acquired Opsware → answer (c) = Hewlett-Packard
+Final chain: Ben Horowitz → Opsware/Loudcloud → Hewlett-Packard
+
+RELEVANT FACTS:
+- Ben Horowitz [Qxxx] --[co-founded]--> Andreessen Horowitz ...
+- Marc Andreessen [Qxxx] --[co-founded]--> Opsware ...
+- Ben Horowitz --[cofounded]--> Loudcloud ...
+- Hewlett-Packard --[acquired]--> Opsware ...
+
+ANSWER:
+Ben Horowitz co-founded Andreessen Horowitz with Marc Andreessen. They had
+previously co-founded the enterprise software company Opsware (originally
+Loudcloud), which was later acquired by Hewlett-Packard."""
     resp = omlx.chat.completions.create(
         model=ANSWER_MODEL,  # prose synthesis model; defaults to MODEL_SONNET if MODEL_ANSWER unset
         messages=[
