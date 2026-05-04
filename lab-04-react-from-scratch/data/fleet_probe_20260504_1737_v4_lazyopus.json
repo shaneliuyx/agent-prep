@@ -1,0 +1,45 @@
+{
+  "fleet": [
+    {
+      "tier": "opus_lazy",
+      "model": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+      "url": "http://127.0.0.1:8000/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.0,
+        "tool": 0.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "failed: APITimeoutError: Request timed out."
+        ],
+        "tool": [
+          "Tokyo: APITimeoutError",
+          "Beijing: no get_weather tool_call (got name=None)",
+          "Berlin: no get_weather tool_call (got name=None)"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+    "tool_arg_synthesis": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+    "final_answer_composer": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+    "json_extractor": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+    "math_or_reasoning_step": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+    "cheap_classifier": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+    "obs_summarizer_sidecar": "gemma-4-31B-uncensored-heretic-mlx-4bit"
+  }
+}

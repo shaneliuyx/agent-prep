@@ -1,0 +1,105 @@
+{
+  "fleet": [
+    {
+      "tier": "opus",
+      "model": "Qwen3.6-35B-A3B-nvfp4",
+      "url": "http://127.0.0.1:8002/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.0,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 0.6666666666666666,
+        "instr": 0.3333333333333333
+      },
+      "notes": {
+        "ping": [
+          "failed: APITimeoutError: Request timed out."
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "wrong: want 15, got 'To find the cost of 5 widgets, we first '"
+        ],
+        "instr": [
+          "wanted 5 words, got 6: 'Python is a versatile programming langua'",
+          "wanted 4 words, got 5: 'An entity that acts autonomously'"
+        ]
+      }
+    },
+    {
+      "tier": "sonnet",
+      "model": "gemma-4-26B-A4B-it-heretic-4bit",
+      "url": "http://127.0.0.1:8003/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.0,
+        "tool": 0.3333333333333333,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "failed: APITimeoutError: Request timed out."
+        ],
+        "tool": [
+          "Tokyo: no get_weather tool_call (got name=None)",
+          "Beijing: no get_weather tool_call (got name=None)"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    },
+    {
+      "tier": "haiku",
+      "model": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+      "url": "http://127.0.0.1:8004/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.4527988002646939,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 0.6666666666666666,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 1208 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "wrong: want 6, got '1'"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "Qwen3.6-35B-A3B-nvfp4",
+    "tool_arg_synthesis": "Qwen3.6-35B-A3B-nvfp4",
+    "final_answer_composer": "gemma-4-26B-A4B-it-heretic-4bit",
+    "json_extractor": "Qwen3.6-35B-A3B-nvfp4",
+    "math_or_reasoning_step": "gemma-4-26B-A4B-it-heretic-4bit",
+    "cheap_classifier": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "obs_summarizer_sidecar": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit"
+  }
+}

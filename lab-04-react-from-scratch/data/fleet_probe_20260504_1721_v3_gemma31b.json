@@ -1,0 +1,119 @@
+{
+  "fleet": [
+    {
+      "tier": "opus",
+      "model": "gemma-4-31B-uncensored-heretic-mlx-4bit",
+      "url": "http://127.0.0.1:8000/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.368602993010153,
+        "tool": 0.0,
+        "json": 0.0,
+        "reason": 0.0,
+        "instr": 0.0
+      },
+      "notes": {
+        "ping": [
+          "median 1713 ms over 3 runs"
+        ],
+        "tool": [
+          "Tokyo: no get_weather tool_call (got name=None)",
+          "Beijing: APIConnectionError",
+          "Berlin: APIConnectionError"
+        ],
+        "json": [
+          "err: APIConnectionError",
+          "err: APIConnectionError",
+          "err: APIConnectionError"
+        ],
+        "reason": [
+          "err: APIConnectionError",
+          "err: APIConnectionError",
+          "err: APIConnectionError"
+        ],
+        "instr": [
+          "err: APIConnectionError",
+          "err: APIConnectionError",
+          "err: APIConnectionError"
+        ]
+      }
+    },
+    {
+      "tier": "sonnet",
+      "model": "gemma-4-26B-A4B-it-heretic-4bit",
+      "url": "http://127.0.0.1:8003/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.0,
+        "tool": 0.0,
+        "json": 0.0,
+        "reason": 0.0,
+        "instr": 0.0
+      },
+      "notes": {
+        "ping": [
+          "failed: APIConnectionError: Connection error."
+        ],
+        "tool": [
+          "Tokyo: APIConnectionError",
+          "Beijing: APIConnectionError",
+          "Berlin: APIConnectionError"
+        ],
+        "json": [
+          "err: APIConnectionError",
+          "err: APIConnectionError",
+          "err: APIConnectionError"
+        ],
+        "reason": [
+          "err: APIConnectionError",
+          "err: APIConnectionError",
+          "err: APIConnectionError"
+        ],
+        "instr": [
+          "err: APIConnectionError",
+          "err: APIConnectionError",
+          "err: APIConnectionError"
+        ]
+      }
+    },
+    {
+      "tier": "haiku",
+      "model": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+      "url": "http://127.0.0.1:8004/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.6486903226136799,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 542 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "tool_arg_synthesis": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "final_answer_composer": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "json_extractor": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "math_or_reasoning_step": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "cheap_classifier": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "obs_summarizer_sidecar": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit"
+  }
+}

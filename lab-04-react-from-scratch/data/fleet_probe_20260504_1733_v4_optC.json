@@ -1,0 +1,77 @@
+{
+  "fleet": [
+    {
+      "tier": "sonnet",
+      "model": "gemma-4-26B-A4B-it-heretic-4bit",
+      "url": "http://127.0.0.1:8003/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.0,
+        "tool": 0.6666666666666666,
+        "json": 0.0,
+        "reason": 1.0,
+        "instr": 0.0
+      },
+      "notes": {
+        "ping": [
+          "failed: APITimeoutError: Request timed out."
+        ],
+        "tool": [
+          "Berlin: no get_weather tool_call (got name=None)"
+        ],
+        "json": [
+          "unparseable: '{\"status\":\"ok\",\"n\":1}1}'",
+          "unparseable: '{\"animal\":\"cat\",\"legs\":4\"}\\n\"cat\",\"legs\":4}\\n}'",
+          "unparseable: '{\"x\":3333333333333333333333333333333333333333333333333333333'"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "wanted 3 words, got 8: 'Vast, blue, deep, mysterious, endless, e'",
+          "wanted 5 words, got 16: 'Simple, readable, powerful, versatile, h'",
+          "wanted 4 words, got 5: 'Entity performing specific tasks autonom'"
+        ]
+      }
+    },
+    {
+      "tier": "haiku",
+      "model": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+      "url": "http://127.0.0.1:8004/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.45294107386002797,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 1208 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "tool_arg_synthesis": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "final_answer_composer": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "json_extractor": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "math_or_reasoning_step": "gemma-4-26B-A4B-it-heretic-4bit",
+    "cheap_classifier": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "obs_summarizer_sidecar": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit"
+  }
+}
