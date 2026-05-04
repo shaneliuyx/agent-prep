@@ -1,0 +1,15 @@
+{
+  "engine": "rapid-mlx (vllm-mlx)",
+  "model": "mlx-community/gemma-4-31b-it-4bit",
+  "url": "http://localhost:8001/v1",
+  "reasoning_mode": true,
+  "results": {
+    "ping_ms": 21788.221584050916,
+    "ping_reason_toks": 225,
+    "tool_pass": true,
+    "tool_ms": 4407.271834090352,
+    "json_pass": true,
+    "reason_pass": true,
+    "instr_pass": true
+  }
+}

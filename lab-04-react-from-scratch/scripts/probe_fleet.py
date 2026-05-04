@@ -61,14 +61,17 @@ FLEET: list[dict] = [
     },
     # Alternate uncensored 31B fine-tune — JANG_4M-CRACK (4M context window).
     # Probed in isolation against opus_lazy to compare uncensored variants.
+    # Lazy-loaded on vMLX :8001 — rapid-mlx cannot serve this fine-tune
+    # variant cleanly (no-thinking degrades output catastrophically), so the
+    # finisher role stays on vMLX where the model behaves correctly.
     {
         "tier": "opus_jang",
-        "label": "Gemma-4-31B-JANG_4M-CRACK (lazy; 4M-context uncensored)",
+        "label": "Gemma-4-31B-JANG_4M-CRACK on vMLX (lazy; 4M-context uncensored)",
         "model": "Gemma-4-31B-JANG_4M-CRACK",
         "url": "http://127.0.0.1:8001/v1",
     },
 ]
-DEFAULT_TIERS = {"sonnet", "haiku"}  # opus_lazy excluded from default run
+DEFAULT_TIERS = {"sonnet", "haiku"}  # opus_jang excluded — lazy-load only
 
 API_KEY = "not-needed"  # vMLX ignores; SDK requires non-empty
 REACH_TIMEOUT_S = 2  # fail fast when port is dead

@@ -1,0 +1,106 @@
+{
+  "fleet": [
+    {
+      "tier": "sonnet",
+      "model": "gemma-4-26B-A4B-it-heretic-4bit",
+      "url": "http://127.0.0.1:8003/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.8288398416436568,
+        "tool": 0.6666666666666666,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 207 ms over 3 runs"
+        ],
+        "tool": [
+          "Berlin: no get_weather tool_call (got name=None)"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    },
+    {
+      "tier": "haiku",
+      "model": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+      "url": "http://127.0.0.1:8004/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.6908234978941916,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 448 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    },
+    {
+      "tier": "opus_rapid",
+      "model": "mlx-community/gemma-4-31b-it-4bit",
+      "url": "http://127.0.0.1:8001/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.6195553349372972,
+        "tool": 1.0,
+        "json": 0.0,
+        "reason": 0.8333333333333334,
+        "instr": 0.3333333333333333
+      },
+      "notes": {
+        "ping": [
+          "median 614 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "unparseable: '- ** ** ** * * * * * * * * * * * * * * * * * * * * * * * * *'",
+          "unparseable: '- (or) - (or) - (or) - (or) - (or) - (or) - (or) - (or) - (o'",
+          "unparseable: '<style>**.////////////////////////////////////// la la la la'"
+        ],
+        "reason": [
+          "verbose-correct: 'To find the cost of 5 widgets, we first '"
+        ],
+        "instr": [
+          "wanted 5 words, got 1: 'Hestestestestestestestestestestestestest'",
+          "wanted 4 words, got 5: '// Agent is a person'"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "tool_arg_synthesis": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "final_answer_composer": "gemma-4-26B-A4B-it-heretic-4bit",
+    "json_extractor": "gemma-4-26B-A4B-it-heretic-4bit",
+    "math_or_reasoning_step": "gemma-4-26B-A4B-it-heretic-4bit",
+    "cheap_classifier": "gemma-4-26B-A4B-it-heretic-4bit",
+    "obs_summarizer_sidecar": "gemma-4-26B-A4B-it-heretic-4bit"
+  }
+}
