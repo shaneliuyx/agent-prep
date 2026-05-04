@@ -1,0 +1,43 @@
+{
+  "fleet": [
+    {
+      "tier": "opus_jang",
+      "model": "Gemma-4-31B-JANG_4M-CRACK",
+      "url": "http://127.0.0.1:8001/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.3189762945232368,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 2135 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "Gemma-4-31B-JANG_4M-CRACK",
+    "tool_arg_synthesis": "Gemma-4-31B-JANG_4M-CRACK",
+    "final_answer_composer": "Gemma-4-31B-JANG_4M-CRACK",
+    "json_extractor": "Gemma-4-31B-JANG_4M-CRACK",
+    "math_or_reasoning_step": "Gemma-4-31B-JANG_4M-CRACK",
+    "cheap_classifier": "Gemma-4-31B-JANG_4M-CRACK",
+    "obs_summarizer_sidecar": "Gemma-4-31B-JANG_4M-CRACK"
+  }
+}

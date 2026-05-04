@@ -20,12 +20,21 @@ Roles (used by src/react.py and Week 5 pattern zoo):
   classify  : cheap pre-loop intent triage / observability sidecar.
   reason    : math / multi-step reasoning sub-step.
   compose   : post-loop final answer composition (no tools needed).
-  finisher  : lazy-loaded long-form / uncensored output (post-loop only).
+  finisher  : lazy-loaded long-form output (post-loop polish).
+  hard_loop : in-loop fallback for tasks where Distill 9B's reasoning is
+              insufficient AND tool calling is still required.
 
-Probe-driven mapping as of 2026-05-04 (vMLX engine v?, M5 Pro 48 GB):
-  loop, tool_arg, classify  -> Distill 9B  (only model with 1.00 across 5 runs)
-  reason, compose           -> Gemma-26B   (reason+instr 1.00 when warm)
-  finisher                  -> gemma-31B-heretic (lazy; tool=0.00 so post-loop only)
+Probe-driven mapping as of 2026-05-04 (vMLX post-upgrade, M5 Pro 48 GB):
+  loop, tool_arg, classify  -> Distill 9B (1.00 across 5 runs, only stable)
+  reason, compose           -> Gemma-26B  (reason+instr 1.00 when warm)
+  finisher, hard_loop       -> JANG_4M-CRACK (lazy; tool=1.00 + 4M context)
+
+Why JANG_4M-CRACK over gemma-31B-uncensored-heretic-mlx-4bit:
+  Both 31B Gemma-4 4-bit dense fine-tunes. heretic scored tool=0.00 —
+  the uncensored fine-tune destroyed function-call alignment. JANG scored
+  tool=1.00, json=1.00, reason=1.00, instr=1.00 with 2135 ms median ping.
+  Same parameter scale, same quant, opposite agent-usability.
+  See data/fleet_probe_20260504_1758_v5_jang.json for raw scores.
 """
 
 from __future__ import annotations
@@ -41,16 +50,17 @@ from openai import OpenAI
 # ---------------------------------------------------------------------------
 _HAIKU_URL = os.getenv("VMLX_URL_HAIKU", "http://127.0.0.1:8004/v1")
 _SONNET_URL = os.getenv("VMLX_URL_SONNET", "http://127.0.0.1:8003/v1")
-_OPUS_LAZY_URL = os.getenv("VMLX_URL_OPUS_LAZY", "http://127.0.0.1:8000/v1")
+_OPUS_LAZY_URL = os.getenv("VMLX_URL_OPUS_LAZY", "http://127.0.0.1:8001/v1")
 
 _HAIKU_MODEL = os.getenv("MODEL_HAIKU", "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit")
 _SONNET_MODEL = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
-_OPUS_LAZY_MODEL = os.getenv("MODEL_OPUS_LAZY", "gemma-4-31B-uncensored-heretic-mlx-4bit")
+_OPUS_LAZY_MODEL = os.getenv("MODEL_OPUS_LAZY", "Gemma-4-31B-JANG_4M-CRACK")
 
 API_KEY = os.getenv("VMLX_API_KEY", "not-needed")  # vMLX ignores; SDK requires non-empty
 
 
-Role = Literal["loop", "tool_arg", "classify", "reason", "compose", "finisher"]
+Role = Literal["loop", "tool_arg", "classify", "reason", "compose",
+               "finisher", "hard_loop"]
 
 
 @dataclass(frozen=True)
@@ -61,12 +71,17 @@ class Endpoint:
 
 
 ROLE_MAP: dict[str, Endpoint] = {
-    "loop":     Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=30),
-    "tool_arg": Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=30),
-    "classify": Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=10),
-    "reason":   Endpoint(_SONNET_URL,    _SONNET_MODEL,    timeout_s=45),
-    "compose":  Endpoint(_SONNET_URL,    _SONNET_MODEL,    timeout_s=45),
-    "finisher": Endpoint(_OPUS_LAZY_URL, _OPUS_LAZY_MODEL, timeout_s=90),
+    "loop":      Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=30),
+    "tool_arg":  Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=30),
+    "classify":  Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=10),
+    "reason":    Endpoint(_SONNET_URL,    _SONNET_MODEL,    timeout_s=45),
+    "compose":   Endpoint(_SONNET_URL,    _SONNET_MODEL,    timeout_s=45),
+    "finisher":  Endpoint(_OPUS_LAZY_URL, _OPUS_LAZY_MODEL, timeout_s=90),
+    # Use when Distill 9B's reasoning is insufficient AND tool calling is
+    # still required. JANG_4M-CRACK preserves tool calling at 31B scale
+    # (tool=1.00 in isolated probe); heretic could not serve this role
+    # because its uncensored fine-tune scored tool=0.00.
+    "hard_loop": Endpoint(_OPUS_LAZY_URL, _OPUS_LAZY_MODEL, timeout_s=60),
 }
 
 

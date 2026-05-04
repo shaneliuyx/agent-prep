@@ -59,6 +59,14 @@ FLEET: list[dict] = [
         "model": "gemma-4-31B-uncensored-heretic-mlx-4bit",
         "url": "http://127.0.0.1:8000/v1",
     },
+    # Alternate uncensored 31B fine-tune — JANG_4M-CRACK (4M context window).
+    # Probed in isolation against opus_lazy to compare uncensored variants.
+    {
+        "tier": "opus_jang",
+        "label": "Gemma-4-31B-JANG_4M-CRACK (lazy; 4M-context uncensored)",
+        "model": "Gemma-4-31B-JANG_4M-CRACK",
+        "url": "http://127.0.0.1:8001/v1",
+    },
 ]
 DEFAULT_TIERS = {"sonnet", "haiku"}  # opus_lazy excluded from default run
 
