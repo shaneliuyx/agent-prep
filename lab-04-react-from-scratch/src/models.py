@@ -24,7 +24,12 @@ Roles (used by src/react.py and Week 5 pattern zoo):
   hard_loop : in-loop fallback for tasks where Distill 9B's reasoning is
               insufficient AND tool calling is still required.
 
-Probe-driven mapping as of 2026-05-04 (vMLX post-upgrade, M5 Pro 48 GB):
+All requests route through the MLX Studio API gateway on :8080/v1, with the
+specific model selected by the `model:` field. Gateway-vs-direct-port adds
+zero measurable overhead (Sonnet 207->203 ms, Haiku 448->430 ms — within
+noise; see data/fleet_probe_*v9_gateway.json).
+
+Probe-driven mapping as of 2026-05-05 (vMLX gateway, M5 Pro 48 GB):
   loop, tool_arg, classify  -> Distill 9B (1.00 across 5 runs, only stable)
   reason, compose           -> Gemma-26B  (reason+instr 1.00 when warm)
   finisher, hard_loop       -> JANG_4M-CRACK (lazy; tool=1.00 + 4M context)
@@ -48,13 +53,16 @@ from openai import OpenAI
 # ---------------------------------------------------------------------------
 # Fleet endpoint defaults. Override via env when running tier experiments.
 # ---------------------------------------------------------------------------
-_HAIKU_URL = os.getenv("VMLX_URL_HAIKU", "http://127.0.0.1:8004/v1")
-_SONNET_URL = os.getenv("VMLX_URL_SONNET", "http://127.0.0.1:8003/v1")
-_OPUS_LAZY_URL = os.getenv("VMLX_URL_OPUS_LAZY", "http://127.0.0.1:8001/v1")
+# MLX Studio API gateway: all vMLX models accessible through one endpoint.
+# Route by `model:` field in the request body. Gateway adds zero overhead vs.
+# direct-port routing (verified in data/fleet_probe_*v9_gateway.json).
+# Override with VMLX_GATEWAY_URL to point at a different host (e.g. LAN).
+_GATEWAY_URL = os.getenv("VMLX_GATEWAY_URL", "http://localhost:8080/v1")
 
-_HAIKU_MODEL = os.getenv("MODEL_HAIKU", "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit")
-_SONNET_MODEL = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
-_OPUS_LAZY_MODEL = os.getenv("MODEL_OPUS_LAZY", "Gemma-4-31B-JANG_4M-CRACK")
+# Model identifiers carry the `models/` prefix expected by the gateway router.
+_HAIKU_MODEL = os.getenv("MODEL_HAIKU", "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit")
+_SONNET_MODEL = os.getenv("MODEL_SONNET", "models/gemma-4-26B-A4B-it-heretic-4bit")
+_OPUS_LAZY_MODEL = os.getenv("MODEL_OPUS_LAZY", "models/Gemma-4-31B-JANG_4M-CRACK")
 
 API_KEY = os.getenv("VMLX_API_KEY", "not-needed")  # vMLX ignores; SDK requires non-empty
 
@@ -71,17 +79,17 @@ class Endpoint:
 
 
 ROLE_MAP: dict[str, Endpoint] = {
-    "loop":      Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=30),
-    "tool_arg":  Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=30),
-    "classify":  Endpoint(_HAIKU_URL,     _HAIKU_MODEL,     timeout_s=10),
-    "reason":    Endpoint(_SONNET_URL,    _SONNET_MODEL,    timeout_s=45),
-    "compose":   Endpoint(_SONNET_URL,    _SONNET_MODEL,    timeout_s=45),
-    "finisher":  Endpoint(_OPUS_LAZY_URL, _OPUS_LAZY_MODEL, timeout_s=90),
+    "loop":      Endpoint(_GATEWAY_URL, _HAIKU_MODEL,     timeout_s=30),
+    "tool_arg":  Endpoint(_GATEWAY_URL, _HAIKU_MODEL,     timeout_s=30),
+    "classify":  Endpoint(_GATEWAY_URL, _HAIKU_MODEL,     timeout_s=10),
+    "reason":    Endpoint(_GATEWAY_URL, _SONNET_MODEL,    timeout_s=45),
+    "compose":   Endpoint(_GATEWAY_URL, _SONNET_MODEL,    timeout_s=45),
+    "finisher":  Endpoint(_GATEWAY_URL, _OPUS_LAZY_MODEL, timeout_s=90),
     # Use when Distill 9B's reasoning is insufficient AND tool calling is
     # still required. JANG_4M-CRACK preserves tool calling at 31B scale
     # (tool=1.00 in isolated probe); heretic could not serve this role
     # because its uncensored fine-tune scored tool=0.00.
-    "hard_loop": Endpoint(_OPUS_LAZY_URL, _OPUS_LAZY_MODEL, timeout_s=60),
+    "hard_loop": Endpoint(_GATEWAY_URL, _OPUS_LAZY_MODEL, timeout_s=60),
 }
 
 

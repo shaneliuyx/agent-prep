@@ -36,42 +36,48 @@ from openai.types.chat import ChatCompletionToolParam
 # ---------------------------------------------------------------------------
 # Fleet definition. Edit if you swap models on a port.
 # ---------------------------------------------------------------------------
+# All vMLX models accessible through the MLX Studio gateway on :8080/v1.
+# Route by `model:` field in the request body. Cold-state models (the gateway
+# UI shows them as "sleeping") wake on first request — first call to a sleeping
+# model adds ~10-30s cold-start tax; subsequent calls hit the warm path.
+GATEWAY_URL = "http://localhost:8080/v1"
+
 FLEET: list[dict] = [
     # Stable always-hot fleet (fits within 48 GB unified memory).
     {
         "tier": "sonnet",
         "label": "gemma-4-26B-A4B-it-heretic-4bit (dense 26B, 4-bit quant, mid)",
-        "model": "gemma-4-26B-A4B-it-heretic-4bit",
-        "url": "http://127.0.0.1:8003/v1",
+        "model": "models/gemma-4-26B-A4B-it-heretic-4bit",
+        "url": GATEWAY_URL,
     },
     {
         "tier": "haiku",
         "label": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit (smallest, fastest)",
-        "model": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
-        "url": "http://127.0.0.1:8004/v1",
+        "model": "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+        "url": GATEWAY_URL,
     },
-    # Option C: lazy-loaded — keep cold, spin up only when needed.
-    # Tier "opus_lazy" is excluded from --only opus,sonnet,haiku by default;
-    # use --only opus_lazy or --include-lazy to test in isolation.
+    # Lazy-loaded uncensored 31B variants — gateway wakes on demand.
     {
         "tier": "opus_lazy",
-        "label": "gemma-4-31B-uncensored-heretic-mlx-4bit (lazy; uncensored long-form)",
-        "model": "gemma-4-31B-uncensored-heretic-mlx-4bit",
-        "url": "http://127.0.0.1:8000/v1",
+        "label": "gemma-4-31B-uncensored-heretic-mlx-4bit (lazy; uncensored)",
+        "model": "models/gemma-4-31B-uncensored-heretic-mlx-4bit",
+        "url": GATEWAY_URL,
     },
-    # Alternate uncensored 31B fine-tune — JANG_4M-CRACK (4M context window).
-    # Probed in isolation against opus_lazy to compare uncensored variants.
-    # Lazy-loaded on vMLX :8001 — rapid-mlx cannot serve this fine-tune
-    # variant cleanly (no-thinking degrades output catastrophically), so the
-    # finisher role stays on vMLX where the model behaves correctly.
     {
         "tier": "opus_jang",
-        "label": "Gemma-4-31B-JANG_4M-CRACK on vMLX (lazy; 4M-context uncensored)",
-        "model": "Gemma-4-31B-JANG_4M-CRACK",
-        "url": "http://127.0.0.1:8001/v1",
+        "label": "Gemma-4-31B-JANG_4M-CRACK (lazy; 4M-context uncensored)",
+        "model": "models/Gemma-4-31B-JANG_4M-CRACK",
+        "url": GATEWAY_URL,
+    },
+    # MoE 35B-A3B (~3B active params per token; sparse fast decode).
+    {
+        "tier": "opus_qwen",
+        "label": "Qwen3.6-35B-A3B-nvfp4 (MoE 35B/3B-active)",
+        "model": "models/Qwen3.6-35B-A3B-nvfp4",
+        "url": GATEWAY_URL,
     },
 ]
-DEFAULT_TIERS = {"sonnet", "haiku"}  # opus_jang excluded — lazy-load only
+DEFAULT_TIERS = {"sonnet", "haiku"}  # lazy/opus tiers excluded — load on demand
 
 API_KEY = "not-needed"  # vMLX ignores; SDK requires non-empty
 REACH_TIMEOUT_S = 2  # fail fast when port is dead

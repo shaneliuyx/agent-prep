@@ -1,0 +1,73 @@
+{
+  "fleet": [
+    {
+      "tier": "sonnet",
+      "model": "models/gemma-4-26B-A4B-it-heretic-4bit",
+      "url": "http://localhost:8080/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.8313569553155707,
+        "tool": 0.6666666666666666,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 203 ms over 3 runs"
+        ],
+        "tool": [
+          "Berlin: no get_weather tool_call (got name=None)"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    },
+    {
+      "tier": "haiku",
+      "model": "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+      "url": "http://localhost:8080/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.6993015144514223,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 430 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 calls produced get_weather tool_call"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "tool_arg_synthesis": "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+    "final_answer_composer": "models/gemma-4-26B-A4B-it-heretic-4bit",
+    "json_extractor": "models/gemma-4-26B-A4B-it-heretic-4bit",
+    "math_or_reasoning_step": "models/gemma-4-26B-A4B-it-heretic-4bit",
+    "cheap_classifier": "models/gemma-4-26B-A4B-it-heretic-4bit",
+    "obs_summarizer_sidecar": "models/gemma-4-26B-A4B-it-heretic-4bit"
+  }
+}
