@@ -291,8 +291,10 @@ def recommend(results: list[FleetResult]) -> dict[str, str]:
     alive = [r for r in results if r.reachable]
     if not alive:
         return {"_error": "no models reachable; start vMLX servers first"}
+    # ping is already scored as 1/(1+median_s), so larger = faster.
+    # "best at X" and "fastest" are both just argmax over the relevant axis.
     best_at = lambda key: max(alive, key=lambda r: r.scores.get(key, 0)).model
-    fastest = min(alive, key=lambda r: 1 / (r.scores.get("ping", 1e-9) or 1e-9)).model
+    fastest = best_at("ping")
     return {
         "main_react_loop":         best_at("tool"),    # tool calling is the loop's hot path
         "tool_arg_synthesis":      best_at("tool"),

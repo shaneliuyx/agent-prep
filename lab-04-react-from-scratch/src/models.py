@@ -107,14 +107,16 @@ def get_client(role: Role) -> tuple[OpenAI, str]:
 
 def compose_final_answer(raw_answer: str, user_query: str,
                          system: str | None = None) -> str:
-    """Lazy-spin gemma-31B-heretic for high-quality post-loop polishing.
+    """Lazy-spin the `finisher` model for high-quality post-loop polishing.
 
+    Routes via `ROLE_MAP["finisher"]` — currently JANG_4M-CRACK on :8001.
     Only invoke after `agent_run()` returns. Cold-start tax ~5-15 s on the
-    first call; subsequent calls are ~1.7 s median. Tool calling is
-    intentionally NOT requested — this model scored 0.00 on the tool probe
-    and would emit plain text instead of structured calls.
+    first call; subsequent calls are ~1.7-2 s median. Tool calling is
+    intentionally NOT requested — this is plain-text-in, plain-text-out.
 
-    Returns the polished answer, or `raw_answer` unchanged on any error.
+    Returns the polished answer, or `raw_answer` unchanged on any error
+    (broad except is deliberate: optional polish must never block the
+    agent's return path).
     """
     client, model = get_client("finisher")
     sys_prompt = system or (
