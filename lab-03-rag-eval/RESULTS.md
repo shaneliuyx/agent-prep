@@ -20,7 +20,10 @@ The prompt A/B showed that adding conditional/contrast guidance alone made the m
 | 1 | Easier first curated set | Original concise prompt | 0.9800 | 0.8952 | 0.9726 | 1.0000 | Scores were very high; dev set likely too easy. |
 | 2 | Harder regenerated set | Original concise prompt | 0.9800 | 0.7336 | 0.9824 | 1.0000 | Harder questions exposed synthesis weakness. |
 | 3 | Harder regenerated set | Enhanced prompt, no strict length cap | 0.9400 | 0.6537 | 0.9824 | 1.0000 | Prompt became too verbose / explanatory. |
-| 4 | Harder regenerated set | Enhanced prompt + one sentence under 35 words | 0.9900 | 0.7494 | 0.9824 | 1.0000 | Best current baseline; adopt as v2. |
+| 4 | Harder regenerated set | Enhanced prompt + one sentence under 35 words | 0.9900 | 0.7494 | 0.9824 | 1.0000 | Best on hand-rolled retrieval — adopted as v2. |
+| **5** | Harder regenerated set | v2 + post `shared/rag_hybrid` migration (autoconfig'd encoder + fp16 reranker) | **1.0000** | **0.7297** | **0.9841** | 1.0000 | **Migration safe — all 4 metrics within ±0.02 of Run 4. Shipped state.** |
+
+Run 5 deltas vs Run 4 (the §2.6 migration regression-test contract): faithfulness +0.0100 (improvement), answer_relevancy -0.0197 (within ±0.02 contract; well within ~0.03 LLM-judge variance on n=50), context_precision +0.0017 (within noise), context_recall flat. Migration is infrastructure-level (autoconfig probes device + memory tier; cross-encoder fp16-safe enabled where supported); no behavior change beyond LLM-judge noise floor.
 
 ## Final Baseline Decision
 
