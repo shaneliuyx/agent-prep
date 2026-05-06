@@ -54,7 +54,8 @@ def rrf(result_lists, k=60):
 
 
 def run_pipeline_mq(q):
-    qs = [q] + rewrites(q)
+    rewrites_list = rewrites(q)
+    qs = [q] + rewrites_list
     lists = []
     for qq in qs:
         # rag_hybrid.DenseEncoder.encode kwarg is `normalize=True` (default),
@@ -69,4 +70,5 @@ def run_pipeline_mq(q):
         "answer": ans,
         "contexts": [h.payload["text"] for h in top],
         "context_ids": [h.payload["doc_id"] for h in top],
+        "rewrites": rewrites_list,  # mirrors 03_hyde's `hypothetical` for debug audit
     }
