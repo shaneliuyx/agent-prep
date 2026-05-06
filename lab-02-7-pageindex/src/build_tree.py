@@ -232,15 +232,15 @@ def main() -> None:
             f"Missing {pdf_path}. Run the curl from §1.2 first."
         )
 
-    print(f"[1/3] Parsing {pdf_path} ...")
+    print(f"[1/4] Parsing {pdf_path} ...")
     pages = extract_pages(pdf_path)
     print(f"      {len(pages)} pages extracted.")
 
-    print("[2/3] Detecting heading candidates ...")
+    print("[2/4] Detecting heading candidates ...")
     headings = detect_heading_candidates(pages)
     print(f"      {len(headings)} heading candidates (over-recall expected).")
 
-    print("[3/3] Building tree (LLM call, ~10-25 s) ...")
+    print("[3/4] Building tree (LLM call, ~10-25 s) ...")
     tree = build_tree(headings, "Berkshire Hathaway 2023 Annual Report", last_page=len(pages))
 
     print(f"      Tree skeleton: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")

@@ -5,10 +5,17 @@ description = "Week 2.7 Structure-Aware RAG (PageIndex / tree-index) lab"
 requires-python = ">=3.11"
 
 dependencies = [
+  # Tree-index core (Phase 2 / 3)
   "pypdf",
   "openai",
   "python-dotenv",
   "tqdm",
+  # Phase 4 three-way comparison — vector backend (shared/rag_hybrid)
+  "qdrant-client",
+  "sentence-transformers",
+  "FlagEmbedding",
+  # Phase 4 — graph backend (W2.5 GraphRAG via env-var parameterization)
+  "neo4j",
 ]
 
 [build-system]
