@@ -1,0 +1,20 @@
+[project]
+name = "lab02-7-pageindex"
+version = "0.1.0"
+description = "Week 2.7 Structure-Aware RAG (PageIndex / tree-index) lab"
+requires-python = ">=3.11"
+
+dependencies = [
+  "pypdf",
+  "openai",
+  "python-dotenv",
+  "tqdm",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
