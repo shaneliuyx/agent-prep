@@ -46,13 +46,15 @@ def detect_heading_candidates(pages: list[dict]) -> list[dict]:
 
     Returns {page_num, line_text, candidate_level} for lines that look like
     headings:
-      - All-caps lines (level 1)
+      - All-caps lines (level 1) — SEC 10-K section banners ("RISK FACTORS")
       - Numbered prefixes 1., 1.1., 1.1.1. (level = depth of numbering)
+      - Title Case short lines (level 2) — Berkshire-style sub-headings
+        ("Acquisition Criteria", "Operating Earnings", "Owner's Manual")
 
-    Both heuristics produce false positives (page numbers like "PAGE 5",
-    list items like "1. Buy more milk"). The LLM in build_tree() filters
-    them out — optimizing this for precision burns engineering effort the
-    LLM can absorb cheaply.
+    All three heuristics produce false positives (page numbers like "PAGE 5",
+    list items like "1. Buy more milk", proper nouns like "Berkshire Hathaway"
+    in body text). The LLM in build_tree() filters them out — optimizing this
+    for precision burns engineering effort the LLM can absorb cheaply.
     """
     candidates: list[dict] = []
     for page in pages:
@@ -75,6 +77,21 @@ def detect_heading_candidates(pages: list[dict]) -> list[dict]:
                     "line_text": line,
                     "candidate_level": min(depth + 1, 4),
                 })
+            # Title Case short lines (3-8 words, mostly capitalized) — common
+            # in financial annual reports for sub-section headings. Examples:
+            # "Acquisition Criteria", "Owner's Manual", "Common Stock Data".
+            # Filters: 3-8 words; >= 60% words start with uppercase; no
+            # sentence-ending punctuation; not just a person's name.
+            else:
+                words = line.split()
+                if 3 <= len(words) <= 8 and not line.endswith(("."  , "!", "?", ":")):
+                    capitalized = sum(1 for w in words if w and w[0].isupper())
+                    if capitalized / len(words) >= 0.6:
+                        candidates.append({
+                            "page_num": page["page_num"],
+                            "line_text": line,
+                            "candidate_level": 2,
+                        })
     return candidates
 
 
@@ -104,6 +121,10 @@ Rules:
   apply case transformation only.
 - Do NOT include leaf-level subsection content; only the structural skeleton.
 - Assign node_id sequentially as 4-digit zero-padded strings ("0001", "0002", ...).
+
+- **Coverage rule (load-bearing):** every page in the document must belong to some node's [start_page, end_page] range. If detected headings leave a gap (e.g., headings at pages 3, 21, 23 but nothing for pages 4-20), CREATE a placeholder node titled by what you infer the gap covers (e.g., "Chairman's Letter" for the typical 4-20 gap in an annual report; "Buffett's Letter to Shareholders" if document title mentions Berkshire). Better to have a generically-titled node covering pages 4-20 than to leave those pages unreachable. The navigator at query time can ONLY land on a node that exists.
+- **Annual-report structural priors:** Berkshire / financial annual reports follow a standard skeleton — (1) Cover + Table of Contents (~pages 1-3); (2) Chairman's / CEO's Letter to Shareholders (~10-25 pages, often the first content section, contains "Acquisition Criteria", per-business commentary, capital allocation discussion); (3) Operating segment overviews (insurance, railroad, energy, etc); (4) GAAP Financial Statements (balance sheet, income statement, cash flows); (5) Notes to Financial Statements; (6) Management's Discussion & Analysis (or 10-K filing if embedded); (7) Independent Auditor's Report; (8) Corporate Governance / Officers / Directors; (9) Operating Companies appendix. Use this as a sanity check — if your tree has TOC + Financial Statements but NO Chairman's Letter, you missed the most important content section. Promote a placeholder.
+- **Do not let one section dominate.** If a candidate set has many ALL-CAPS lines for "TABLE OF CONTENTS" or "REPORT OF AUDITOR" and few candidates for Chairman's Letter, do not collapse the entire document under TOC. TOC is a small leaf (typically 1-3 pages); make it ONE node, not the parent of everything.
 
 Output strict JSON only, one tree object. No markdown, no commentary."""
 
