@@ -199,7 +199,11 @@ def tree_depth(node: dict) -> int:
 
 
 def main() -> None:
-    pdf_path = "data/aapl-10k-2023.pdf"
+    # Berkshire Hathaway 2023 Annual Report — known-stable PDF URL
+    # (https://www.berkshirehathaway.com/2023ar/2023ar.pdf). SEC EDGAR
+    # serves only iXBRL HTML; company IR sites are the reliable PDF source
+    # but URLs rotate. Berkshire's URL has been stable for 5+ years.
+    pdf_path = "data/brk-2023-ar.pdf"
     out_path = Path("data/tree.json")
 
     if not Path(pdf_path).exists():
@@ -216,7 +220,7 @@ def main() -> None:
     print(f"      {len(headings)} heading candidates (over-recall expected).")
 
     print("[3/3] Building tree (LLM call, ~10-25 s) ...")
-    tree = build_tree(headings, "Apple Inc. 10-K Fiscal 2023", last_page=len(pages))
+    tree = build_tree(headings, "Berkshire Hathaway 2023 Annual Report", last_page=len(pages))
 
     print(f"      Tree skeleton: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")
 
