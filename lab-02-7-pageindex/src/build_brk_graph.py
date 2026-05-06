@@ -345,8 +345,12 @@ def main() -> None:
     )
 
     with driver.session() as session:
-        # Clear previous runs — safe for a lab, not safe for production.
-        session.run("MATCH (n) DETACH DELETE n")
+        # Clear previous BRK runs ONLY — scoped to BrkEntity label so we
+        # don't wipe W2.5's :Entity tech-founder graph (which lives in the
+        # same Neo4j default database under a different label namespace).
+        # Original W2.5 build_graph.py used `MATCH (n) DETACH DELETE n`
+        # which is destructive across all labels — kept it scoped here.
+        session.run("MATCH (n:BrkEntity) DETACH DELETE n")
         # Create the full-text index BEFORE extraction, not after. Earlier
         # versions did DROP-then-extract-then-CREATE; if extraction crashed
         # mid-loop the DROP had already executed but CREATE never ran,
