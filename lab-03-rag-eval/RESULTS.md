@@ -255,11 +255,23 @@ This reduces concurrent judge pressure on the local model and gives slow calls r
 
 ## Results Table for `ARCHITECTURE.md`
 
-| Variant | Faithfulness | Answer relevancy | Context precision | Context recall | p95 latency |
-|---|---:|---:|---:|---:|---:|
-| baseline prompt v2 | 0.9900 | 0.7494 | 0.9824 | 1.0000 | TBD |
-| + HyDE, 3–5 sentence draft | 0.9898 | 0.7286 | 0.9781 | 1.0000 | TBD |
-| + HyDE, 1 sentence draft | 0.9900 | 0.7293 | 0.9851 | 1.0000 | TBD |
-| + multi-query fusion | TBD | TBD | TBD | TBD | TBD |
+| Variant | Faithfulness | Answer relevancy | Context precision | Context recall | Extra cost / query |
+|---|---:|---:|---:|---:|---|
+| baseline prompt v2 (pre-migration, Run 4) | 0.9900 | 0.7494 | 0.9824 | 1.0000 | — |
+| + HyDE, 3–5 sentence draft (pre-migration) | 0.9898 | 0.7286 | 0.9781 | 1.0000 | +1 LLM call (~100ms, ~80 tok) |
+| + HyDE, 1 sentence draft (pre-migration) | 0.9900 | 0.7293 | 0.9851 | 1.0000 | +1 LLM call (~100ms, ~30 tok) |
+| **baseline prompt v2 (post-migration, Run 5)** | **1.0000** | **0.7297** | **0.9841** | 1.0000 | — |
+| + HyDE, 1 sentence draft (post-migration, Run 6) | 0.9800 | 0.7081 | 0.9841 | 1.0000 | +1 LLM call (~100ms, ~30 tok) |
+| **+ multi-query fusion, 3 rewrites + RRF (post-migration, Run 7)** | 1.0000 | 0.7230 | 0.9824 | 1.0000 | +1 LLM rewrite + 4× embeddings + RRF |
 
-**Decision so far:** Adopt baseline prompt v2 as the single-pass baseline. Reject HyDE as the default because recall was already perfect and HyDE lowered answer relevancy while adding an extra LLM call. Multi-query fusion remains to be tested.
+**Decision (final):** Adopt baseline prompt v2 (Run 5, post-migration) as the single-pass shipped state. **Reject HyDE AND multi-query as defaults** — both are recall-augmentation strategies and baseline `context_recall = 1.0000` leaves no recall gap for either to close. Both stay in the codebase as opt-in experiments for future query clusters with low baseline recall or vocabulary mismatch.
+
+**Three-way comparison summary (post-migration):**
+
+| Strategy | vs baseline (judge) | Cost | Decision |
+|---|---|---|---|
+| **Baseline (single-query)** | — | — | **Shipped** |
+| HyDE (one-sentence draft) | -0.02 faithfulness, -0.02 answer_relevancy | +1 LLM call | Reject |
+| Multi-query fusion | tied faithfulness, -0.007 answer_relevancy | +1 LLM rewrite + 4× embeddings | Reject — non-regressive but no lift |
+
+Both retrieval-augmentation variants confirm the architectural lesson: when `context_recall` saturates at 1.0, no retrieval-strategy variant can win — the gap they're designed to close doesn't exist. Run pre-migration multi-query if completeness demands; doesn't change shipping decision.
