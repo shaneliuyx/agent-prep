@@ -1,18 +1,29 @@
 """Pipeline variant: multi-query fusion with RRF.
 
-v2 (2026-05-06): inherits the migrated 02_pipeline.py — `_enc` is now a
-shared/rag_hybrid `DenseEncoder` (autoconfig'd device + batch tier), `qd`
-is the same QdrantClient. Multi-query rewrite logic + RRF formula
-unchanged — migration was at the encoder layer, not the fusion layer.
+v3 (2026-05-06): hand-rolled `rrf` function dropped — now uses
+shared/rag_hybrid.rrf_fuse (identical formula, k=60 default per Cormack
+et al. SIGIR 2009). Encoder/reranker/qdrant inherit from migrated
+02_pipeline.py.
 
 Encode kwarg note: shared DenseEncoder.encode() takes `normalize=True`
 (default), NOT `normalize_embeddings=True` (the SentenceTransformer kwarg).
 """
 import json
 import os
-from collections import defaultdict
+import sys
+from pathlib import Path
+
 from openai import OpenAI
-from src.script_wrap import load
+
+# Bootstrap shared/ onto sys.path BEFORE importing rag_hybrid.
+# (02_pipeline.py also adds this path, but it loads later via script_wrap;
+# we need rag_hybrid available at module-top import time.)
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "shared"))
+
+from rag_hybrid import rrf_fuse  # noqa: E402
+
+from src.script_wrap import load  # noqa: E402
 
 # Universal loader from §2.2b — same pattern 03_hyde.py uses.
 pipeline = load("02_pipeline.py")
@@ -41,18 +52,6 @@ def rewrites(q):
     return json.loads(r.choices[0].message.content).get("rewrites", [])[:3]
 
 
-def rrf(result_lists, k=60):
-    """Reciprocal Rank Fusion. result_lists = [[hit, ...], [hit, ...]]."""
-    scores = defaultdict(float)
-    lookup = {}
-    for hits in result_lists:
-        for rank, h in enumerate(hits):
-            scores[h.id] += 1.0 / (k + rank + 1)
-            lookup[h.id] = h
-    ranked = sorted(scores.items(), key=lambda x: -x[1])
-    return [lookup[i] for i, _ in ranked]
-
-
 def run_pipeline_mq(q):
     rewrites_list = rewrites(q)
     qs = [q] + rewrites_list
@@ -62,7 +61,10 @@ def run_pipeline_mq(q):
         # not SentenceTransformer's `normalize_embeddings=True`.
         qv = _enc.encode([qq])[0]
         lists.append(qd.query_points("bge_m3_hnsw", query=qv.tolist(), limit=20, with_payload=True).points)
-    fused = rrf(lists)[:30]
+    # rrf_fuse: shared/rag_hybrid implementation, identical formula
+    # (1.0 / (k + rank + 1), k=60 default per Cormack et al. SIGIR 2009).
+    # Drop-in replacement for the prior hand-rolled rrf().
+    fused = rrf_fuse(lists)[:30]
     top = rerank(q, fused, k=5)
     ans, _ = answer_from(q, top)
     return {
