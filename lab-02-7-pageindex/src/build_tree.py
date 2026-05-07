@@ -153,17 +153,28 @@ def build_tree(headings: list[dict], doc_title: str, last_page: int) -> dict:
 
 # ---------------------------------------------------------- Per-node summaries
 
-SUMMARIZE_SYSTEM = """Summarize this document section in 80-120 words. Focus on
-WHAT the section discusses, not generic statements. The summary will be read by
-a navigation LLM deciding whether this section is relevant to a user query, so
-include enough specific content to enable that decision.
+SUMMARIZE_SYSTEM = """Summarize this document section in 100-150 words. The
+summary is read by a navigation LLM deciding whether this section answers a
+user query — so it MUST contain concrete facts the navigator can match against.
 
-Rules:
-- Mention three specific topics, products, risk types, or numeric facts named
-  in the section.
-- Do NOT start with "This section discusses" — write the summary directly.
-- If the section is generic boilerplate with no specific content, say so
-  explicitly: "Generic boilerplate; refer to specific subsections instead."
+REQUIRED elements (every summary must include):
+1. Three numeric facts verbatim from the section (with units): e.g.,
+   "$364.5 billion in revenues", "27.8% common-share ownership of Occidental",
+   "operating earnings of $37,350 million".
+2. Five named entities verbatim: companies, people, regulations, financial
+   instruments, segment names — quoted exactly as the source uses them.
+3. One sentence of structural location: where this section sits in the document
+   hierarchy (e.g., "Sub-section of Chairman's Letter / Form 10-K Item 8").
+
+PROHIBITED:
+- Do NOT start with "This section discusses" or "The section covers" — write
+  declarative sentences with the facts up front.
+- Do NOT use generic phrases like "various financial metrics" or "the company's
+  operations" — name the metrics, name the operations.
+- Do NOT exceed 150 words.
+
+If the section is genuinely empty boilerplate, output exactly:
+"Empty boilerplate section — refer to subsections."
 """
 
 
@@ -202,6 +213,86 @@ def add_summaries_recursive(node: dict, pages: list[dict]) -> None:
         node["summary"] = summarize_node(node, pages)
     for child in node.get("nodes", []):
         add_summaries_recursive(child, pages)
+
+
+# -------------------------- Recursive node split (PageIndex pattern, opt #2)
+
+SPLIT_SYSTEM = """You receive raw text from a multi-page section of a long PDF.
+Split this section into 2-5 topical sub-sections by content shifts. Return
+strict JSON: {"sub_sections": [{"title": "...", "start_page": N, "end_page": N},
+...]}.
+
+Rules:
+- Sub-section titles must come verbatim from the text (case-insensitive
+  substring of an actual heading line in the source).
+- Pages must lie within the section's page range and not overlap.
+- If the section is too uniform to split meaningfully (single topic across all
+  pages), return: {"sub_sections": []}."""
+
+MAX_PAGES_PER_LEAF = 5  # PageIndex equivalent: max_page_num_each_node
+MAX_CHARS_PER_LEAF = 20000  # PageIndex equivalent: max_token_num_each_node (~20K tok)
+
+
+def split_large_nodes(node: dict, pages: list[dict], doc_root: bool = True) -> None:
+    """Walk the tree; for any leaf spanning > MAX_PAGES_PER_LEAF AND with
+    > MAX_CHARS_PER_LEAF of text, ask the LLM to split it into 2-5 sub-sections.
+
+    PageIndex-equivalent of process_large_node_recursively. Skipped on the
+    document root (always too big). Idempotent — re-running on an already-split
+    tree won't double-split because non-leaves are skipped.
+    """
+    children = node.get("nodes", [])
+    if not children and not doc_root:
+        start = node.get("start_page", 1)
+        end = node.get("end_page", start)
+        span = end - start + 1
+        text = "\n".join(p["text"] for p in pages if start <= p["page_num"] <= end)
+        if span <= MAX_PAGES_PER_LEAF or len(text) <= MAX_CHARS_PER_LEAF:
+            return
+        if not text.strip():
+            return
+        text_for_llm = text[:18000]  # cap input
+        try:
+            resp = omlx.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {"role": "system", "content": SPLIT_SYSTEM},
+                    {"role": "user", "content":
+                        f"Section: {node.get('title', 'Untitled')} "
+                        f"(pages {start}-{end})\n\nText:\n{text_for_llm}"},
+                ],
+                temperature=0.0, max_tokens=600,
+                response_format={"type": "json_object"},
+            )
+            decision = json.loads(resp.choices[0].message.content or "{}")
+            subs = decision.get("sub_sections", [])
+        except Exception as e:  # noqa: BLE001
+            print(f"      split_large_nodes: skip {node.get('title', '?')}: "
+                  f"{type(e).__name__}")
+            return
+        if not subs:
+            return
+        parent_id = node.get("node_id", "0000")
+        new_children = []
+        for i, s in enumerate(subs, start=1):
+            sp = max(start, int(s.get("start_page", start)))
+            ep = min(end, int(s.get("end_page", sp)))
+            if ep < sp:
+                continue
+            new_children.append({
+                "node_id": f"{parent_id}.{i:02d}",
+                "title": str(s.get("title", f"Sub-section {i}")).strip(),
+                "start_page": sp,
+                "end_page": ep,
+                "nodes": [],
+            })
+        if new_children:
+            node["nodes"] = new_children
+            print(f"      split {node.get('title', '?')[:50]}: "
+                  f"{len(new_children)} sub-sections")
+
+    for child in node.get("nodes", []):
+        split_large_nodes(child, pages, doc_root=False)
 
 
 # ---------------------------------------------------------- Main entry
@@ -245,7 +336,12 @@ def main() -> None:
 
     print(f"      Tree skeleton: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")
 
-    print(f"[4/4] Generating per-node summaries ({count_nodes(tree)} LLM calls) ...")
+    print(f"[4/5] Splitting large leaves (> {MAX_PAGES_PER_LEAF} pages or "
+          f"> {MAX_CHARS_PER_LEAF} chars) — PageIndex pattern ...")
+    split_large_nodes(tree, pages, doc_root=True)
+    print(f"      After split: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")
+
+    print(f"[5/5] Generating per-node summaries ({count_nodes(tree)} LLM calls) ...")
     add_summaries_recursive(tree, pages)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

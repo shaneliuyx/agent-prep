@@ -1,0 +1,26 @@
+[
+  {
+    "label": "T1 JSON-mode strict",
+    "ok": true,
+    "latency": 8.668333053588867,
+    "detail": "keys=['title', 'topics']"
+  },
+  {
+    "label": "T2 Tool-calling",
+    "ok": true,
+    "latency": 0.8653359413146973,
+    "detail": "called get_page_content(start=95, end=100)"
+  },
+  {
+    "label": "T3 Multi-turn (tool-call \u2192 result \u2192 answer)",
+    "ok": true,
+    "latency": 1.4705219268798828,
+    "detail": "answer[:100]=\"Berkshire Hathaway's net earnings attributable to shareholders in 2023 were $96.2 billion [page 96-9\""
+  },
+  {
+    "label": "T4 Long-context (16K, needle mid)",
+    "ok": true,
+    "latency": 1.098283052444458,
+    "detail": "answer[:100]=\"Berkshire's 2023 total revenues were $364.5 billion.\""
+  }
+]

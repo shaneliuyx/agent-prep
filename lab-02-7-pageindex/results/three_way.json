@@ -10,23 +10,23 @@
     "vector": {
       "label": "vector",
       "answer": "insufficient context.",
-      "latency": 8.59,
+      "latency": 5.7,
       "recall_substr": 0.0,
       "recall_judge": 0.0
     },
     "graph": {
       "label": "graph",
       "answer": "The provided graph facts do not contain the specific numerical value for Berkshire Hathaway Inc.'s total revenues in 2023.",
-      "latency": 14.98,
+      "latency": 3.39,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 0.0
     },
     "tree": {
       "label": "tree",
-      "answer": "The provided text does not state Berkshire's total revenues for 2023. It only provides a \"Scorecard\" of \"summarized operating earnings (or loss)\" for 2023, which shows \"Operating earnings\" of $37,350 million (node_id 0007, page 11).",
-      "latency": 3.86,
-      "recall_substr": 0.3333333333333333,
-      "recall_judge": 0.0
+      "answer": "Based on the Consolidated Statements of Earnings on page 96, Berkshire Hathaway's total revenues in 2023 were **$364,482 million** (or $364.5 billion).\n\nThis is broken down as:\n*   Insurance and Other segment revenues: $263,067 million\n*   Railroad, Utilities and Energy segment revenues: $101,415 million\n*   **Total revenues: $364,482 million**\n\n[page 96]",
+      "latency": 17.52,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0
     }
   },
   {
@@ -40,23 +40,23 @@
     "vector": {
       "label": "vector",
       "answer": "Net earnings attributable to Berkshire shareholders were $96.2 billion.",
-      "latency": 1.09,
+      "latency": 1.15,
       "recall_substr": 1.0,
       "recall_judge": 1.0
     },
     "graph": {
       "label": "graph",
       "answer": "The provided graph facts do not contain the specific numerical value for Berkshire's net earnings attributable to shareholders in 2023.",
-      "latency": 14.61,
+      "latency": 12.27,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 0.0
     },
     "tree": {
       "label": "tree",
-      "answer": "The provided text does not state the amount of Berkshire's net earnings attributable to shareholders in 2023. While the section includes a \"Scorecard in 2023\" table showing \"Operating earnings\" of $37,350 million, it does not provide the specific figure for \"net earnings attributable to shareholders\" (node_id 0007, pages 10-18).",
-      "latency": 4.16,
-      "recall_substr": 0.3333333333333333,
-      "recall_judge": 0.0
+      "answer": "Based on the Consolidated Statements of Earnings on page 96, Berkshire Hathaway's net earnings attributable to Berkshire Hathaway shareholders in 2023 was **$96,223 million** (or $96.2 billion).\n\n[page 96]",
+      "latency": 12.45,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0
     }
   },
   {
@@ -71,21 +71,21 @@
     "vector": {
       "label": "vector",
       "answer": "insufficient context.",
-      "latency": 0.81,
+      "latency": 1.07,
       "recall_substr": 0.0,
       "recall_judge": 0.0
     },
     "graph": {
       "label": "graph",
       "answer": "In the 2023 letter, Buffett described American Express [Q194360] as Berkshire's \"not-so-secret weapon\" (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Our Not-So-Secret Weapon).",
-      "latency": 16.54,
+      "latency": 10.1,
       "recall_substr": 0.5,
       "recall_judge": 0.5
     },
     "tree": {
       "label": "tree",
-      "answer": "Berkshire\u2019s \"not-so-secret weapon\" is its \"ability to immediately respond to market seizures with both huge sums and certainty of performance,\" which may provide \"an occasional large-scale opportunity\" (node_id 0006, pages 9-10).",
-      "latency": 3.38,
+      "answer": "I found the section \"Our Not-So-Secret Weapon\" on page 9. The text describes Berkshire's ability to immediately respond to market seizures with huge sums and certainty of performance as its not-so-secret weapon. Specifically, it states:\n\n\"Berkshire\u2019s ability to immediately respond to market seizures with both huge sums and certainty of performance may offer us an occasional large-scale opportunity.\"\n\nThis refers to Berkshire's large cash reserves and financial stability that allow it to act when other investors are panicking.\n\nBased on the text on page 9, Buffett describes Berkshire's **\"ability to immediately respond to market seizures with both huge sums and certainty of performance\"** as the \"not-so-secret weapon.\" This refers to the company's large cash reserves and financial strength that allow it to take advantage of opportunities when markets panic.\n\n**Answer:** Buffett described Berkshire's **\"ability to immediately respond to market seizures with both huge sums and certainty of performance\"** as the company's \"not-so-secret weapon\" [page 9].",
+      "latency": 20.24,
       "recall_substr": 0.25,
       "recall_judge": 0.25
     }
@@ -102,21 +102,21 @@
     "vector": {
       "label": "vector",
       "answer": "insufficient context.",
-      "latency": 0.85,
+      "latency": 1.3,
       "recall_substr": 0.0,
       "recall_judge": 0.0
     },
     "graph": {
       "label": "graph",
       "answer": "In his text regarding non-controlled businesses that leave Berkshire comfortable, Warren E. Buffett wrote about American Express [Q194360], which increased earnings (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable).",
-      "latency": 14.5,
+      "latency": 3.88,
       "recall_substr": 0.5,
       "recall_judge": 0.5
     },
     "tree": {
       "label": "tree",
-      "answer": "Based on the provided text, Buffett writes the following regarding non-controlled businesses:\n\n*   **Coca-Cola and American Express:** Buffett describes these as \"long-duration partial-ownership positions\" that are \"meaningful assets\" but do not represent huge commitments (each accounts for only 4-5% of Berkshire\u2019s GAAP net worth). He notes that in 2023, Berkshire did not buy or sell shares of either, and both companies \"rewarded our inaction last year by increasing their earnings and dividends.\" Specifically, his share of American Express earnings in 2023 \"considerably exceeded the $1.3 billion cost of our long-ago purchase\" (node_id 0007, pages 8-9).\n*   **Occidental Petroleum:** Berkshire owns 27.8% of the common shares and warrants that allow for a material increase in ownership. Buffett notes that while Berkshire has no interest in managing the company, it likes the \"vast oil and gas holdings in the United States\" and its \"leadership in carbon-capture initiatives\" (node_id 0007, page 9).\n*   **Japanese Companies:** Berkshire holds passive, long-term interests in five large Japanese companies (Itochu, Marubeni, Mitsubishi, Mitsui, and Sumitomo). Berkshire owns approximately 9% of each. Buffett notes that these companies \"follow shareholder-friendly policies\" and, like Berkshire, are \"reluctant to issue shares\" (node_id 0007, page 10).",
-      "latency": 8.49,
+      "answer": "Based on the Chairman's Letter in the 2023 Annual Report, Buffett wrote about \"Non-controlled Businesses That Leave Us Comfortable\" (pages 10-13). He highlighted that Berkshire maintains long-duration partial-ownership positions in businesses it does not control, specifically citing:\n\n1.  **Coca-Cola and American Express:** He noted that Berkshire has not bought or sold shares of either in over two decades (\"Rip Van Winkle slumber\"). He stated, \"Could I create a better worldwide business than these two enjoy? As Bertie will tell you: 'No way.'\" He emphasized that \"When you find a truly wonderful business, stick with it. Patience pays.\"\n2.  **Occidental Petroleum:** Berkshire owned 27.8% of Occidental\u2019s common shares and held warrants to increase ownership. Buffett explicitly stated, \"Though we very much like our ownership, as well as the option, Berkshire has no interest in purchasing or managing Occidental.\" He praised its oil and gas holdings and leadership in carbon-capture initiatives.\n3.  **Five Japanese Trading Companies:** Berkshire held passive, long-term interests in Itochu, Marubeni, Mitsubishi, Mitsui, and Sumitomo (about 9% of each). He noted that Berkshire pledged not to buy shares beyond 9.9% and that these companies follow shareholder-friendly policies, such as reducing outstanding shares and keeping management compensation lower than typical U.S. levels.\n\nBuffett summarized the lesson from these non-controlled businesses as: \"When you find a truly wonderful business, stick with it. Patience pays, and one wonderful business can offset the many mediocre decisions that are inevitable.\"\n\n[pages 10-13]",
+      "latency": 21.65,
       "recall_substr": 0.75,
       "recall_judge": 0.75
     }
@@ -132,23 +132,23 @@
     "vector": {
       "label": "vector",
       "answer": "A summary of BNSF\u2019s earnings follows (dollars in millions).",
-      "latency": 1.05,
+      "latency": 1.43,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 0.3333333333333333
     },
     "graph": {
       "label": "graph",
       "answer": "BNSF's operating earnings are covered in the \"Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable\" section of the 2023 Annual Report.",
-      "latency": 13.49,
+      "latency": 3.15,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 0.3333333333333333
     },
     "tree": {
       "label": "tree",
-      "answer": "The provided text does not explicitly state which section covers BNSF Railway operating results. (node_id 0002, page 1)",
-      "latency": 1.59,
+      "answer": "Based on the document tree and the fetched content, the section that covers BNSF Railway operating results is **Item 7. Management\u2019s Discussion and Analysis of Financial Condition and Results of Operations** (specifically the \"Results of Operations\" subsection).\n\nThe fetched text from pages 59-60 shows a table disaggregating net earnings by segment, including a line item for \"BNSF\" with earnings of $5,087 million in 2023, $5,946 million in 2022, and $5,990 million in 2021. The text immediately following the table discusses the decline in BNSF earnings in 2023, attributing it to lower freight volumes and higher non-fuel operating costs.\n\n**Answer:** The **Management\u2019s Discussion and Analysis (Item 7)** section, specifically the **Results of Operations** subsection (pages 59-60), covers BNSF Railway operating results.",
+      "latency": 12.19,
       "recall_substr": 0.3333333333333333,
-      "recall_judge": 0.0
+      "recall_judge": 0.3333333333333333
     }
   },
   {
@@ -161,23 +161,23 @@
     "vector": {
       "label": "vector",
       "answer": "insufficient context.",
-      "latency": 0.8,
+      "latency": 1.18,
       "recall_substr": 0.0,
       "recall_judge": 0.0
     },
     "graph": {
       "label": "graph",
       "answer": "The 2023 Annual Report contains a section on Cybersecurity [Q3510521] (source: Berkshire Hathaway 2023 Annual Report > Table of Contents).",
-      "latency": 12.32,
+      "latency": 11.13,
       "recall_substr": 0.5,
       "recall_judge": 0.5
     },
     "tree": {
       "label": "tree",
-      "answer": "The 2023 annual report lists \"Cybersecurity\" on page K-28 (node_id 0002, page 1).",
-      "latency": 1.62,
-      "recall_substr": 0.5,
-      "recall_judge": 0.5
+      "answer": "The 2023 annual report discloses cybersecurity governance in **Item 1C. Cybersecurity** on page 52.\n\nThe disclosure states that Berkshire has implemented a framework for cybersecurity and cyber-related information management across its diverse business groups. Key governance elements include:\n\n1.  **Framework Implementation:** Berkshire has a framework that allows each Business Group to tailor solutions to identify, manage, and mitigate risks based on their unique cybersecurity risks, while ensuring consistent compliance in reporting material cyber events.\n2.  **CISO Reporting:** Each Business Group\u2019s Chief Information Security Officer (CISO) must provide an annual report to senior management regarding the state of their cybersecurity program and material cyber risks. These reports are also shared with Berkshire\u2019s internal audit group.\n3.  **Incident Reporting:** Each Business Group is required to maintain an incident reporting process to report significant cybersecurity events to Berkshire.\n4.  **Third-Party Engagement:** Berkshire and its Business Groups engage with third parties to assess, audit, educate, implement, operate, protect, and remediate cybersecurity-related elements.\n\n[page 52]",
+      "latency": 14.73,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0
     }
   },
   {
@@ -191,22 +191,22 @@
     "vector": {
       "label": "vector",
       "answer": "insufficient context.",
-      "latency": 0.62,
+      "latency": 1.11,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 0.3333333333333333
     },
     "graph": {
       "label": "graph",
       "answer": "The provided graph facts do not contain information about Berkshire Hathaway's stock price today.",
-      "latency": 12.63,
+      "latency": 2.25,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 1.0
     },
     "tree": {
       "label": "tree",
-      "answer": "The provided text does not contain information regarding Berkshire Hathaway's stock price today (node_id 0001, pages 1-1).",
-      "latency": 1.55,
-      "recall_substr": 0.0,
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report (Form 10-K), which contains financial data, operational details, and governance information for the fiscal year ended December 31, 2023. It does not contain real-time or current stock price information, as stock prices fluctuate daily and are not part of the annual filing's static content.\n\ninsufficient context",
+      "latency": 7.95,
+      "recall_substr": 0.3333333333333333,
       "recall_judge": 1.0
     }
   },
@@ -221,22 +221,22 @@
     "vector": {
       "label": "vector",
       "answer": "insufficient context",
-      "latency": 0.85,
+      "latency": 1.33,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 0.3333333333333333
     },
     "graph": {
       "label": "graph",
       "answer": "The provided graph facts do not contain information about the CEO of Microsoft.",
-      "latency": 5.44,
+      "latency": 4.33,
       "recall_substr": 0.3333333333333333,
       "recall_judge": 1.0
     },
     "tree": {
       "label": "tree",
-      "answer": "The provided text does not contain information regarding the CEO of Microsoft. The document lists the leadership for Berkshire Hathaway Inc., noting that Warren E. Buffett is the Chairman and CEO (node_id 0045, pages 148-152).",
-      "latency": 2.16,
-      "recall_substr": 0.0,
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about the CEO of Microsoft.\n\ninsufficient context",
+      "latency": 9.7,
+      "recall_substr": 0.3333333333333333,
       "recall_judge": 1.0
     }
   }
