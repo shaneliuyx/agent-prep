@@ -1,0 +1,243 @@
+[
+  {
+    "q": "What were Berkshire's total revenues in 2023?",
+    "type": "section-specific factoid",
+    "expected": [
+      "364",
+      "billion",
+      "revenues"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 8.59,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain the specific numerical value for Berkshire Hathaway Inc.'s total revenues in 2023.",
+      "latency": 14.98,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided text does not state Berkshire's total revenues for 2023. It only provides a \"Scorecard\" of \"summarized operating earnings (or loss)\" for 2023, which shows \"Operating earnings\" of $37,350 million (node_id 0007, page 11).",
+      "latency": 3.86,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0
+    }
+  },
+  {
+    "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+    "type": "section-specific factoid",
+    "expected": [
+      "96",
+      "billion",
+      "net earnings"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "Net earnings attributable to Berkshire shareholders were $96.2 billion.",
+      "latency": 1.09,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain the specific numerical value for Berkshire's net earnings attributable to shareholders in 2023.",
+      "latency": 14.61,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided text does not state the amount of Berkshire's net earnings attributable to shareholders in 2023. While the section includes a \"Scorecard in 2023\" table showing \"Operating earnings\" of $37,350 million, it does not provide the specific figure for \"net earnings attributable to shareholders\" (node_id 0007, pages 10-18).",
+      "latency": 4.16,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0
+    }
+  },
+  {
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+    "type": "cross-section synthesis",
+    "expected": [
+      "secret weapon",
+      "Charlie",
+      "shareholders",
+      "patient"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.81,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "In the 2023 letter, Buffett described American Express [Q194360] as Berkshire's \"not-so-secret weapon\" (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Our Not-So-Secret Weapon).",
+      "latency": 16.54,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Berkshire\u2019s \"not-so-secret weapon\" is its \"ability to immediately respond to market seizures with both huge sums and certainty of performance,\" which may provide \"an occasional large-scale opportunity\" (node_id 0006, pages 9-10).",
+      "latency": 3.38,
+      "recall_substr": 0.25,
+      "recall_judge": 0.25
+    }
+  },
+  {
+    "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+    "type": "cross-section synthesis",
+    "expected": [
+      "Apple",
+      "Coca-Cola",
+      "American Express",
+      "non-controlled"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.85,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "In his text regarding non-controlled businesses that leave Berkshire comfortable, Warren E. Buffett wrote about American Express [Q194360], which increased earnings (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable).",
+      "latency": 14.5,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Based on the provided text, Buffett writes the following regarding non-controlled businesses:\n\n*   **Coca-Cola and American Express:** Buffett describes these as \"long-duration partial-ownership positions\" that are \"meaningful assets\" but do not represent huge commitments (each accounts for only 4-5% of Berkshire\u2019s GAAP net worth). He notes that in 2023, Berkshire did not buy or sell shares of either, and both companies \"rewarded our inaction last year by increasing their earnings and dividends.\" Specifically, his share of American Express earnings in 2023 \"considerably exceeded the $1.3 billion cost of our long-ago purchase\" (node_id 0007, pages 8-9).\n*   **Occidental Petroleum:** Berkshire owns 27.8% of the common shares and warrants that allow for a material increase in ownership. Buffett notes that while Berkshire has no interest in managing the company, it likes the \"vast oil and gas holdings in the United States\" and its \"leadership in carbon-capture initiatives\" (node_id 0007, page 9).\n*   **Japanese Companies:** Berkshire holds passive, long-term interests in five large Japanese companies (Itochu, Marubeni, Mitsubishi, Mitsui, and Sumitomo). Berkshire owns approximately 9% of each. Buffett notes that these companies \"follow shareholder-friendly policies\" and, like Berkshire, are \"reluctant to issue shares\" (node_id 0007, page 10).",
+      "latency": 8.49,
+      "recall_substr": 0.75,
+      "recall_judge": 0.75
+    }
+  },
+  {
+    "q": "Which section of the annual report covers BNSF Railway operating results?",
+    "type": "citation-required",
+    "expected": [
+      "BNSF",
+      "Railroad",
+      "Burlington Northern"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "A summary of BNSF\u2019s earnings follows (dollars in millions).",
+      "latency": 1.05,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "BNSF's operating earnings are covered in the \"Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable\" section of the 2023 Annual Report.",
+      "latency": 13.49,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided text does not explicitly state which section covers BNSF Railway operating results. (node_id 0002, page 1)",
+      "latency": 1.59,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0
+    }
+  },
+  {
+    "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+    "type": "citation-required",
+    "expected": [
+      "Item 1C",
+      "Cybersecurity"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.8,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The 2023 Annual Report contains a section on Cybersecurity [Q3510521] (source: Berkshire Hathaway 2023 Annual Report > Table of Contents).",
+      "latency": 12.32,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The 2023 annual report lists \"Cybersecurity\" on page K-28 (node_id 0002, page 1).",
+      "latency": 1.62,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5
+    }
+  },
+  {
+    "q": "What is Berkshire Hathaway's stock price today?",
+    "type": "out-of-document",
+    "expected": [
+      "insufficient",
+      "do not",
+      "cannot"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.62,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information about Berkshire Hathaway's stock price today.",
+      "latency": 12.63,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided text does not contain information regarding Berkshire Hathaway's stock price today (node_id 0001, pages 1-1).",
+      "latency": 1.55,
+      "recall_substr": 0.0,
+      "recall_judge": 1.0
+    }
+  },
+  {
+    "q": "Who is the CEO of Microsoft?",
+    "type": "out-of-document",
+    "expected": [
+      "insufficient",
+      "do not",
+      "cannot"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context",
+      "latency": 0.85,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information about the CEO of Microsoft.",
+      "latency": 5.44,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided text does not contain information regarding the CEO of Microsoft. The document lists the leadership for Berkshire Hathaway Inc., noting that Warren E. Buffett is the Chairman and CEO (node_id 0045, pages 148-152).",
+      "latency": 2.16,
+      "recall_substr": 0.0,
+      "recall_judge": 1.0
+    }
+  }
+]

@@ -359,7 +359,7 @@ def main() -> None:
         # rebuilding. Index over BrkEntity.name (replaces v6's CONTAINS
         # substring matching that produced "meta" → "metal" false positives).
         session.run(
-            "CREATE FULLTEXT INDEX brk_brk_entity_names IF NOT EXISTS "
+            "CREATE FULLTEXT INDEX brk_entity_names IF NOT EXISTS "
             "FOR (n:BrkEntity) ON EACH [n.name, n.aliases]"
         )
         # v12: also index BrkEntity.qid (used as canonical key in MERGE). A
