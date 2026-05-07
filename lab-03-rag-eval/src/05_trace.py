@@ -1,33 +1,30 @@
 """Re-run baseline + HyDE + multi-query, emitting OpenTelemetry traces to Phoenix.
 
-Each pipeline call is wrapped in a NAMED parent span (`pipeline.baseline`,
-`pipeline.hyde`, `pipeline.mq`) with a `pipeline.variant` attribute. Without
-this wrapper, OpenAI auto-instrumentation emits ~5 raw `ChatCompletion`
-spans per query — Phoenix UI shows 150 indistinguishable rows. With the
-wrapper, root spans group cleanly into 30 entries (10 queries × 3 variants)
-and child spans nest under each variant for waterfall inspection.
+Refactored 2026-05-07 from inline 30-line OTel ceremony to a single
+`trace_run(...)` call from `shared/phoenix_tracing/`. The shared lib does:
+  - cached idempotent register() setup on first call
+  - explicit OpenAIInstrumentor + LangChainInstrumentor
+  - parent span with `pipeline.variant` attribute
+  - all auto-instrumented children nest under the parent
 
 Filter in Phoenix UI:
   - "Root Spans" tab shows only the 30 pipeline.* parents
-  - Filter `name == "pipeline.baseline"` (or .hyde / .mq) for one variant
+  - Filter `name == "baseline"` (or "hyde" / "mq") for one variant
   - Filter `attributes["pipeline.variant"] == "baseline"` for the same effect
 """
 import json
-import os
-import phoenix as px
-from opentelemetry import trace as otel_trace
-from phoenix.otel import register
-from openinference.instrumentation.openai import OpenAIInstrumentor
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from src.script_wrap import load
+import sys
+from pathlib import Path
 
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:6006"
-tracer_provider = register(project_name="lab-03-rag-eval", auto_instrument=True)
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
-LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
+# Bootstrap shared/phoenix_tracing onto sys.path
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "shared"))
 
-# Manual tracer for variant-tagged parent spans.
-_tracer = otel_trace.get_tracer("lab-03-rag-eval")
+from phoenix_tracing import trace_run  # noqa: E402
+from src.script_wrap import load  # noqa: E402
+
+PROJECT = "lab-03-rag-eval"
+PHOENIX_URL = "http://127.0.0.1:6006"
 
 baseline = load("02_pipeline.py")
 hyde = load("03_hyde.py")
@@ -42,14 +39,12 @@ for i, q in enumerate(dev):
         ("hyde", hyde.run_pipeline_hyde),
         ("mq", mq.run_pipeline_mq),
     ]:
-        # Parent span — every child OpenAI / LangChain span nests under this
-        # so Phoenix groups all retrieve / rerank / LLM calls per variant.
-        with _tracer.start_as_current_span(f"pipeline.{label}") as span:
-            span.set_attribute("pipeline.variant", label)
-            span.set_attribute("question", q["question"])
-            span.set_attribute("question_index", i)
-            print(f"  [{label}] {q['question'][:60]}")
-            _ = fn(q["question"])
+        print(f"  [{label}] {q['question'][:60]}")
+        trace_run(
+            PROJECT, PHOENIX_URL, label, fn,
+            q["question"],
+            attrs={"question": q["question"], "question_index": i},
+        )
 
-print("\ntraces in Phoenix: http://127.0.0.1:6006")
-print("Filter root spans by name: pipeline.baseline | pipeline.hyde | pipeline.mq")
+print(f"\ntraces in Phoenix: {PHOENIX_URL}")
+print("Filter root spans by name: baseline | hyde | mq")
