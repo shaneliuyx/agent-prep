@@ -8,9 +8,11 @@ Refactored 2026-05-07 from inline 30-line OTel ceremony to a single
   - all auto-instrumented children nest under the parent
 
 Filter in Phoenix UI:
-  - "Root Spans" tab shows only the 30 pipeline.* parents
+  - "Root Spans" tab shows only the 30 parents named baseline / hyde / mq
   - Filter `name == "baseline"` (or "hyde" / "mq") for one variant
   - Filter `attributes["pipeline.variant"] == "baseline"` for the same effect
+  - (`pipeline.variant` is an attribute the shared lib sets automatically;
+    the span NAME is just the `label` arg passed to trace_run.)
 """
 import json
 import sys
