@@ -1,0 +1,18 @@
+{
+  "_comment": "Drop into Claude Desktop config at ~/Library/Application Support/Claude/claude_desktop_config.json (under 'mcpServers' key) or Cursor mcp.json. Restart the host. The 'rag' server then exposes rag_query, rag_status, rag_ingest as tools the host can call.",
+  "mcpServers": {
+    "rag": {
+      "command": "python",
+      "args": [
+        "/Users/yuxinliu/code/agent-prep/lab-03.7-agentic-rag/src/mcp_server.py"
+      ],
+      "env": {
+        "OMLX_BASE_URL": "http://localhost:8000/v1",
+        "OMLX_API_KEY": "changeme",
+        "MODEL_SONNET": "gemma-4-26B-A4B-it-heretic-4bit",
+        "QDRANT_URL": "http://127.0.0.1:6333",
+        "QDRANT_COLLECTION": "bge_m3_hnsw"
+      }
+    }
+  }
+}

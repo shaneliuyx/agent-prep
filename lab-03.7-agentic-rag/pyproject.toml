@@ -1,0 +1,28 @@
+[project]
+name = "lab03-7-agentic-rag"
+version = "0.1.0"
+description = "Week 3.7 Agentic RAG (Self-RAG + CRAG hand-rolled baseline + LangGraph canonical)"
+requires-python = ">=3.11"
+
+dependencies = [
+  # Phase 5 (hand-rolled baseline ported from shaneliuyx/rag dae7d6f)
+  "openai",
+  "python-dotenv",
+  "pydantic>=2.0",
+  "qdrant-client",
+  "sentence-transformers",
+  "FlagEmbedding",
+  # Phase 6 (LangGraph canonical) — installed when needed
+  # "langgraph>=0.6",
+  # "langchain-openai",
+  # Phase 7 (MCP server wrapper)
+  "fastmcp>=2.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
