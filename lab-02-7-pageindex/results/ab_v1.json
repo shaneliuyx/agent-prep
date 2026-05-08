@@ -1,0 +1,204 @@
+{
+  "variant": "v1",
+  "agg_judge": 0.640625,
+  "agg_sub": 0.515625,
+  "agg_lat": 34.392814472317696,
+  "per_cat": {
+    "section-specific factoid": 0.6666666666666666,
+    "cross-section synthesis": 0.0625,
+    "citation-required": 0.8333333333333334,
+    "out-of-document": 1.0
+  },
+  "rows": [
+    {
+      "variant": "v1",
+      "q": "What were Berkshire's total revenues in 2023?",
+      "type": "section-specific factoid",
+      "answer": "Berkshire Hathaway's total revenues in 2023 were $364,482 million ($364.5 billion) [page 96].",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 11.992531776428223,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+      "type": "section-specific factoid",
+      "answer": "Berkshire Hathaway's net earnings attributable to shareholders in 2023 were $96,223 million ($96.2 billion) [page 96].",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 68.68906998634338,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+      "type": "cross-section synthesis",
+      "answer": "Based on the fetched text from pages 9-10, specifically under the section **\"Our Not-So-Secret Weapon\"** (pages 9-10), Warren Buffett describes Berkshire's \"not-so-secret weapon\" as its **ability to immediately respond to market seizures with both huge sums and certainty of performance**.\n\nHe elaborates that this capability allows Berkshire to take advantage of occasional large-scale opportunities when markets unpredictably seize up or stocks are strikingly mispriced. This strength is derived from Berkshire's **extreme fiscal conservatism**, specifically its large cash and U.S. Treasury bill position (described as \"far in excess of what conventional wisdom deems necessary\") and its ability to generate cash from operations without relying on commercial paper, bank lines, or debt markets during crises. This \"Niagara of diverse earnings\" and minimal cash requirements allow it to function as an asset during financial disasters.\n\n**Answer:**\nBuffett described Berkshire's \"not-so-secret weapon\" as its **ability to immediately respond to market seizures with huge sums and certainty of performance** [pages 9-10]. This strength is rooted in the company's **extreme fiscal conservatism**, including a massive cash and Treasury bill position that exceeds conventional needs, allowing it to capitalize on market panics when other participants are paralyzed [pages 9-10].",
+      "sub": 0.25,
+      "judge": 0.25,
+      "lat": 71.67514276504517,
+      "iters": 4,
+      "tools": [
+        "get_page_content",
+        "get_page_content",
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+      "type": "cross-section synthesis",
+      "answer": "insufficient context",
+      "sub": 0.0,
+      "judge": 0.0,
+      "lat": 38.41620492935181,
+      "iters": 6,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Which section of the annual report covers BNSF Railway operating results?",
+      "type": "citation-required",
+      "answer": "The section of the annual report that covers BNSF Railway operating results is **Item 7. Management\u2019s Discussion and Analysis of Financial Condition and Results of Operations**, specifically within the **Results of Operations** subsection.\n\nAccording to the fetched text from pages 59-60, BNSF's after-tax earnings are disaggregated in the table on page 59 (showing $5,087 million for 2023), and the narrative discussion of BNSF's operating results (attributing changes to freight volumes and fuel costs) appears immediately below the table on page 59.\n\n**Answer:**\nThe BNSF Railway operating results are covered in **Item 7. Management\u2019s Discussion and Analysis of Financial Condition and Results of Operations** (specifically the **Results of Operations** subsection), which spans pages 59-80. The specific discussion and financial data for BNSF are found on **pages 59-60**.",
+      "sub": 0.3333333333333333,
+      "judge": 0.3333333333333333,
+      "lat": 38.57804012298584,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+      "type": "citation-required",
+      "answer": "The 2023 Annual Report discloses cybersecurity governance in **Item 1C. Cybersecurity**, which is located on **page 52**.\n\nIn this section, Berkshire Hathaway describes its cybersecurity governance framework as follows:\n*   **Framework Implementation:** Berkshire has implemented a framework for identifying, assessing, and managing cybersecurity threats across its diverse business groups. This framework allows each Business Group to tailor solutions to their unique risks while ensuring consistent reporting of material cyber events.\n*   **Oversight and Reporting:** Each Business Group\u2019s Chief Information Security Officer (CISO) must provide an annual report to senior management regarding the state of their cybersecurity program and material cyber risks. These reports are also shared with Berkshire\u2019s internal audit group to enhance overall risk management processes.\n*   **Incident Reporting:** Business Groups are required to maintain an incident reporting process for significant cybersecurity events.\n*   **Third-Party Engagement:** Berkshire and its Business Groups engage third parties to assess, audit, educate, implement, operate, protect, and remediate cybersecurity elements.\n\n[pages 52-52]",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 42.933109998703,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What is Berkshire Hathaway's stock price today?",
+      "type": "out-of-document",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about today's stock price.\n\ninsufficient context",
+      "sub": 0.3333333333333333,
+      "judge": 1.0,
+      "lat": 6.300407886505127,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Who is the CEO of Microsoft?",
+      "type": "out-of-document",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about Microsoft.\n\ninsufficient context",
+      "sub": 0.3333333333333333,
+      "judge": 1.0,
+      "lat": 22.362548112869263,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+      "type": "section-specific factoid",
+      "answer": "Based on the \"Operating Results, Fact and Fiction\" section of the Chairman's Letter (pages 5-6), Berkshire Hathaway reported **$37.4 billion** in operating earnings for 2023.\n\nThe document distinguishes this from GAAP \"net earnings\" (which were $96 billion for 2023), stating that operating earnings provide a more sensible concept for evaluating the business by excluding unrealized capital gains and losses.\n\n**Answer:** $37.4 billion (or $37,400 million) [pages 5-6]",
+      "sub": 0.6666666666666666,
+      "judge": 0.6666666666666666,
+      "lat": 32.74312710762024,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+      "type": "section-specific factoid",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about Berkshire's percentage ownership of Occidental Petroleum common shares.\n\ninsufficient context",
+      "sub": 0.5,
+      "judge": 0.0,
+      "lat": 27.514320850372314,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+      "type": "cross-section synthesis",
+      "answer": "insufficient context",
+      "sub": 0.0,
+      "judge": 0.0,
+      "lat": 53.145655155181885,
+      "iters": 6,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+      "type": "cross-section synthesis",
+      "answer": "insufficient context",
+      "sub": 0.0,
+      "judge": 0.0,
+      "lat": 51.89180278778076,
+      "iters": 6,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Which Item of Form 10-K covers Risk Factors?",
+      "type": "citation-required",
+      "answer": "Based on the Table of Contents, **Item 1A** covers Risk Factors. This is listed in node `0007` with the title \"Item 1A. Risk Factors\" spanning pages 49-51.\n\n[pages 49-51]",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 25.938700199127197,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+      "type": "citation-required",
+      "answer": "Based on the Table of Contents, the **Notes to Consolidated Financial Statements** are located in the section titled \"Notes to Consolidated Financial Statements,\" which spans **pages 99-123**.\n\nThis section is a sub-section of \"Financial Statements and Supplementary Data\" (Item 8). It contains detailed accounting policies, investment details, derivative information, and other financial disclosures.\n\n[pages 99-123]",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 27.946929931640625,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "What is Apple Inc.'s 2024 revenue?",
+      "type": "out-of-document",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about Apple Inc.'s 2024 revenue.\n\ninsufficient context",
+      "sub": 0.5,
+      "judge": 1.0,
+      "lat": 7.106526851654053,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Who is the current chairman of the Federal Reserve?",
+      "type": "out-of-document",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about the current chairman of the Federal Reserve.\n\ninsufficient context.",
+      "sub": 0.3333333333333333,
+      "judge": 1.0,
+      "lat": 23.050913095474243,
+      "iters": 1,
+      "tools": []
+    }
+  ]
+}

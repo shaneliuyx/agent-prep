@@ -12,7 +12,102 @@ inspect body text mid-decision instead of being limited to titles + summaries.
 from __future__ import annotations
 
 import json
+import re
 from typing import Protocol
+
+
+# Fallback parser for oMLX state-degradation pattern: under sustained tools-call
+# load, oMLX sometimes emits Qwen3.6's native tool-call template (`<|tool_call>
+# call:get_page_content(start_page: 96, end_page: 96)`) AS PLAIN TEXT in the
+# message content instead of populating the structured `tool_calls` field.
+# Without this fallback, the agent loop sees `tool_calls=[]` + non-empty
+# content and exits with the malformed text as the "answer".
+#
+# Detects `<|tool_call>call:NAME(arg1: val1, arg2: val2)` and converts to a
+# pseudo-tool-call structure compatible with the dispatch loop below.
+_TC_RE = re.compile(
+    r"""<\|tool_call\>call:                       # marker
+        (?P<name>[A-Za-z_][A-Za-z0-9_]*)          # tool name
+        \(                                         # open paren
+        (?P<args>[^)]*)                            # arg list (no nested parens)
+        \)""",
+    re.VERBOSE,
+)
+
+# Hermes/Llama-style template emitted by Qwen3.6-A3B-DWQ as plain text:
+#   <function=NAME><parameter=K1>V1</parameter><parameter=K2>V2</parameter></function>
+# Sometimes followed by </tool_call>. vMLX's structured-tool extractor doesn't
+# parse this format, so the agent loop sees tcalls=[] and treats the entire
+# text as a final answer, breaking retrieval. This regex recovers it.
+_TC_HERMES_RE = re.compile(
+    r"""<function=(?P<name>[A-Za-z_][A-Za-z0-9_]*)>     # opening
+        (?P<body>.*?)                                    # parameter block
+        </function>""",
+    re.VERBOSE | re.DOTALL,
+)
+_TC_HERMES_PARAM_RE = re.compile(
+    r"<parameter=(?P<k>[A-Za-z_][A-Za-z0-9_]*)>"
+    r"\s*(?P<v>.*?)\s*"
+    r"</parameter>",
+    re.DOTALL,
+)
+
+
+def _parse_native_toolcalls(text: str) -> list[dict]:
+    """Extract tool calls embedded as plain text in message content. Handles
+    BOTH Qwen native format (<|tool_call>call:NAME(...)`) and Hermes-style
+    format (`<function=NAME><parameter=K>V</parameter></function>`).
+    Returns list of {name, arguments_json_str, id} dicts.
+    """
+    out: list[dict] = []
+    seen: set[tuple] = set()
+    counter = 0
+    # Pattern 1 — Qwen native
+    for m in _TC_RE.finditer(text):
+        name = m.group("name")
+        args_raw = m.group("args").strip()
+        args_dict: dict = {}
+        for pair in args_raw.split(","):
+            if ":" not in pair:
+                continue
+            k, v = pair.split(":", 1)
+            k = k.strip()
+            v = v.strip().strip("\"'")
+            try:
+                args_dict[k] = int(v)
+            except ValueError:
+                args_dict[k] = v
+        if not args_dict:
+            continue
+        key = (name, tuple(sorted(args_dict.items())))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"id": f"native_{counter}", "name": name,
+                    "arguments": json.dumps(args_dict)})
+        counter += 1
+    # Pattern 2 — Hermes-style (<function=...><parameter=...>...)
+    for m in _TC_HERMES_RE.finditer(text):
+        name = m.group("name")
+        body = m.group("body")
+        args_dict = {}
+        for pm in _TC_HERMES_PARAM_RE.finditer(body):
+            k = pm.group("k").strip()
+            v = pm.group("v").strip().strip("\"'")
+            try:
+                args_dict[k] = int(v)
+            except ValueError:
+                args_dict[k] = v
+        if not args_dict:
+            continue
+        key = (name, tuple(sorted(args_dict.items())))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"id": f"hermes_{counter}", "name": name,
+                    "arguments": json.dumps(args_dict)})
+        counter += 1
+    return out
 
 
 class PageProvider(Protocol):
@@ -36,6 +131,57 @@ _DEFAULT_TOOLS = [{
         },
     },
 }]
+
+# Optional v2 tools — enabled when AgenticTreeRetriever is built with
+# tree_idx + entity_idx. Together they implement the BookRAG entity-graph +
+# HiChunk Auto-Merge pattern on top of the W2.7 tree.
+_V2_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_subtree_text",
+            "description": (
+                "AUTO-MERGE: Given a parent node_id, fetch the combined text "
+                "of all leaves under it. Use when a synthesis question's answer "
+                "is fragmented across multiple sub-sections of the same parent "
+                "(e.g., recursive-split sub-sections of Chairman's Letter)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "parent_node_id": {
+                        "type": "string",
+                        "description": "node_id (e.g., '0006' or '0006.02') whose subtree to merge",
+                    },
+                },
+                "required": ["parent_node_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_nodes_mentioning",
+            "description": (
+                "ENTITY-GRAPH LOOKUP: Given a literal entity name or phrase, "
+                "return up to 10 node_ids whose body text mentions it. Use to "
+                "discover candidate sections for synthesis questions about "
+                "named entities (companies, people, regulations, financial "
+                "instruments) that may be scattered across the document."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "entity_or_phrase": {
+                        "type": "string",
+                        "description": "Entity name or phrase to look up, e.g. 'Coca-Cola', 'BNSF', 'Item 1C'",
+                    },
+                },
+                "required": ["entity_or_phrase"],
+            },
+        },
+    },
+]
 
 
 def _tree_view(tree: dict) -> str:
@@ -88,6 +234,9 @@ class AgenticTreeRetriever:
         max_iterations: int = 6,
         max_range_chars: int = 8000,
         debug_log_path: str | None = None,
+        # Optional v2 — entity-graph + auto-merge tools
+        tree_index=None,        # TreeIndex instance for subtree fetch
+        entity_index=None,      # EntityIndex for find_nodes_mentioning
     ) -> None:
         self.tree = tree
         self.page_provider = page_provider
@@ -97,6 +246,121 @@ class AgenticTreeRetriever:
         self.max_iterations = max_iterations
         self.max_range_chars = max_range_chars
         self.debug_log_path = debug_log_path
+        self.tree_index = tree_index
+        self.entity_index = entity_index
+        # Tool list: extend with v2 tools only if both indexes are supplied
+        self._tools = list(_DEFAULT_TOOLS)
+        if tree_index is not None:
+            self._tools.append(_V2_TOOLS[0])  # get_subtree_text
+        if entity_index is not None:
+            self._tools.append(_V2_TOOLS[1])  # find_nodes_mentioning
+        # Cache expansions per-instance to avoid duplicate LLM calls within
+        # one agent loop. Cleared per-query in answer().
+        self._expansion_cache: dict[str, list[str]] = {}
+
+    def _fetch_subtree(self, parent_node_id: str) -> str:
+        """AUTO-MERGE: combine text of all leaves under a parent."""
+        if self.tree_index is None:
+            return "[ERROR] get_subtree_text requires tree_index"
+        if parent_node_id not in self.tree_index:
+            return f"[ERROR] node_id {parent_node_id!r} not found in tree"
+        node_ids = self.tree_index.subtree_ids(parent_node_id)
+        parts = []
+        for nid in node_ids:
+            node = self.tree_index.get(nid) or {}
+            sp = node.get("start_page")
+            ep = node.get("end_page", sp)
+            title = node.get("title", "")
+            if sp is not None and ep is not None:
+                try:
+                    body = self.page_provider(sp, ep)
+                    parts.append(f"[{nid}] {title} (pages {sp}-{ep})\n{body}")
+                except Exception as e:  # noqa: BLE001
+                    parts.append(f"[{nid}] {title} — [ERROR fetching: {e}]")
+        merged = "\n\n---\n\n".join(parts)
+        if len(merged) > self.max_range_chars * 2:  # 2× cap for subtree
+            merged = merged[: self.max_range_chars * 2] + "\n[... truncated]"
+        return merged
+
+    _EXPAND_SYSTEM = (
+        "Generate 3 SHORT alternative phrasings (2-5 words each) for finding "
+        "the same concept in document body text. Output strict JSON: "
+        '{"variants": ["...", "...", "..."]}. No prose, no markdown.\n\n'
+        "Examples:\n"
+        '  "not-so-secret weapon" → '
+        '{"variants": ["secret weapon", "competitive advantage", "Charlie Munger"]}\n'
+        '  "non-controlled businesses" → '
+        '{"variants": ["equity investments", "marketable securities", "Coca-Cola Apple"]}\n'
+        '  "BNSF Railway" → '
+        '{"variants": ["BNSF", "railroad operations", "Burlington Northern"]}'
+    )
+
+    def _expand_phrase(self, phrase: str) -> list[str]:
+        """Multi-query expansion. Returns [original, variant1, variant2, variant3].
+        Cached per-phrase within one agent loop to amortize the LLM call.
+
+        Closes the regex EntityIndex semantic gap: when the user query uses one
+        phrasing ("secret weapon") but the body text uses another ("Charlie",
+        "patient capital"), regex misses. Expansion broadens the search."""
+        cached = self._expansion_cache.get(phrase)
+        if cached is not None:
+            return cached
+        try:
+            r = self.client.chat.completions.create(
+                model=self.model, temperature=0.3, max_tokens=200,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": self._EXPAND_SYSTEM},
+                    {"role": "user", "content": phrase},
+                ],
+            )
+            raw = (r.choices[0].message.content or "{}").strip()
+            parsed = json.loads(raw)
+            variants = parsed.get("variants", [])
+            if not isinstance(variants, list):
+                variants = []
+            variants = [str(v).strip() for v in variants if str(v).strip()]
+        except Exception:                                   # noqa: BLE001
+            variants = []
+        result = [phrase] + variants[:3]
+        self._expansion_cache[phrase] = result
+        return result
+
+    def _find_nodes(self, entity_or_phrase: str) -> str:
+        """ENTITY-GRAPH LOOKUP with multi-query expansion. Expands the phrase
+        into 3 alternative phrasings, searches each, returns union ranked by
+        hit-count (nodes appearing in multiple variants ranked first)."""
+        if self.entity_index is None:
+            return "[ERROR] find_nodes_mentioning requires entity_index"
+        variants = self._expand_phrase(entity_or_phrase)
+        # Score each node by how many variants matched it (reciprocal rank fusion).
+        node_scores: dict[str, float] = {}
+        node_first_match: dict[str, str] = {}
+        for v in variants:
+            ids = self.entity_index.find_nodes_mentioning(v)
+            for rank, nid in enumerate(ids[:10]):
+                # RRF formula: 1/(k+rank), k=60 standard
+                node_scores[nid] = node_scores.get(nid, 0.0) + 1.0 / (60 + rank)
+                node_first_match.setdefault(nid, v)
+        if not node_scores:
+            return (f"No nodes mention {entity_or_phrase!r} (also tried: "
+                    f"{', '.join(repr(v) for v in variants[1:])})")
+        ranked = sorted(node_scores.items(), key=lambda kv: -kv[1])
+        if self.tree_index is None:
+            return f"Found nodes: {[nid for nid, _ in ranked]}"
+        rows = []
+        for nid in [nid for nid, _ in ranked[:10]]:
+            node = self.tree_index.get(nid) or {}
+            title = node.get("title", "")
+            sp = node.get("start_page", "?")
+            ep = node.get("end_page", "?")
+            summary = (node.get("summary") or "")[:200]
+            matched_via = node_first_match.get(nid, "?")
+            rows.append(f"[{nid}] {title} (pages {sp}-{ep}) "
+                        f"[matched via {matched_via!r}]\n  {summary}")
+        header = (f"Nodes mentioning {entity_or_phrase!r} "
+                  f"(expanded to: {variants}):\n\n")
+        return header + "\n\n".join(rows)
 
     def _fetch(self, start: int, end: int) -> str:
         text = self.page_provider(start, end)
@@ -104,11 +368,79 @@ class AgenticTreeRetriever:
             text = text[: self.max_range_chars] + "\n[... truncated]"
         return text
 
+    @staticmethod
+    def _is_synthesis_question(query: str) -> bool:
+        """Detects 'what did X say/write about Y', 'how does X describe Y', and
+        related multi-fetch synthesis patterns. Used to force ≥2 fetches when
+        the model (e.g. DWQ-quantized Qwen3) converges too eagerly after one
+        page-content fetch on a question whose answer is fragmented across
+        sub-sections."""
+        import re as _re
+        q = query.lower().strip()
+        patterns = [
+            r"what did .+ (say|write|describe|note|mention)",
+            r"how does .+ (describe|characterize|frame|portray|view)",
+            r"what does .+ (say|write|think) about",
+            r"how (do|does) .+ (relate|connect|compare)",
+            r"(discuss|describe).+(non-controlled|relationship|approach|philosophy)",
+            r"what.+(secret weapon|moat|advantage|edge)",
+        ]
+        return any(_re.search(p, q) for p in patterns)
+
+    @staticmethod
+    def _extract_entity_phrase(query: str) -> str | None:
+        """Detect questions where a specific named entity / quoted phrase / unique
+        section title should drive entity-graph lookup. Returns the phrase to
+        search, or None if no entity-pattern matches.
+
+        Closes the variance gap on Q-ENTITY type questions where DWQ stochastically
+        skips find_nodes_mentioning and goes straight to get_page_content with
+        a wrong page guess. Pre-firing the entity lookup makes routing
+        deterministic."""
+        import re as _re
+        # 1) Quoted phrase wins: "What did Buffett describe as Berkshire's 'X' ..."
+        m = _re.search(r"['\"]([^'\"]{4,60})['\"]", query)
+        if m:
+            return m.group(1).strip()
+        # 2) "described as <X>" / "called <X>" / "known as <X>"
+        m = _re.search(r"(?:described as|called|known as|titled)\s+([A-Z][A-Za-z0-9\- ]{3,60})",
+                       query)
+        if m:
+            return m.group(1).strip()
+        # 3) ALL-CAPS acronym (BNSF, GAAP, etc.) — unique enough to look up
+        m = _re.search(r"\b([A-Z]{3,8})\b", query)
+        if m:
+            return m.group(1).strip()
+        return None
+
     def answer(self, query: str) -> dict:
         tree_str = _tree_view(self.tree)
+        is_synthesis = self._is_synthesis_question(query)
+
+        # Pre-fire entity-graph lookup for Q-ENTITY patterns so the model sees
+        # the matching nodes BEFORE its first LLM call. Closes variance gap
+        # where DWQ stochastically picks get_page_content over
+        # find_nodes_mentioning.
+        entity_hint = ""
+        if self.entity_index is not None:
+            phrase = self._extract_entity_phrase(query)
+            if phrase:
+                hint_body = self._find_nodes(phrase)
+                # Only inject when we actually got matches (the no-match string
+                # starts with "No nodes mention").
+                if not hint_body.startswith("No nodes mention"):
+                    entity_hint = (
+                        f"\n\nENTITY-GRAPH HINT (auto-fired before your first "
+                        f"call): the phrase {phrase!r} was found in these nodes:\n"
+                        f"{hint_body}\n\n"
+                        f"Use these page ranges directly with get_page_content "
+                        f"unless the tree shows a more specific match."
+                    )
+
         msgs: list[dict] = [
             {"role": "system", "content": self.system_prompt},
-            {"role": "user",   "content": f"Document tree:\n{tree_str}\n\nQuestion: {query}"},
+            {"role": "user",
+             "content": f"Document tree:\n{tree_str}{entity_hint}\n\nQuestion: {query}"},
         ]
         tool_call_log: list[dict] = []
         final_answer = "insufficient context"
@@ -116,14 +448,66 @@ class AgenticTreeRetriever:
 
         for iteration in range(self.max_iterations):
             resp = self.client.chat.completions.create(
-                model=self.model, messages=msgs, tools=_DEFAULT_TOOLS,
+                model=self.model, messages=msgs, tools=self._tools,
                 temperature=0.0, max_tokens=800,
             )
             msg = resp.choices[0].message
             tcalls = getattr(msg, "tool_calls", None) or []
+            content_text = (msg.content or "")
+
+            # Fallback parser: when oMLX emits native <|tool_call> text in
+            # content instead of populating structured tool_calls (state
+            # degradation under sustained load), recover it here so the
+            # agent loop continues.
+            # Trigger fallback parser when content contains EITHER Qwen native
+            # template (`<|tool_call>`) OR Hermes-style (`<function=`) markers.
+            # DWQ-quantized Qwen3.6 emits the Hermes form which vMLX does not
+            # extract into structured tool_calls.
+            if not tcalls and ("<|tool_call>" in content_text
+                                or "<function=" in content_text):
+                native = _parse_native_toolcalls(content_text)
+                if native:
+                    # Build pseudo-tool-call objects with .id + .function.name
+                    # + .function.arguments compatible with the dispatch below
+                    class _PseudoFn:
+                        def __init__(self, n, a): self.name = n; self.arguments = a
+                    class _PseudoTC:
+                        def __init__(self, i, n, a):
+                            self.id = i
+                            self.function = _PseudoFn(n, a)
+                            self.type = "function"
+                    tcalls = [_PseudoTC(t["id"], t["name"], t["arguments"]) for t in native]
+                    # Strip the malformed text from content; treat as if model
+                    # only emitted tool calls
+                    content_text = ""
 
             if not tcalls:
-                final_answer = (msg.content or "").strip()
+                # Synthesis-question guard: if this is a multi-section synthesis
+                # question and the model has only fetched ONCE, push it to fetch
+                # a second range before accepting the answer. DWQ-quantized
+                # models converge eagerly after iter 0; one fetch on a "what did
+                # X say about Y" question = shallow answer = wrong answer.
+                page_fetches = sum(1 for tc in tool_call_log
+                                   if tc.get("tool") == "get_page_content")
+                if is_synthesis and page_fetches < 2:
+                    msgs.append({
+                        "role": "assistant",
+                        "content": content_text or "",
+                    })
+                    msgs.append({
+                        "role": "user",
+                        "content": (
+                            "STOP. This is a multi-section synthesis question. "
+                            "You have fetched only ONE page range. The answer "
+                            "is distributed across multiple sub-sections — your "
+                            "current answer is shallow. Fetch a SECOND page "
+                            "range from a DIFFERENT sub-section that may also "
+                            "discuss this topic, then synthesize across both "
+                            "fetches. Call get_page_content again now."
+                        ),
+                    })
+                    continue
+                final_answer = content_text.strip()
                 break
 
             msgs.append({
@@ -140,7 +524,8 @@ class AgenticTreeRetriever:
             for tc in tcalls:
                 try:
                     args = json.loads(tc.function.arguments)
-                    if tc.function.name == "get_page_content":
+                    name = tc.function.name
+                    if name == "get_page_content":
                         sp = int(args.get("start_page", 1))
                         ep = int(args.get("end_page", sp))
                         content = self._fetch(sp, ep)
@@ -149,8 +534,24 @@ class AgenticTreeRetriever:
                             "args": {"start": sp, "end": ep},
                             "content_chars": len(content),
                         })
+                    elif name == "get_subtree_text":
+                        pid = str(args.get("parent_node_id", ""))
+                        content = self._fetch_subtree(pid)
+                        tool_call_log.append({
+                            "iter": iteration, "tool": "get_subtree_text",
+                            "args": {"parent_node_id": pid},
+                            "content_chars": len(content),
+                        })
+                    elif name == "find_nodes_mentioning":
+                        ent = str(args.get("entity_or_phrase", ""))
+                        content = self._find_nodes(ent)
+                        tool_call_log.append({
+                            "iter": iteration, "tool": "find_nodes_mentioning",
+                            "args": {"entity_or_phrase": ent},
+                            "content_chars": len(content),
+                        })
                     else:
-                        content = f"[ERROR] Unknown tool: {tc.function.name}"
+                        content = f"[ERROR] Unknown tool: {name}"
                 except Exception as e:  # noqa: BLE001
                     content = f"[ERROR] {type(e).__name__}: {e}"
                 msgs.append({"role": "tool", "tool_call_id": tc.id, "content": content})

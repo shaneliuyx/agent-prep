@@ -31,7 +31,10 @@ sys.path.insert(0, str(_REPO_ROOT / "shared"))
 
 from tree_index import (  # noqa: E402
     AGENTIC_SYSTEM_TEMPLATE,
+    AGENTIC_SYSTEM_TEMPLATE_V2,
     AgenticTreeRetriever,
+    EntityIndex,
+    TreeIndex,
 )
 
 load_dotenv()
@@ -66,18 +69,53 @@ def _make_page_provider(pdf_path: str):
     return provider
 
 
-def answer(query: str, tree_path: str = "data/tree.json",
-           pdf_path: str = "data/brk-2023-ar.pdf") -> dict:
+_RETRIEVER_CACHE: dict[str, AgenticTreeRetriever] = {}
+
+
+def _get_retriever(tree_path: str, pdf_path: str, *, v2: bool = True) -> AgenticTreeRetriever:
+    """Build (and cache) a retriever. v2 wires entity-graph + auto-merge tools."""
+    key = f"{tree_path}|{pdf_path}|v2={v2}"
+    if key in _RETRIEVER_CACHE:
+        return _RETRIEVER_CACHE[key]
+
     tree = json.loads(Path(tree_path).read_text())
-    retriever = AgenticTreeRetriever(
+    page_provider = _make_page_provider(pdf_path)
+    kwargs = dict(
         tree=tree,
-        page_provider=_make_page_provider(pdf_path),
+        page_provider=page_provider,
         model_client=omlx,
         model_name=MODEL or "",
-        system_prompt=AGENTIC_SYSTEM_TEMPLATE,
         debug_log_path="/tmp/tree_debug.log",
     )
-    return retriever.answer(query)
+    if v2:
+        # Build a body-text page provider WITHOUT [page N] headers for
+        # entity extraction — cleaner regex matching on hyphenated proper
+        # nouns like "Coca-Cola" that headers would interrupt.
+        from pypdf import PdfReader
+        reader = PdfReader(pdf_path)
+        pages_raw = [p.extract_text() or "" for p in reader.pages]
+
+        def raw_provider(s: int, e: int) -> str:
+            sp = max(0, int(s) - 1)
+            ep = min(len(pages_raw), int(e))
+            return "\n\n".join(pages_raw[i] for i in range(sp, ep))
+
+        ti = TreeIndex(tree)
+        ei = EntityIndex(ti, page_provider=raw_provider)
+        kwargs["tree_index"] = ti
+        kwargs["entity_index"] = ei
+        kwargs["system_prompt"] = AGENTIC_SYSTEM_TEMPLATE_V2
+    else:
+        kwargs["system_prompt"] = AGENTIC_SYSTEM_TEMPLATE
+
+    retriever = AgenticTreeRetriever(**kwargs)
+    _RETRIEVER_CACHE[key] = retriever
+    return retriever
+
+
+def answer(query: str, tree_path: str = "data/tree.json",
+           pdf_path: str = "data/brk-2023-ar.pdf", *, v2: bool = True) -> dict:
+    return _get_retriever(tree_path, pdf_path, v2=v2).answer(query)
 
 
 if __name__ == "__main__":

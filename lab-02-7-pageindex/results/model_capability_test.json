@@ -1,0 +1,56 @@
+[
+  {
+    "model": "models/Qwen3.5-27B-4bit",
+    "total": 5.0,
+    "avg_lat": 10.81,
+    "sustained_ok": false,
+    "p1": {
+      "score": 1,
+      "lat": 3.0206458568573,
+      "name": "add_numbers",
+      "args": {
+        "a": 37,
+        "b": 58
+      }
+    },
+    "p2": {
+      "score": 1,
+      "lat": 2.1629910469055176,
+      "name": "get_weather",
+      "args": {
+        "city": "Tokyo"
+      }
+    },
+    "p3": {
+      "score": 1,
+      "lat": 2.4071476459503174,
+      "answer": "Berkshire's 2023 total revenues were $364.5 billion, while its net earnings for the same year were $96.2 billion.",
+      "has_rev": true,
+      "has_earn": true,
+      "one_sentence": true
+    },
+    "p4": {
+      "score": 1,
+      "lat": 0.6904010772705078,
+      "answer": "This question is outside the document.",
+      "refused": true,
+      "hallucinated": false
+    },
+    "p5": {
+      "score": 1.0,
+      "lat": 46.57375192642212,
+      "completed": 8,
+      "rounds": 8,
+      "first_fail_round": null,
+      "reason": null
+    },
+    "p6": {
+      "score": 0.0,
+      "lat": 10.025007963180542,
+      "completed": 0,
+      "rounds": 8,
+      "first_fail_round": 0,
+      "reason": "q0: InternalServerError: Error code: 503 - {'detail': \"Metal GPU working set too full"
+    }
+  }
+]

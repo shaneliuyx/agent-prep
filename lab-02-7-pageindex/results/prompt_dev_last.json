@@ -1,0 +1,51 @@
+[
+  {
+    "id": "Q-FACT",
+    "q": "What were Berkshire's total revenues in 2023?",
+    "answer": "Berkshire Hathaway's total revenues in 2023 were $364,482 million ($364.5 billion) [page 96].",
+    "tools": [
+      "get_page_content"
+    ],
+    "iters": 2,
+    "lat": 27.695586681365967,
+    "sub": 1.0,
+    "judge": 1.0
+  },
+  {
+    "id": "Q-SYNTH",
+    "q": "What did Buffett write about non-controlled businesses in 2023?",
+    "answer": "The question asks what Buffett wrote about **non-controlled businesses** in 2023. This is a **Type C (Cross-Section Synthesis)** question because Buffett discusses his philosophy and specific examples of non-controlled businesses across multiple sections of the Chairman's Letter. Specifically, he dedicates a section titled \"Non-controlled Businesses That Leave Us Comfortable\" (pages 10-12) and also discusses his general approach to marketable equities in \"Our Not-So-Secret Weapon\" (pages 7-9) and the distinction between controlled and non-controlled entities in \"What We Do\" (pages 6-7).\n\nI have already fetched pages 4-12.\n*   **Pages 6-7 (\"What We Do\"):** Buffett states the goal is to own \"either all or a portion of businesses.\" He notes that due to size, they can no longer buy entire companies easily (\"size did us in\"), implying a shift toward partial ownership (non-controlled) of large enterprises.\n*   **Pages 7-9 (\"Our Not-So-Secret Weapon\"):** He discusses committing \"huge dollar amounts... to marketable equities\" and the importance of capital gains from these investments. He mentions that Berkshire owns \"either a portion or 100% of various businesses.\"\n*   **Pages 10-12 (\"Non-controlled Businesses That Leave Us Comfortable\"):** This is the core section. He explicitly lists:\n    1.  **Coca-Cola and American Express:** Long-duration partial-ownership positions (4-5% of GAAP net worth each). He emphasizes \"Rip Van Winkle slumber\" (inaction) and patience.\n    2.  **Occidental Petroleum:** 27.8% common shares plus warrants. He explicitly states: \"Berkshire has no interest in purchasing or managing Occidental.\" He praises its oil/gas holdings and leadership.\n    3.  **Five Japanese Companies:** ~9% ownership in Itochu, Marubeni, Mitsubishi, Mitsui, and Sumitomo. He states they are \"passive and long-term interest\" and pledged not to exceed 9.9%.\n\nI have sufficient information from these two main fetches (pages 4-12) to synthesize the answer. I do not need further fetches as the specific section \"Non-controlled Businesses That Leave Us Comfortable\" provides the detailed examples and philosophy requested.\n\n**Synthesis:**\nBuffett wrote that Berkshire's strategy involves owning \"either all or a portion of businesses\" (p. 7). For non-controlled businesses, he highlighted three key categories in 2023:\n1.  **Coca-Cola and American Express:** Described as \"long-duration partial-ownership positions\" where Berkshire maintains a \"Rip Van Winkle slumber,\" meaning they do not buy or sell shares, relying on the businesses' enduring success and increasing dividends (p. 10-11).\n2.  **Occidental Petroleum:** Berkshire owns 27.8% of common shares and warrants, but Buffett explicitly stated \"Berkshire has no interest in purchasing or managing Occidental.\" He praised its oil/gas assets and carbon-capture initiatives (p. 11-12).\n3.  **Five Japanese Trading Companies:** Berkshire holds about 9% in each (Itochu, Marubeni, Mitsubishi, Mitsui, Sumitomo). He described these as \"passive and long-term interest\" and pledged not to increase holdings beyond 9.9% (p. 12).\n\nBuffett's overarching point is that these non-controlled businesses are \"worthwhile\" and allow Berkshire to benefit from their earnings and dividends without the need for active management, fitting into a strategy of \"patience\" and \"",
+    "tools": [
+      "get_page_content",
+      "get_page_content",
+      "get_page_content"
+    ],
+    "iters": 4,
+    "lat": 119.26011419296265,
+    "sub": 0.6666666666666666,
+    "judge": 0.6666666666666666
+  },
+  {
+    "id": "Q-ENTITY",
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+    "answer": "The question asks what Buffett described as Berkshire's \"not-so-secret weapon.\" This is a **Type C (Cross-Section Synthesis)** question because the concept of Berkshire's competitive advantage or \"weapon\" is discussed across multiple sections of the Chairman\u2019s Letter: specifically in the section titled \"Our Not-So-Secret Weapon\" (pages 7-8) and in the introductory sections where he defines Berkshire's philosophy, structure, and relationship with shareholders (pages 4-6).\n\n**Fetch 1 Analysis (Pages 7-8):**\nIn the section \"Our Not-So-Secret Weapon,\" Buffett explicitly states: \"Berkshire benefits from an **unusual constancy and clarity of purpose**.\" He elaborates that this purpose is to own businesses with \"good economics that are fundamental and enduring\" run by \"able and trustworthy managers.\" He also highlights the advantage of **float** (from insurance) which allows them to deploy capital, and the benefit of having a large base of \"lifetime\" shareholders who do not expect to resell, allowing for long-term decision-making.\n\n**Fetch 2 Analysis (Pages 4-6):**\nIn the earlier sections (\"Charlie Munger \u2013 The Architect...\" and \"To the Shareholders...\"), Buffett describes the **organizational structure** as a key advantage. He credits Charlie Munger with creating an architecture where Berkshire operates on a **decentralized basis** (implied by the \"general contractor\" role and lack of micromanagement). He emphasizes the **relationship with shareholders** (exemplified by his sister Bertie) who are \"lifetime\" owners, not speculators. This shareholder base allows Berkshire to ignore short-term market volatility (\"voting machine\") and focus on long-term value (\"weighing machine\"). He also notes the **trust** placed in managers, allowing them to run businesses without constant oversight.\n\n**Synthesis:**\nBuffett describes Berkshire's \"not-so-secret weapon\" as a combination of:\n1.  **Unusual constancy and clarity of purpose:** A long-term focus on owning businesses with fundamental, enduring economics.\n2.  **A unique shareholder base:** \"Lifetime\" shareholders (like his sister Bertie) who do not expect to resell, allowing the company to ignore short-term market noise and focus on long-term value creation.\n3.  **Decentralized management with trust:** An organizational structure (the \"architecture\" designed by Charlie Munger) that relies on able, trustworthy managers who are given significant autonomy.\n4.  **Insurance Float:** The ability to use insurance float as low-cost or negative-cost capital to invest in these businesses.\n\nThe most direct answer, often cited as the core \"weapon\" in this specific letter's context, is the **unusual constancy and clarity of purpose** combined with a **shareholder base that does not expect to resell**, enabling long-term decision-making.\n\nAnswer: Buffett described Berkshire's \"not-so-secret weapon\" as its **unusual constancy and clarity of purpose**, supported by a base of **\"lifetime\" shareholders** who do not expect to resell their shares, allowing the company to focus on long-term value creation rather than short-term market fluctuations. This is complemented by a **decentralized management structure** that relies on **trust** in able managers and the use of **insurance float** to deploy capital into businesses with fundamental, enduring economics [pages 4-6, 7-8].",
+    "tools": [
+      "get_page_content",
+      "get_page_content"
+    ],
+    "iters": 4,
+    "lat": 119.14966106414795,
+    "sub": 0.75,
+    "judge": 0.75
+  },
+  {
+    "id": "Q-OOD",
+    "q": "What is Berkshire Hathaway's stock price today?",
+    "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about today's stock price.\n\ninsufficient context",
+    "tools": [],
+    "iters": 1,
+    "lat": 42.67621302604675,
+    "sub": 0.6666666666666666,
+    "judge": 1.0
+  }
+]

@@ -1,0 +1,230 @@
+{
+  "variant": "v1",
+  "agg_judge": 0.7708333333333334,
+  "agg_sub": 0.59375,
+  "agg_lat": 131.56323477625847,
+  "per_cat": {
+    "section-specific factoid": 0.75,
+    "cross-section synthesis": 0.5,
+    "citation-required": 0.8333333333333333,
+    "out-of-document": 1.0
+  },
+  "rows": [
+    {
+      "variant": "v1",
+      "q": "What were Berkshire's total revenues in 2023?",
+      "type": "section-specific factoid",
+      "answer": "Based on the Consolidated Statements of Earnings on page 96, Berkshire Hathaway's total revenues in 2023 were **$364,482 million**.\n\nThis is broken down as:\n- Insurance and Other segment: $263,067 million\n- Railroad, Utilities and Energy segment: $101,415 million\n\n[pages 96-96]",
+      "sub": 0.6666666666666666,
+      "judge": 0.6666666666666666,
+      "lat": 59.360596895217896,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+      "type": "section-specific factoid",
+      "answer": "Based on the Consolidated Statements of Earnings on page 96, Berkshire's net earnings attributable to shareholders in 2023 was **$96,223 million**.",
+      "sub": 0.6666666666666666,
+      "judge": 0.6666666666666666,
+      "lat": 43.065263748168945,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+      "type": "cross-section synthesis",
+      "answer": "The user is asking about what Buffett described as Berkshire's \"not-so-secret weapon\" in the 2023 letter. I need to look for this phrase in the document.\n\nLooking at the fetched content from pages 7-8, I don't see the exact phrase \"not-so-secret weapon\" in this text. Let me search through what I've seen:\n\n- Page 7 talks about capital gains, unrealized capital gains/losses exceeding $5 billion a day\n- Page 8 talks about GAAP net worth, Berkshire's size, etc.\n\nThe phrase \"not-so-secret weapon\" might be in a different section. Let me check the Table of Contents again - I see there's a node \"0003.05\" titled \"Our Not-So-Secret Weapon\" on pages 7-8, but the content I fetched doesn't seem to contain that exact phrase.\n\nWait, looking at the summary for node 0003.05: \"Berkshire Hathaway's GAAP net worth reached $561 billion in 2022, occupying nearly 6% of the S&P 500 universe, while the total GAAP net worth for the other 499 S&P companies was $8.9 trillion. The company excludes unrealized capital gains or losses that at times can exceed $5 billion a day from its \"\n\nThis seems to be about the same content I fetched. The phrase \"not-so-secret weapon\" might refer to something else - perhaps the ability to exclude unrealized capital gains/losses, or it could be about something else entirely.\n\nLet me search more carefully through the fetched text for \"not-so-secret weapon\" or similar phrases. I don't see it in pages 7-8 of the fetched content.\n\nWait, looking at the TOC again:\n- node 0003.05 is titled \"Our Not-So-Secret Weapon\" on pages 7-8\n\nBut the content I fetched from pages 7-8 doesn't contain that exact phrase. \n\nThe summary for node 0003.05 mentions GAAP net worth and unrealized capital gains/losses exceeding $5 billion a day. This might be what Buffett is referring to as the \"not-so-secret weapon\" - the ability to exclude unrealized capital gains/losses from their preferred operating earnings metric.\n\nLet me check if there's more content on pages 7-8 that I might have missed, or if the phrase appears elsewhere in the document. The fetched content shows pages 7 and 8, but I need to look more carefully for the exact phrase \"not-so-secret weapon\".\n\nLooking at page 7, I see discussion about capital gains and unrealized capital gains/losses. On page 8, there's talk about GAAP net worth and Berkshire's size relative to the S&P.\n\nThe \"not-so-secret weapon\" might be referring to Berkshire's ability to exclude unrealized capital gains/losses from their operating earnings, which can exceed $5 billion a day. This is mentioned in the summary of node 0003.05 and appears to be a key differentiator for Berkshire's financial reporting approach.\n\nHowever, I don't see the exact phrase \"not-so-secret weapon\" in the fetched text. Let me search for it more carefully or check if there's additional content I need to fetch.\n\nActually, looking at the summary for node 0003.05 again: \"Berkshire Hathaway's GAAP net worth reached $561 billion in 2022, occupying nearly 6% of the S&P 500 universe, while the total GAAP net worth for the other 499 S&P companies was $8.9 trillion. The company excludes unreal",
+      "sub": 0.25,
+      "judge": 0.25,
+      "lat": 67.7708523273468,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+      "type": "cross-section synthesis",
+      "answer": "Based on the Chairman's Letter, Buffett wrote about several non-controlled businesses (partial-ownership positions) that leave Berkshire comfortable in 2023:\n\n**1. Coca-Cola and American Express (pages 10-11)**\nThese are long-duration partial-ownership positions, each accounting for only 4-5% of Berkshire's GAAP net worth. Both companies have been hugely successful in their base businesses, and their products \"traveled\" worldwide as timeless essentials. Berkshire didn't buy or sell shares in 2023, and both increased earnings and dividends. AMEX's share of earnings in 2023 considerably exceeded the $1.3 billion cost of Berkshire's long-ago purchase.\n\n**2. Occidental Petroleum (pages 10-12)**\nAt yearend 2023, Berkshire owned 27.8% of Occidental's common shares plus warrants to materially increase ownership at a fixed price. Berkshire has no interest in purchasing or managing Occidental but likes its vast U.S. oil and gas holdings and leadership in carbon-capture initiatives. Under Vicki Hollub's leadership, Occidental is doing the right things for both",
+      "sub": 0.75,
+      "judge": 0.75,
+      "lat": 187.86388731002808,
+      "iters": 6,
+      "tools": [
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "Which section of the annual report covers BNSF Railway operating results?",
+      "type": "citation-required",
+      "answer": "Based on the fetched text, BNSF Railway operating results are covered in **Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations**, specifically under the \"Results of Operations\" subsection. This section appears on pages 59-60 and includes:\n\n1. A table showing BNSF's after-tax earnings for 2023 ($5,087 million), 2022 ($5,946 million), and 2021 ($5,990 million)\n2. Detailed discussion of BNSF's operating results, including the 14.4% decline in after-tax earnings in 2023 compared to 2022, attributed to lower overall freight volumes and higher non-fuel operating costs\n\nThe full \"Management's Discussion and Analysis\" section spans pages 59-90 according to the document structure.",
+      "sub": 0.3333333333333333,
+      "judge": 0.6666666666666666,
+      "lat": 91.88421988487244,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+      "type": "citation-required",
+      "answer": "The 2023 annual report discloses cybersecurity governance in **Item 1C. Cybersecurity** on page 52. \n\nAccording to the report, Berkshire Hathaway has implemented a framework for cybersecurity and cyber-related information management across its diverse business groups. Key governance elements include:\n\n1. **Framework Structure**: Each Business Group can tailor solutions to identify, manage, and mitigate risks based on their unique cybersecurity risks in conjunction with overall risk management processes.\n\n2. **Reporting Requirements**: Each Business Group's Chief Information Security Officer (CISO) must provide an annual report to senior management regarding the state of their cybersecurity program and material cyber risks.\n\n3. **Audit Oversight**: These CISO reports are shared with Berkshire's internal audit group to inform and enhance the company's overall risk management processes.\n\n4. **Incident Reporting**: Each Business Group is required to maintain an incident reporting process for significant cybersecurity events.\n\n5. **Third-Party Engagement**: Berkshire and its Business Groups engage third parties to assess, audit, educate, implement, operate, protect, and remediate various cybersecurity-related elements.\n\nThe report emphasizes that maintaining processes for identifying, assessing, and managing cybersecurity threats is important in dealing with Berkshire's significant business risks.",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 75.07527208328247,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What is Berkshire Hathaway's stock price today?",
+      "type": "out-of-document",
+      "answer": "The provided document is Berkshire Hathaway's 2023 Annual Report, which contains historical financial information from fiscal years 2021-2023 but does not include current or real-time stock price data. insufficient context",
+      "sub": 0.3333333333333333,
+      "judge": 1.0,
+      "lat": 79.53080725669861,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Who is the CEO of Microsoft?",
+      "type": "out-of-document",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which contains information about Berkshire Hathaway Inc.'s operations, financial statements, and executive officers (including Warren Buffett as Chairman/CEO of Berkshire), but does not contain any information about Microsoft or its CEO.\n\ninsufficient context",
+      "sub": 0.3333333333333333,
+      "judge": 1.0,
+      "lat": 82.00313782691956,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+      "type": "section-specific factoid",
+      "answer": "Based on the fetched text from pages 6-7 of the Chairman's Letter, Berkshire's operating earnings figure for 2023 is **$37.4 billion**. \n\nThe document states: \"Accordingly, Berkshire also reports to Bertie and you what we call 'operating earnings.' Here is the story they tell: $27.6 billion for 2021; $30.9 billion for 2022 and **$37.4 billion for 2023**.\"\n\nThis operating earnings figure excludes unrealized capital gains or losses that can exceed $5 billion a day, which is the primary difference between Berkshire's preferred operating earnings and the GAAP net earnings figure of $96 billion for 2023.\n\n[pages 6-7]",
+      "sub": 0.6666666666666666,
+      "judge": 0.6666666666666666,
+      "lat": 115.47681212425232,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+      "type": "section-specific factoid",
+      "answer": "Based on the document, Berkshire Hathaway's percentage ownership of Occidental Petroleum common shares as of December 31, 2023 is **27.8%** (excluding the potential effect of the exercise of the Occidental common stock warrants).\n\nThis information is found in Note 5 (Equity method investments) on pages 109-110, which states: \"As of December 31, 2023, we owned 26.7% of the Kraft Heinz outstanding common stock and **27.8%** of the outstanding Occidental common stock, which excluded the potential effect of the exercise of the Occidental common stock warrants.\"\n\nBerkshire began acquiring Occidental common stock in 2022, and their aggregate voting interest exceeded 20% on August 4, 2022, at which point they adopted the equity method of accounting for this investment.",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 239.74619793891907,
+      "iters": 6,
+      "tools": [
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+      "type": "cross-section synthesis",
+      "answer": "Based on the Chairman's Letter, Buffett wrote extensively about Berkshire's five Japanese trading house investments (Itochu, Marubeni, Mitsubishi, Mitsui, and Sumitomo) on pages 12-13. Here are the key points:\n\n**Ownership and Position:**\n- Berkshire owns about 9% of each company (pledged not to exceed 9.9%)\n- Cost basis totals \u00a51.6 trillion; yearend market value was \u00a52.9 trillion\n- Yearend unrealized gain in dollars was 61% or $8 billion (due to weakened yen)\n- Financed most of the position with \u00a51.3 trillion in yen-denominated bonds\n\n**Why They're Attractive:**\n- All five operate in a highly-diversified manner similar to how Berkshire itself is run\n- Each follows shareholder-friendly policies \"much superior to those customarily practiced in the U.S.\"\n- Since Berkshire began purchases, each has reduced outstanding shares at attractive prices\n- Managements have been \"far less aggressive about their own compensation than is typical in the United States\"\n- Each applies only about 1/3 of earnings to dividends; retained sums are used to build businesses and repurchase shares\n- All are reluctant to issue new shares (like Berkshire)\n\n**Strategic Value:**\n- The investment may lead to opportunities for partnerships around the world with these large, well-managed companies\n- Japanese CEOs have comfort knowing Berkshire will always possess huge liquid resources instantly available for partnerships of any size\n\n**Acquisition Process:**\n- Purchases began on July 4, 2019\n- Holdings were increased after Greg Abel and Buffett made a trip to Tokyo to talk with the managements\n- Building positions through open-market purchases takes patience and \"friendly\" prices (like turning a battleship)",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 211.0211341381073,
+      "iters": 5,
+      "tools": [
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+      "type": "cross-section synthesis",
+      "answer": "insufficient context",
+      "sub": 0.0,
+      "judge": 0.0,
+      "lat": 258.0340168476105,
+      "iters": 6,
+      "tools": [
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content",
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "Which Item of Form 10-K covers Risk Factors?",
+      "type": "citation-required",
+      "answer": "Based on the document, **Item 1A** of Form 10-K covers Risk Factors. This is clearly stated on page 49, which begins with \"Item 1A. Risk Factors\" and describes the various risks and uncertainties facing Berkshire Hathaway and its subsidiaries, including general business risks, cybersecurity risks, geopolitical events, key personnel dependencies, investment concentration risks, and competitive pressures.",
+      "sub": 1.0,
+      "judge": 1.0,
+      "lat": 152.3605580329895,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+      "type": "citation-required",
+      "answer": "The Notes to Consolidated Financial Statements are located on pages 99-123 of the report. This is confirmed by both the Table of Contents (which lists \"Notes to Consolidated Financial Statements\" spanning pages 99-123) and the actual content fetched from pages 99-100, which shows the header \"NOTES TO CONSOLIDATED FINANCIAL STATEMENTS\" at the top of page 99.",
+      "sub": 0.6666666666666666,
+      "judge": 0.6666666666666666,
+      "lat": 151.84809112548828,
+      "iters": 2,
+      "tools": [
+        "get_page_content"
+      ]
+    },
+    {
+      "variant": "v1",
+      "q": "What is Apple Inc.'s 2024 revenue?",
+      "type": "out-of-document",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which contains financial and operational information about Berkshire Hathaway Inc. and its subsidiaries, not Apple Inc., so it does not contain information about Apple's 2024 revenue.\n\ninsufficient context",
+      "sub": 0.5,
+      "judge": 1.0,
+      "lat": 141.2280068397522,
+      "iters": 1,
+      "tools": []
+    },
+    {
+      "variant": "v1",
+      "q": "Who is the current chairman of the Federal Reserve?",
+      "type": "out-of-document",
+      "answer": "The provided document is Berkshire Hathaway's 2023 Annual Report, which contains information about the company's operations, financial statements, and related corporate matters, but does not contain any information about US government officials or the Federal Reserve.\n\ninsufficient context",
+      "sub": 0.3333333333333333,
+      "judge": 1.0,
+      "lat": 148.74290204048157,
+      "iters": 1,
+      "tools": []
+    }
+  ]
+}
