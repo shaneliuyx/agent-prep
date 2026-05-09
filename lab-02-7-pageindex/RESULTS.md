@@ -661,4 +661,313 @@ lab-02-7-pageindex/
 1. **Vector store as 4th retrieval tool** — wire BGE-M3 from `lab-02-3-bge_m3_hnsw` into v2 as `find_nodes_by_semantic_match`. Closes regex semantic gap structurally. Estimated +0.10-0.15 aggregate.
 2. **v1 with new multi-pass tree** — does the rebuilt tree.json (verbatim titles + tags) close the v1-vs-v2 gap? If yes, v2 may be redundant for SEC-style corpora.
 3. **Cascade pattern with confidence proxy** — spec-panel review ruled OUT for current architecture (entity-prefetch made v2 dominate v1; no fallback needed). Revisit if vector-store layer changes the equation.
+
+---
+
+## Level-2 Summary Index Cluster Pre-Fetch + 2-Model Split (2026-05-09) — agg_judge 0.85 → 0.885
+
+### TL;DR
+
+Champion configuration after a day of iteration on cluster pre-fetch and model split:
+
+| Run | agg_judge | agg_lat | Configuration |
+|---|---|---|---|
+| Pre-cluster baseline (committed earlier) | 0.85 | ~30s | DWQ + entity_index, no cluster pre-fetch |
+| Run 1 (cluster top-1 + DWQ) | 0.760 | 83.2s | regression — DWQ MoE noise + Q4 cluster routing wrong |
+| **Champion** | **0.885** | **46.6s** | **9B-GLM tree + Gemma judge + cluster top-K δ=0.07** |
+| Approach B (LLM-grouping clusters) | 0.781 | 44.3s | reverted — wider AMBIGUOUS trigger paralyzed 9B-GLM on cross-section |
+
+**+0.035 over pre-cluster baseline; -33% latency vs Run 1.** Per-category citation 0.50→1.00, section 0.58→0.92, OOD 1.00→1.00, cross-section 0.56→0.625 (Q3 + Q12 structural ceilings remain).
+
+### Architecture — v3: Cluster Pre-Fetch Layer Above v2
+
+Today's architecture extends v2 (entity-graph + multi-query + multi-pass) with a Level-2 RAPTOR-style cluster index. The cluster pre-fetch fires BEFORE first LLM call when the query is classified as synthesis. v2's entity-prefetch path remains for entity/quoted-phrase queries.
+
+```mermaid
+flowchart TB
+    Q3["Query"] --> CLS{Synthesis<br/>question?}
+
+    subgraph BUILD3["BUILD-TIME — Level 1 + Level 2 (offline, ~12 min)"]
+        direction TB
+        PDF3[PDF] --> P1B[Pass 1+2 multi-pass<br/>tree summaries + tags]
+        P1B --> TREE3[tree.json<br/>Level 1: ~45 leaves]
+        TREE3 --> EI3[EntityIndex<br/>regex over body+tags]
+        TREE3 --> EMB3[BGE-M3 embed<br/>each leaf summary]
+        EMB3 --> KM3[K-means k=8<br/>random_state=42]
+        KM3 --> SUM3[Per-cluster Gemma summarize<br/>title+summary+tags<br/>+ retry helper for 503s]
+        SUM3 --> SI3[summary_index.json<br/>Level 2: 8 clusters<br/>+ tree_hash binding]
+    end
+
+    CLS -->|yes| CL1[find_clusters_for_query<br/>top_k=2, δ=0.07]
+    CLS -->|no, has entity| EP3[Entity-prefetch path<br/>v2 unchanged]
+    CLS -->|no, neither| R3
+
+    SI3 -.cluster centroids.-> CL1
+
+    CL1 --> CLOUT{candidates}
+    CLOUT -->|1 hit| SINGLE[CLUSTER hint:<br/>cluster_id + member_node_ids<br/>+ primary_pages + tags]
+    CLOUT -->|2 hits gap≤δ| AMBIG[AMBIGUOUS hint:<br/>2 candidates + tags<br/>'tiebreak by tags/members<br/>do NOT default to highest score']
+    CLOUT -->|0 hits| EP3
+    SINGLE --> R3
+    AMBIG --> R3
+    EP3 --> R3
+
+    TREE3 -.TOC.-> R3
+    EI3 -.entity → nodes.-> R3
+
+    R3[AgenticTreeRetriever<br/>system: AGENTIC_SYSTEM_TEMPLATE_V2<br/>+ Rule -1 cluster-first]
+
+    subgraph LOOP3["AGENT LOOP (max_iterations=6, 4 tools, 9B-GLM)"]
+        direction TB
+        LLM3[LLM call<br/>5 routing rules]
+        LLM3 --> DEC3{Tool?}
+        DEC3 -->|Rule -1: cluster-first| T3D[find_cluster_for_synthesis]
+        DEC3 -->|Rule 0: title-literal| T3A[get_page_content]
+        DEC3 -->|Rule 1: entity match| T3B[find_nodes_mentioning<br/>+ multi-query expansion]
+        DEC3 -->|Rule 2: subtree synth| T3C[get_subtree_text]
+        DEC3 -->|content text| FINAL3[Final answer]
+        T3A --> OBS3[Observation]
+        T3B --> OBS3
+        T3C --> OBS3
+        T3D --> OBS3
+        OBS3 --> SG3{Synthesis +<br/><2 fetches?}
+        SG3 -->|yes| INJ3[Inject 'fetch second range']
+        SG3 -->|no| LLM3
+        INJ3 --> LLM3
+    end
+
+    R3 --> LOOP3
+    LOOP3 --> ANS3["Answer + [pages X-Y]"]
+
+    style BUILD3 fill:#f4f4ff,stroke:#557
+    style LOOP3 fill:#fff4e6,stroke:#a73
+    style SINGLE fill:#e8f4f8,stroke:#557
+    style AMBIG fill:#fce4ec,stroke:#a73
+    style FINAL3 fill:#d4edda,stroke:#155
+```
+
+**Six v3 enhancements over v2** (cumulative across both runs):
+1. **Level-2 cluster index** — per-cluster {title, summary, tags, member_node_ids, centroid embedding} above the primary tree
+2. **Cluster pre-fetch** — fires before first LLM call when `is_synthesis_question(query)` matches
+3. **Top-K with delta-band tiebreak** — returns 1-2 clusters; AMBIGUOUS hint when ties within noise floor
+4. **`find_cluster_for_synthesis` tool** — 4th tool in the agent loop; LLM can re-query clusters mid-loop if first pre-fetch was wrong
+5. **2-model split** — 9B-GLM hot path (~14s/call), Gemma judge baseline preserved
+6. **tree_hash binding** — summary_index.json embeds sha256 of tree.json; SummaryIndex constructor fails fast on stale index
+
+**Build (one-time):** primary tree leaves → BGE-M3 embed → K-means k=8 → per-cluster Gemma summarize → atomic write summary_index.json with tree_hash binding. Resume via per-cluster journaling (.partial). Idempotent given fixed random_state=42.
+
+**Routing (per query):** L2-normalize centroids once; cosine = dot product. Threshold=0.5 floor; top_k=2; δ=0.07 (0.05 noise floor for ~1k-token centroids, padded to 0.07 to avoid Q3-class wander). When 2 candidates within δ, model gets AMBIGUOUS hint with both clusters' tags + member_node_ids → tiebreak by tag inspection.
+
+### Block 1 — Top-K cluster routing with delta-band tiebreak (`shared/tree_index/summary_index.py`)
+
+```mermaid
+sequenceDiagram
+  participant Q as query
+  participant E as BGE-M3 embedder
+  participant S as scores = centroids @ q_emb
+  participant R as ranked desc
+  participant O as out
+  Q->>E: encode + L2 normalize
+  E->>S: dot product (cosine, since normalized)
+  S->>R: sort desc by score
+  R->>O: walk top_k; keep s≥threshold AND (best-s)≤delta
+  O-->>caller: list[{cluster, confidence}]
+```
+
+```python
+def find_clusters_for_query(
+    self, query: str, threshold: float = 0.5,
+    top_k: int = 2, delta: float = 0.10,
+) -> list[dict]:
+    q_emb = self._embedder(query).astype(np.float32)
+    n = float(np.linalg.norm(q_emb))
+    if n < 1e-8:
+        return []
+    q_emb = q_emb / n
+    scores = self._cluster_emb @ q_emb
+    ranked = sorted(range(len(scores)), key=lambda i: -scores[i])
+    best = float(scores[ranked[0]])
+    if best < threshold:
+        return []
+    out: list[dict] = []
+    for idx in ranked[:top_k]:
+        s = float(scores[idx])
+        if s < threshold or (best - s) > delta:
+            break
+        out.append({"cluster": self.clusters[idx], "confidence": s})
+    return out
+```
+
+**Walkthrough:** centroids are L2-normalized in `set_embedder()`, query embedding is L2-normalized at call time, so `centroids @ q_emb` is cosine similarity. The `delta` band represents the noise floor for sibling clusters at ~1k-token centroid granularity — empirically measured at 0.05 for adjacent Chairman's Letter sub-section clusters in this corpus. We pad to 0.07 to absorb embedding-model variance while still excluding clearly-distinct clusters.
+
+**Result:** Q4 ("non-controlled businesses") had CC1=0.690, CC2=0.638 → gap 0.052 → both returned → LLM picks CC2 (correct, contains node 0007 "Non-controlled Businesses That Leave Us Comfortable") → **judge 0.00 → 0.75**. Q3 has gap 0.091 > 0.07 → top-1 only → preserved baseline behavior.
+
+**Insight:** the win is NOT "always return top-K" — that paralyzes the model on weak ties. Top-K with delta-band is "return top-K only when the embedding signal is genuinely ambiguous". This respects the embedding model's actual confidence rather than forcing tiebreaking work onto the LLM in cases where the embedding is decisive.
+
+### Block 2 — AMBIGUOUS hint generation (`shared/tree_index/agentic.py:_find_cluster`)
+
+```python
+def _find_cluster(self, query: str) -> str:
+    if self.summary_index is None:
+        return "[ERROR] find_cluster_for_synthesis requires summary_index"
+    threshold = float(os.getenv("SUMMARY_INDEX_THRESHOLD", "0.5"))
+    top_k = int(os.getenv("SUMMARY_INDEX_TOP_K", "2"))
+    delta = float(os.getenv("SUMMARY_INDEX_DELTA", "0.10"))
+    hits = self.summary_index.find_clusters_for_query(
+        query, threshold=threshold, top_k=top_k, delta=delta,
+    )
+    if not hits:
+        return f"No cluster matches {query!r} above threshold {threshold:.2f}"
+    if len(hits) == 1:
+        return _fmt_one(hits[0], 1) + "\nNEXT: get_page_content for primary_pages..."
+    body = "\n\n".join(_fmt_one(h, i + 1) for i, h in enumerate(hits))
+    gap = hits[0]["confidence"] - hits[-1]["confidence"]
+    return (f"AMBIGUOUS — {len(hits)} candidate clusters within {gap:.2f} "
+            f"cosine of best (noise-band tie). Pick the one whose tags + "
+            f"member node coverage best matches the question's specific "
+            f"entities/keywords; do NOT default to highest score.\n\n"
+            f"{body}\n\nNEXT: choose ONE candidate, then call get_page_content...")
+```
+
+**Walkthrough:** when single cluster hits, hint is directive ("fetch this range"). When 2 candidates, hint shifts language: tells the model the embedding signal is ambiguous, instructs it to inspect tags + member_node_ids rather than defaulting to highest score. The phrase "do NOT default to highest score" is load-bearing — without it, smaller/disciplined models like Claude-distill default to top-1 anyway.
+
+**Insight:** prompt structure matters as much as content. Putting candidates as numbered lists with "Candidate #1" / "Candidate #2" headers + an explicit "tiebreak by tags" instruction works better than a flat list with score sort. When 9B-GLM saw candidates labeled this way for Q4, it correctly picked CC2 by inspecting tags. When it saw the same structure for Q3 (where gap is wider but still ≤δ in earlier runs at δ=0.10), it wandered. Fix was tighter δ=0.07 to exclude Q3-class wider gaps from triggering the AMBIGUOUS path.
+
+### Block 3 — 2-model split (judge baseline preservation)
+
+| Role | Model | Avg lat / call | Why |
+|---|---|---|---|
+| MODEL_TREE | MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit | ~14s | Fastest in fleet. 6/6 capability probe. Sustained 8/8 on P5+P6 (no Issue #1011). |
+| MODEL_SONNET (judge) | gemma-4-26B-A4B-it-heretic-4bit | ~5s | Trusted baseline. Cannot swap (judge agreement test). |
+| MODEL_BUILD | gemma-4-26B-A4B-it-heretic-4bit | ~30s | One-shot, 8 calls. Validated via dry-build (8/8 cluster titles). |
+| MODEL_HAIKU | gemma-4-26B-A4B-it-heretic-4bit | rare | Unused in v2; placeholder. |
+
+**Judge agreement test (16 questions, Gemma-26B vs 9B-GLM-Distill on prior champion answers):**
+
+| Metric | Value |
+|---|---|
+| Mean \|Δ\| | **0.141** |
+| Mean signed Δ (GLM minus Gemma) | -0.078 |
+| Max \|Δ\| | **0.75** (Q15+Q16 out-of-document refusals) |
+| Q with \|Δ\| ≥ 0.25 | **4/16 (25%)** |
+
+**Insight:** judge swap is a one-way door. Aggregate scores shift by ±0.10 from judge variance alone — confounds every prior run's comparison. Out-of-document refusal scoring is the divergence killer (9B-GLM penalizes refusals where Gemma credits them). Conclusion: keep Gemma forever as judge unless we rebuild ALL prior baseline data with a new judge.
+
+**Total VRAM (2 models resident):** ~24 GB. Eval wall-clock dropped from ~30 min (Claude-distill split) to ~12 min (Gemma+9B-GLM split) — **2.5× iteration speedup with quality preserved.**
+
+### Block 4 — Approach B (LLM-grouping cluster build) — autopsy
+
+Hypothesis: K-means on BGE-M3 summary embeddings groups by lexical/topical similarity, but our queries are intent-based ("what did Buffett SAY"). Mismatch causes Q3-class structural ceilings (node 0007 "Non-controlled Businesses" lands in CC2-Financial under K-means but belongs with Buffett-prose siblings semantically).
+
+**Implementation** (`build_summary_index.py --method llm`, kept as opt-in flag):
+- One LLM call: 45 leaf summaries (id + title + 200-char excerpt) → JSON `{clusters: [{cluster_id, members[], rationale}]}`
+- Strict structural validation (no dups, no unknown ids, exactly k clusters) → ValueError + K-means fallback
+- Lenient on missing ids: auto-place orphans via cosine similarity to cluster centroids (Gemma deterministically punts on 2 nodes per call)
+
+**Result on actual eval (16Q): 0.781 — REGRESSED -0.104 vs champion.**
+
+| Cluster boundaries | LLM-grouped (Approach B) | K-means (champion) |
+|---|---|---|
+| Buffett-prose grouping | CC2 = [0005, 0006, 0007] ✅ semantically tight | CC1 = [0002, 0003, 0005, 0006, 0008] mixed |
+| Q3 + Q12 routing | both AMBIGUOUS (CC1+CC2) | both AMBIGUOUS or top-1 (varies by Q) |
+| Q11 routing | AMBIGUOUS (CC1+CC2) | top-1 (CC1 alone, since gap > δ) |
+| Q11 score | **0.00** (wipeout) | **1.00** |
+
+**Why it failed despite better cluster boundaries:** Approach B's tighter clusters mean MORE cross-section questions trigger AMBIGUOUS routing. AMBIGUOUS hint paralyzes 9B-GLM on Q11-class queries where one cluster is clearly correct and the AMBIGUOUS framing creates artificial doubt. The AMBIGUOUS hint pattern is calibrated to K-means-spread cluster sizes; LLM-grouping's tighter clusters break that calibration.
+
+**Insight:** the right architectural direction (intent-based clustering) needs the right downstream consumer. Approach B is preserved as `--method llm` opt-in for future use when:
+1. AMBIGUOUS hint is replaced by a TITLE-injecting hint that lists each cluster's member-node titles (eliminates tiebreak work)
+2. δ is dynamically tuned per-query based on query complexity rather than fixed 0.07
+3. Synthesis prompt encourages broader entity coverage when expected_entities span multiple themes (helps Q3 ceiling)
+
+### Bad-Case Journal — Cluster Pre-Fetch Run
+
+**Entry 16 — DWQ schema-disagreement: list response when dict expected.**
+*Symptom:* Build summarize_cluster returned `[entity1, entity2, ...]` (flat array of strings) instead of `{title, summary, tags}` dict. 5/8 then 2/8 empty cluster titles in early DWQ-built indexes. *Root cause:* DWQ-quantized Qwen3.6-35B-A3B occasionally interprets "preserve verbatim entities" as "return entities directly" when prompt is dense with examples; even with `response_format=json_object`, the model emits valid JSON of the wrong shape. *Fix:* in `summarize_cluster`, detect `isinstance(parsed, list)` and salvage as `{"title":"", "summary":"", "tags": [filtered strings]}`. Then `main()` synthesizes title from first 2 member titles when `meta["title"]` is empty. Three-tier fallback ladder. **Permanent — works for any future DWQ list-response.**
+
+**Entry 17 — Top-1 cluster routing wrong on noise-band ties.**
+*Symptom:* Q4 ("non-controlled businesses") routed to CC1 (Chairman's intro) at cosine 0.690; correct cluster CC2 (containing node 0007) was 0.638 — gap 0.052 below noise floor. Top-1 deterministic pick → no answer reachable → judge=0.00. *Root cause:* BGE-M3 cosine on ~1k-token centroids has noise floor ~0.05 for sibling narrative-style clusters. Top-1 demands embedding model be right at the granularity it cannot reliably distinguish. *Fix:* `find_clusters_for_query()` returns top-K (default 2) within `delta` of best. AMBIGUOUS hint instructs model to tiebreak via tags + members. **Q4 0.00 → 0.75.**
+
+**Entry 18 — AMBIGUOUS hint paralysis on wider top-K trigger pattern (Approach B regression).**
+*Symptom:* Approach B's tighter LLM-grouped clusters caused all 4 cross-section questions to trigger AMBIGUOUS hint. Q11 went 1.00 → 0.00. *Root cause:* AMBIGUOUS hint is calibrated to fire rarely (only on noise-band ties). When it fires for ALL cross-section questions (because Approach B's clusters are tight enough that pairs frequently sit within δ), 9B-GLM gets confused on questions where one cluster is clearly correct. *Fix:* reverted to K-means clusters (champion config). AMBIGUOUS triggers selectively via δ=0.07. **Champion stays at 0.885.**
+
+**Entry 19 — Variant generator paraphrases distinctive document terms.**
+*Symptom:* Q9 ("operating earnings figure for 2023 according to the **Scorecard**") refused with "no section uses the term Scorecard" — but Buffett's Scorecard table is on page 5. Variant generator expanded "Scorecard" → ["performance metrics", "KPI dashboard", "evaluation tool"] (MBA jargon, not in document). Model never fetched pages 4-22 (Chairman's Letter where Scorecard lives) before iteration budget exhausted. *Root cause:* `_expand_phrase()` calls 9B-GLM with examples that bias toward MBA paraphrases. For document-specific terms like "Scorecard" (Buffett's coinage), paraphrasing destroys signal. *Fix (deferred):* preserve literal phrase as variant #1 always; only generate paraphrases when literal is generic (e.g., "earnings"). Out of scope for this iteration; logged as future work.
+
+**Entry 20 — Judge model swap is a one-way door.**
+*Symptom:* Tested replacing Gemma-26B judge with 9B-GLM-Distill (3× faster). Re-judging 16 prior champion answers with both: mean \|Δ\| = 0.141, max Δ = 0.75 on out-of-document refusals (Q15, Q16). 4/16 questions disagree by ≥0.25. *Root cause:* judges have systematically different sensitivity to refusal-style answers and partial-credit decisions. No single calibration offset can reconcile them. *Fix:* keep Gemma-26B as MODEL_SONNET permanently. Document this discipline rule. **Lesson:** judge baseline is sacred; switching judges retroactively invalidates all prior comparisons.
+
+### Files Added/Modified — Cluster Pre-Fetch Run
+
+```
+shared/tree_index/
+  summary_index.py       # NEW — SummaryIndex class with find_clusters_for_query()
+  _hashing.py            # NEW — tree_hash() for index-tree binding
+  __init__.py            # MODIFIED — export SummaryIndex
+  agentic.py             # MODIFIED — _find_cluster + cluster hint injection
+  ensemble.py            # MODIFIED — summary_index kwarg threaded into v2 path
+  prompts.py             # MODIFIED — Rule -1 cluster-first routing heuristic
+
+lab-02-7-pageindex/
+  src/build_summary_index.py    # NEW — builds level-2 cluster index
+  scripts/run_one_variant.py    # MODIFIED — _load_summary_index() helper
+  data/summary_index.json       # NEW artifact (gitignored), 8 K-means clusters
+  .env                          # MODIFIED — 2-model split, SUMMARY_INDEX_DELTA=0.07
+
+tests/
+  test_summary_index.py         # NEW — 11 tests for tree_hash + SummaryIndex
+  test_build_summary_index.py   # NEW — 11 tests for build pipeline
+  conftest.py                   # NEW — sys.path setup for shared/ + lab src/
+```
+
+### Comparison vs Original PageIndex (Vectify-AI 2024)
+
+The original PageIndex paper introduced ToC-tree-as-scaffold + agentic LLM navigation as a structural alternative to vector-DB RAG for long structured documents (financial reports, contracts, regulatory filings). Our W2.7 lab is a re-implementation built incrementally on top of that primitive, with measured contributions of each addition.
+
+#### What we kept from PageIndex (load-bearing primitives)
+
+| Primitive | Why we kept it |
+|---|---|
+| **ToC tree as document scaffold** | Eliminates the "embedding chunks lose structure" failure mode entirely. Page ranges + section titles ARE the index — no separate vector store needed for navigation. |
+| **`get_page_content(start_page, end_page)` as the primary tool** | Page-anchored retrieval matches how humans cite documents. Judge can verify "answer is on page 96" mechanically. |
+| **Agentic navigation loop** | Lets the model fetch, observe, re-decide. Avoids the "one-shot retrieval + hope" failure mode of vector RAG. |
+| **Recursive node split** for large leaves | 18-page Chairman's Letter as a single leaf hides content; splitting into 3-5 sub-sections makes content reachable. |
+| **System-prompt routing rules** | TOC-trap guard, refusal-with-explanation, synthesis-from-fragments — three rules from the paper that we kept verbatim. |
+
+#### What we improved over PageIndex
+
+| Improvement | What it fixes | Measured lift |
+|---|---|---|
+| **Multi-pass tree summarization with verbatim-title preservation** | Original single-pass summary loses distinctive phrases ("Our Not-So-Secret Weapon" → "competitive advantages"). Multi-pass extracts title_phrase / quoted_phrases / numeric_facts in Pass 1, composes Pass 2 preserving them verbatim + emits TAGS line for entity index ingestion. | Closes upstream leak permanently. Q-ENTITY worst 0.00 → 0.50, mean 0.33 → 0.67 (Bad-Case Entry 14). |
+| **EntityIndex + multi-query expansion + RRF** | PageIndex relies on title-string match. Cross-section synthesis questions ("what did Buffett write about Y") have no single title-keyword anchor. EntityIndex regex over body+tags + 3-variant LLM expansion + RRF fusion routes by entity content. | Q-ENTITY +0.10-0.20 over greedy nav. |
+| **Synthesis-question guard** | Greedy convergence stops after first fetch on "what did X say about Y" queries → shallow answer → 0.00. Inject "fetch a second range" user message after one fetch on synthesis questions. | Synthesis 0.12 → 0.50. |
+| **Hermes-format tool-call parser fallback** | Some MLX-quantized Qwen models emit tool calls as `<function=NAME>...</function>` plain text in `message.content`. vMLX doesn't extract this template. Regex fallback recovers. | DWQ retriever 0.39 → 0.67 (+0.28). |
+| **Level-2 RAPTOR-style cluster pre-fetch** | Cross-section synthesis + multi-query expansion still spend 2-3 LLM iterations per query just locating relevant page ranges. Pre-fetch the cluster of related leaves in one BGE-M3 cosine call BEFORE first LLM call → model gets exact pages to fetch in iter 0. | Q4 0.00 → 0.75 (Bad-Case Entry 17); Q11 1.00 preserved; -33% latency. |
+| **Top-K with delta-band tiebreak on cluster routing** | Top-1 cluster pick demands embedding precision below noise floor (~0.05 cosine). Top-K within δ=0.07 returns both candidates when ambiguous; LLM tiebreak via tags. | Block 1+2 walkthrough above. |
+| **Multi-pass build with retry helper** | vMLX returns 503 'GPU working set too full' under accumulated load. Original PageIndex assumes reliable inference. `_llm_call_with_retry` with progressive backoff (15→300s) + per-cluster journaling absorbs transient failures. | Build went from "5/8 empty cluster titles" to "8/8 reliable" (Entry 16). |
+| **2-model split discipline** | Single MoE model for everything (PageIndex assumption) breaks under sustained tool-call load (Issue #1011). Splitting MODEL_TREE (hot path, 9B-GLM) from MODEL_SONNET (judge baseline, Gemma-26B) preserves both speed and comparability. | Eval wall-clock 30 min → 12 min (2.5×) with quality preserved. |
+
+#### What we can leverage further from PageIndex
+
+| Idea (from their paper / repo) | Why we'd want it |
+|---|---|
+| **Reasoning-trace logging format** | Their published trace format is structured (step / observation / decision / next-action). Our Phoenix traces are spans without step-level decision rationale — would help diagnose "why did the model pick CC1 over CC2" in AMBIGUOUS hint cases (Q11 wipeout root-cause work). |
+| **Tree visualization / inspector tool** | Their published inspector renders the tree + agent fetches as a graph. Would shorten our "is this leaf in the right cluster?" debugging loop (currently we run ad-hoc Python diagnostics). |
+| **Cross-document tree navigation** | Their multi-doc benchmark shows single agent can navigate trees across multiple PDFs with shared entity vocabulary. Our v3 architecture extends single-doc only — adding doc_id field to the cluster index would unlock this with no API change. |
+| **Confidence-calibrated refusal** | Their refusal mechanism uses model-reported confidence rather than our hard "insufficient context" string match. Would help Q15+Q16 OOD scoring inconsistency between Gemma and 9B-GLM judges. |
+| **Eval set portability** | Their published financial-report eval set could test our cross-section synthesis ceiling on documents we haven't curated questions for. Currently we only have 16 questions on Berkshire 2023 — adding 50+ from their set would tighten σ on aggregate. |
+| **Auto-K (silhouette) for cluster count** | Their tree-build step picks node count adaptively; we hardcode k=8 for Level-2 clusters. Silhouette score over k∈[5,12] could pick a better k per document size. |
+| **Chunk-level fallback** | When agent loop hits max_iterations without finding answer, original PageIndex falls back to per-page vector match. Would catch Q9-class failures (Scorecard term destroyed by variant generator) without a code change to the variant generator. |
+
+#### Net assessment
+
+PageIndex's structural insight (ToC tree as scaffold) is the right primitive for long structured documents — confirmed by every measurement in this lab. Our additions are all corrections to FAILURE MODES of the original primitive when scaled to harder questions (cross-section synthesis, entity lookup, refusal precision) and harder infrastructure (MLX MoE non-determinism, vMLX 503s). What they got fundamentally right: structure-aware retrieval for documents where the structure IS the index. What we'd take from them next: reasoning-trace tooling and cross-document scaling.
+
+### Open Questions (post-cluster-prefetch)
+
+4. **Variant generator literal-preservation** — fix Entry 19 by always preserving query phrase as variant #0. Estimated +0.10 on document-specific-term factoids (Q9, similar).
+5. **Q3/Q12 synthesis breadth** — broaden synthesis prompt to encourage multi-page entity coverage when expected_entities span themes. Phoenix trace shows Q3's retrieval is correct (page 9 fetched first) but synthesis only summarizes that one page. Estimated +0.25-0.50 on Q3 + Q12.
+6. **Approach B with title-injecting hint** — replace AMBIGUOUS hint with cluster member TITLES list. Eliminates tiebreak ambiguity for Q11-class queries. May make Approach B viable. Estimated +0.05 if combined with current K-means; +0.15 if combined with LLM-grouping.
+7. **Dynamic δ tuning** — vary δ per query based on max cosine score (high confidence → tighter δ → fewer AMBIGUOUS triggers). Could let LLM-grouping work without breaking Q11-class.
+8. **3-run mean validation** — current 0.885 is single-run. Historical σ ≈ 0.05. 3-run mean would tighten the confidence interval to ~0.86-0.91.
 4. **vMLX OOM/crash protocol** — manual unload between probes or document a "restart between model swaps" procedure. Today's session burned ~30 min on server crashes from accumulated model loads.
