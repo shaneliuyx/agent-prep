@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from tree_index._hashing import tree_hash
@@ -89,3 +90,58 @@ def test_summary_index_raises_on_missing_build_meta(tmp_path: Path) -> None:
     idx.write_text(json.dumps({"clusters": [{"cluster_id": "C1"}]}))
     with pytest.raises(ValueError, match="build_meta"):
         SummaryIndex(idx, tree)
+
+
+def test_find_cluster_for_query_returns_top_cluster(
+    tmp_path: Path,
+) -> None:
+    """Mock embedder returns deterministic vectors; verify cosine pick."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash(tree),
+            "k": 2, "embedding_model": "BGE-M3",
+            "cluster_embeddings": [
+                [1.0, 0.0, 0.0],   # C1 — aligned with 'investments'
+                [0.0, 1.0, 0.0],   # C2 — aligned with 'cybersecurity'
+            ],
+        },
+        "clusters": [
+            {"cluster_id": "C1", "title": "Investments", "summary": "...",
+             "tags": [], "member_node_ids": ["0001"],
+             "primary_pages": [[1, 2]]},
+            {"cluster_id": "C2", "title": "Cybersecurity", "summary": "...",
+             "tags": [], "member_node_ids": ["0001"],
+             "primary_pages": [[3, 4]]},
+        ],
+    }))
+    si = SummaryIndex(idx, tree)
+    # Inject a fake embedder that maps "investments" → C1 vec
+    si.set_embedder(lambda text: np.array([1.0, 0.0, 0.0]))
+    hit = si.find_cluster_for_query("Buffett's investments")
+    assert hit is not None
+    assert hit["cluster"]["cluster_id"] == "C1"
+    assert hit["confidence"] >= 0.9
+
+
+def test_find_cluster_returns_none_below_threshold(
+    tmp_path: Path,
+) -> None:
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash(tree),
+            "cluster_embeddings": [[1.0, 0.0]],
+        },
+        "clusters": [{"cluster_id": "C1", "title": "X", "summary": "",
+                      "tags": [], "member_node_ids": ["0001"],
+                      "primary_pages": [[1, 2]]}],
+    }))
+    si = SummaryIndex(idx, tree)
+    si.set_embedder(lambda text: np.array([0.0, 1.0]))   # orthogonal
+    hit = si.find_cluster_for_query("anything", threshold=0.5)
+    assert hit is None
