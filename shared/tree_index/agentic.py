@@ -394,6 +394,27 @@ class AgenticTreeRetriever:
                   f"(expanded to: {variants}):\n\n")
         return header + "\n\n".join(rows)
 
+    def _find_cluster(self, query: str) -> str:
+        """CLUSTER-FIRST LOOKUP: returns cluster summary + member pages."""
+        if self.summary_index is None:
+            return "[ERROR] find_cluster_for_synthesis requires summary_index"
+        threshold = float(__import__("os").getenv(
+            "SUMMARY_INDEX_THRESHOLD", "0.5"))
+        hit = self.summary_index.find_cluster_for_query(query, threshold=threshold)
+        if hit is None:
+            return f"No cluster matches {query!r} above threshold {threshold:.2f}"
+        c = hit["cluster"]
+        pages = c.get("primary_pages", [])
+        pages_str = ", ".join(f"[{p[0]}-{p[1]}]" for p in pages)
+        return (f"Cluster {c['cluster_id']!r}: {c['title']}\n"
+                f"  confidence: {hit['confidence']:.2f}\n"
+                f"  member_node_ids: {c['member_node_ids']}\n"
+                f"  primary_pages: {pages_str}\n"
+                f"  summary: {c['summary'][:300]}\n"
+                f"  tags: {c.get('tags', [])[:15]}\n"
+                f"NEXT: call get_page_content with the page range covering "
+                f"member_node_ids, OR fetch each range and synthesize.")
+
     def _fetch(self, start: int, end: int) -> str:
         text = self.page_provider(start, end)
         if len(text) > self.max_range_chars:
@@ -469,6 +490,21 @@ class AgenticTreeRetriever:
                         f"unless the tree shows a more specific match."
                     )
 
+        # Cluster-prefetch — for synthesis-pattern queries, pre-fire
+        # find_cluster_for_synthesis BEFORE first LLM call. Routes
+        # multi-section synthesis through one batched fetch instead of
+        # sequential per-node fetches that hit max_iter cliff.
+        cluster_hint = ""
+        if (self.summary_index is not None and is_synthesis
+                and __import__("os").getenv("SUMMARY_INDEX_ENABLED", "1") != "0"):
+            body = self._find_cluster(query)
+            if not body.startswith("No cluster") and not body.startswith("[ERROR]"):
+                cluster_hint = (
+                    f"\n\nCLUSTER HINT (auto-fired before your first call): "
+                    f"{body}\n\nUse the page ranges from this cluster directly "
+                    f"with get_page_content."
+                )
+
         # Per-call nonce — breaks vMLX paged-KV-cache content-addressable
         # deduplication so a polluted cache entry from a prior request can't
         # contaminate this one. Documented bug class: mlx-lm Issue #965 + #975
@@ -481,7 +517,7 @@ class AgenticTreeRetriever:
             {"role": "system",
              "content": f"{_nonce}\n{self.system_prompt}"},
             {"role": "user",
-             "content": f"{_nonce}\nDocument tree:\n{tree_str}{entity_hint}\n\nQuestion: {query}"},
+             "content": f"{_nonce}\nDocument tree:\n{tree_str}{entity_hint}{cluster_hint}\n\nQuestion: {query}"},
         ]
         tool_call_log: list[dict] = []
         final_answer = "insufficient context"
@@ -589,6 +625,14 @@ class AgenticTreeRetriever:
                         tool_call_log.append({
                             "iter": iteration, "tool": "find_nodes_mentioning",
                             "args": {"entity_or_phrase": ent},
+                            "content_chars": len(content),
+                        })
+                    elif name == "find_cluster_for_synthesis":
+                        q_arg = str(args.get("query", query))
+                        content = self._find_cluster(q_arg)
+                        tool_call_log.append({
+                            "iter": iteration, "tool": "find_cluster_for_synthesis",
+                            "args": {"query": q_arg},
                             "content_chars": len(content),
                         })
                     else:
