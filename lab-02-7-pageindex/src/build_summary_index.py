@@ -175,8 +175,13 @@ def summarize_cluster(client, model: str,
                       member_summaries: list[str]) -> dict:
     """One LLM call → cluster {title, summary, tags}.
 
-    Defensive: returns empty-fields dict on JSON parse failure or
-    LLM error. Caller decides whether to retry or use fallback."""
+    Defensive contract: returns empty-fields dict on ANY failure (LLM error,
+    JSON parse fail, type drift). NEVER raises. NEVER retries — Task 7's
+    orchestrator handles retry policy.
+
+    Empty-fields signal: caller checks ``if not result["title"]:`` to detect
+    failure. Tags list is element-coerced to strings.
+    """
     user = "\n\n---\n\n".join(member_summaries)
     try:
         r = client.chat.completions.create(
@@ -194,8 +199,13 @@ def summarize_cluster(client, model: str,
         for k in ("title", "summary"):
             if not isinstance(parsed.get(k), str):
                 parsed[k] = ""
-        if not isinstance(parsed.get("tags"), list):
+        # Coerce tags element-by-element — model can return [1, null, "..."]
+        # and downstream tag consumers (entity index, search) require strings.
+        tags = parsed.get("tags")
+        if not isinstance(tags, list):
             parsed["tags"] = []
+        else:
+            parsed["tags"] = [t for t in tags if isinstance(t, str)]
         return parsed
     except Exception:
         return {"title": "", "summary": "", "tags": []}

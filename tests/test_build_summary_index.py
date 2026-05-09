@@ -126,3 +126,64 @@ def test_summarize_cluster_returns_required_fields() -> None:
     assert out["title"]
     assert len(out["summary"]) >= 30
     assert len(out["tags"]) >= 3
+
+
+def test_summarize_cluster_llm_error_returns_empty_fields() -> None:
+    """LLM raises → empty-fields dict, never propagates exception."""
+    from build_summary_index import summarize_cluster
+
+    class ErrorClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    raise RuntimeError("rate limit")
+
+    out = summarize_cluster(ErrorClient(), "test-model", ["summary text"])
+    assert out == {"title": "", "summary": "", "tags": []}
+
+
+def test_summarize_cluster_bad_json_returns_empty_fields() -> None:
+    """Non-JSON content → empty-fields dict (parse failure swallowed)."""
+    from build_summary_index import summarize_cluster
+
+    class BadJsonClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    class M:
+                        content = "not json at all"
+                    class C:
+                        message = M()
+                    class R:
+                        choices = [C()]
+                    return R()
+
+    out = summarize_cluster(BadJsonClient(), "test-model", ["summary text"])
+    assert out == {"title": "", "summary": "", "tags": []}
+
+
+def test_summarize_cluster_tags_with_non_strings_filtered() -> None:
+    """Tags containing non-strings (None, ints) get filtered to str-only."""
+    from build_summary_index import summarize_cluster
+
+    class MixedTagsClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    class M:
+                        content = json.dumps({
+                            "title": "T",
+                            "summary": "S" * 30,
+                            "tags": ["valid", 1, None, "Coca-Cola", 27.8],
+                        })
+                    class C:
+                        message = M()
+                    class R:
+                        choices = [C()]
+                    return R()
+
+    out = summarize_cluster(MixedTagsClient(), "test-model", ["x"])
+    assert out["tags"] == ["valid", "Coca-Cola"]
