@@ -12,6 +12,7 @@ inspect body text mid-decision instead of being limited to titles + summaries.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Protocol
 
@@ -398,7 +399,7 @@ class AgenticTreeRetriever:
         """CLUSTER-FIRST LOOKUP: returns cluster summary + member pages."""
         if self.summary_index is None:
             return "[ERROR] find_cluster_for_synthesis requires summary_index"
-        threshold = float(__import__("os").getenv(
+        threshold = float(os.getenv(
             "SUMMARY_INDEX_THRESHOLD", "0.5"))
         hit = self.summary_index.find_cluster_for_query(query, threshold=threshold)
         if hit is None:
@@ -496,7 +497,7 @@ class AgenticTreeRetriever:
         # sequential per-node fetches that hit max_iter cliff.
         cluster_hint = ""
         if (self.summary_index is not None and is_synthesis
-                and __import__("os").getenv("SUMMARY_INDEX_ENABLED", "1") != "0"):
+                and os.getenv("SUMMARY_INDEX_ENABLED", "1") != "0"):
             body = self._find_cluster(query)
             if not body.startswith("No cluster") and not body.startswith("[ERROR]"):
                 cluster_hint = (
