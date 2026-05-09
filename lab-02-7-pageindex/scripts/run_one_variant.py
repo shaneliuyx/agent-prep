@@ -39,6 +39,7 @@ from tree_index import (                                # noqa: E402
     TreeIndex,
 )
 from tree_index.summary_index import SummaryIndex      # noqa: E402
+from tree_index.page_vector_index import PageVectorIndex  # noqa: E402
 
 # Phoenix tracing — auto-instruments OpenAI calls. Lazy/optional: skip silently
 # if not installed or server not reachable. View at http://127.0.0.1:6006.
@@ -126,6 +127,41 @@ def main():
                   flush=True)
             return None
 
+    def _load_page_vector_index():
+        """Best-effort PageVectorIndex load. Returns None if missing.
+
+        Hybrid embedder: BGE-M3 dense (1024-dim) + sparse (token weights)
+        via FlagEmbedding. Single forward pass returns both per query —
+        sparse is essentially free. Used by AgenticTreeRetriever's
+        chunk-level fallback (only fires on refusal).
+        """
+        try:
+            from FlagEmbedding import BGEM3FlagModel
+            _bge = BGEM3FlagModel("BAAI/bge-m3", use_fp16=False)
+
+            def hybrid_embed(text: str) -> dict:
+                out = _bge.encode(
+                    [text], return_dense=True, return_sparse=True,
+                    return_colbert_vecs=False,
+                )
+                dense = out["dense_vecs"][0]
+                sparse_raw = out["lexical_weights"][0]
+                sparse = {int(tok): float(w) for tok, w in sparse_raw.items()}
+                return {"dense": dense, "sparse": sparse}
+
+            pvi = PageVectorIndex.load(
+                _LAB_ROOT / "data" / "page_vectors.npy",
+                embedder=hybrid_embed,
+            )
+            print(f"[{variant}] PageVectorIndex loaded: {pvi.num_pages} pages "
+                  f"({'hybrid' if pvi.sparse_embeddings else 'dense-only'})",
+                  flush=True)
+            return pvi
+        except Exception as e:                                 # noqa: BLE001
+            print(f"[{variant}] PageVectorIndex unavailable: "
+                  f"{type(e).__name__}: {e}", flush=True)
+            return None
+
     if variant == "v1":
         retriever = AgenticTreeRetriever(
             tree=tree, page_provider=page_provider,
@@ -136,12 +172,14 @@ def main():
         ti = TreeIndex(tree)
         ei = EntityIndex(ti, page_provider=raw_provider)
         si = _load_summary_index()
+        pvi = _load_page_vector_index()
         retriever = AgenticTreeRetriever(
             tree=tree, page_provider=page_provider,
             model_client=omlx, model_name=model,
             system_prompt=AGENTIC_SYSTEM_TEMPLATE_V2,
             tree_index=ti, entity_index=ei,
             summary_index=si,
+            page_vector_index=pvi,
         )
     else:  # ensemble (best-of-both v1 + v2 with synthesis-time LLM picker)
         ti = TreeIndex(tree)
