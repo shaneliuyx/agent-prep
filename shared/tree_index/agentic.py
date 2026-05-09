@@ -266,7 +266,9 @@ class AgenticTreeRetriever:
         # Optional v2 — entity-graph + auto-merge tools
         tree_index=None,        # TreeIndex instance for subtree fetch
         entity_index=None,      # EntityIndex for find_nodes_mentioning
-        summary_index=None,     # NEW — Optional[SummaryIndex] for cluster routing
+        summary_index=None,     # Optional[SummaryIndex] for cluster routing
+        # Optional v3 — last-resort chunk-level fallback
+        page_vector_index=None, # Optional[PageVectorIndex] BGE-M3 dense+sparse
     ) -> None:
         self.tree = tree
         self.page_provider = page_provider
@@ -279,6 +281,7 @@ class AgenticTreeRetriever:
         self.tree_index = tree_index
         self.entity_index = entity_index
         self.summary_index = summary_index
+        self.page_vector_index = page_vector_index
         # Tool list: extend with v2 tools only if both indexes are supplied
         self._tools = list(_DEFAULT_TOOLS)
         if tree_index is not None:
@@ -436,6 +439,58 @@ class AgenticTreeRetriever:
                 f"NEXT: choose ONE candidate, then call get_page_content with "
                 f"its primary_pages range. If the question spans entities found "
                 f"in DIFFERENT candidates, fetch from each.")
+
+    def _chunk_level_fallback(self, query: str) -> str:
+        """Last-resort vector match over per-page text. Returns the LLM's
+        answer string, or empty string when no fallback is possible.
+
+        Triggers ONLY when:
+          - `page_vector_index` was supplied at construction time
+          - the agent loop reached `max_iterations` AND returned a refusal
+            (caller decides; this method just executes the fallback)
+
+        Recovers from Q9-class regressions where the variant generator
+        paraphrased a distinctive document term away. Uses BGE-M3 dense
+        + sparse RRF (when sparse is wired) to match literal tokens.
+
+        Strict prompt: 'Answer ONLY from these passages.' Prevents
+        hallucination when vector match returns weakly-related pages.
+        """
+        if self.page_vector_index is None:
+            return ""
+        try:
+            top_pages = self.page_vector_index.search(query, top_k=3)
+        except Exception:                                          # noqa: BLE001
+            return ""
+        if not top_pages:
+            return ""
+        passages = "\n\n".join(
+            f"[page {p}]\n{self.page_provider(p, p)}"
+            for p, _ in top_pages
+        )
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                temperature=0.0,
+                max_tokens=400,
+                messages=[
+                    {"role": "system", "content": (
+                        "Answer the question using ONLY the provided passages. "
+                        "Cite page numbers inline as [page N]. If the passages "
+                        "do not contain the answer, respond with the exact "
+                        "phrase 'insufficient context' and nothing else."
+                    )},
+                    {"role": "user", "content": (
+                        f"Passages:\n{passages}\n\nQuestion: {query}"
+                    )},
+                ],
+            )
+        except Exception:                                          # noqa: BLE001
+            return ""
+        content = (resp.choices[0].message.content or "").strip()
+        if not content or "insufficient context" in content.lower():
+            return ""
+        return content
 
     def _fetch(self, start: int, end: int) -> str:
         text = self.page_provider(start, end)
@@ -696,11 +751,31 @@ class AgenticTreeRetriever:
             except Exception:                                # noqa: BLE001
                 pass
 
+        # Chunk-level fallback — last resort when all structural recovery
+        # paths still produced a refusal AND a PageVectorIndex is wired.
+        # Catches Q9-class regressions where the variant generator destroyed
+        # the literal-keyword signal and the agent never fetched the right
+        # page. BGE-M3 dense+sparse hybrid matches the literal token directly.
+        fallback_used = False
+        if (self.page_vector_index is not None
+                and (not final_answer.strip()
+                     or "insufficient context" in final_answer.lower())):
+            fb = self._chunk_level_fallback(query)
+            if fb:
+                final_answer = fb
+                fallback_used = True
+                tool_call_log.append({
+                    "iter": iteration + 1,
+                    "tool": "page_vector_fallback",
+                    "args": {},
+                })
+
         if self.debug_log_path:
             try:
                 with open(self.debug_log_path, "a") as f:
                     f.write(f"[{iteration+1}it/{len(tool_call_log)}tc] "
-                            f"q={query[:60]!r} ans={final_answer[:80]!r}\n")
+                            f"q={query[:60]!r} ans={final_answer[:80]!r}"
+                            f"{' [FALLBACK]' if fallback_used else ''}\n")
             except Exception:  # noqa: BLE001
                 pass
 
@@ -708,4 +783,5 @@ class AgenticTreeRetriever:
             "answer": final_answer,
             "tool_calls": tool_call_log,
             "iterations": iteration + 1,
+            "fallback_used": fallback_used,
         }

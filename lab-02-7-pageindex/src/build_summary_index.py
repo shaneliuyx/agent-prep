@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 from dotenv import load_dotenv
@@ -29,6 +29,7 @@ _LAB_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_LAB_ROOT.parents[0] / "shared"))
 
 from tree_index._hashing import tree_hash  # noqa: E402
+from tree_index.page_vector_index import PageVectorIndex  # noqa: E402
 
 
 def extract_summary_nodes(tree: dict) -> list[dict]:
@@ -340,6 +341,74 @@ def _embed_summaries(summaries: list[str]) -> "np.ndarray":
     )
 
 
+def _bge_m3_hybrid_encoder(
+    texts: list[str],
+) -> dict[str, Any]:
+    """BGE-M3 dense + sparse encoder. Lazy-loads BGEM3FlagModel on first
+    call. Returns {"dense": np.ndarray (n, 1024), "sparse": list[dict]}.
+
+    Used by build_page_vector_index when caller wants hybrid mode.
+    Sparse weights are token-id → weight floats (BGE-M3's lexical_weights).
+    """
+    from FlagEmbedding import BGEM3FlagModel
+    if not hasattr(_bge_m3_hybrid_encoder, "_model"):
+        _bge_m3_hybrid_encoder._model = BGEM3FlagModel(  # type: ignore[attr-defined]
+            "BAAI/bge-m3", use_fp16=False,
+        )
+    model = _bge_m3_hybrid_encoder._model               # type: ignore[attr-defined]
+    out = model.encode(
+        texts, batch_size=8,
+        return_dense=True, return_sparse=True, return_colbert_vecs=False,
+    )
+    dense = np.asarray(out["dense_vecs"], dtype=np.float32)
+    sparse_raw = out["lexical_weights"]
+    sparse = [
+        {int(tok): float(w) for tok, w in d.items()}
+        for d in sparse_raw
+    ]
+    return {"dense": dense, "sparse": sparse}
+
+
+def build_page_vector_index(
+    pages_text: list[str],
+    output_path: Path,
+    encoder: "Callable[[list[str]], np.ndarray | dict[str, Any]]",
+) -> None:
+    """Build the chunk-level fallback index — embed each page, write
+    `<output_path>.npy` (dense) + optionally `<output_path>.sparse.json`.
+
+    `encoder` is a callable taking `list[str]` and returning either:
+      - `np.ndarray` of shape (n_pages, dim) — dense-only, OR
+      - `dict` with at least `"dense": np.ndarray`, optionally `"sparse":
+        list[dict[int, float]]` per page — hybrid mode.
+
+    Hybrid mode targets Q9-class regressions where the variant generator
+    paraphrased a distinctive document term away. BGE-M3's
+    `encode(texts, return_dense=True, return_sparse=True)` returns both
+    representations in a single forward pass — sparse is essentially free.
+
+    Output_path's parent directory is created if missing. Reuses
+    `PageVectorIndex.save()` for the actual write so on-disk format
+    stays in sync between build + load.
+    """
+    out = encoder(pages_text)
+    if isinstance(out, np.ndarray):
+        dense = out
+        sparse = None
+    elif isinstance(out, dict):
+        dense = np.asarray(out["dense"], dtype=np.float32)
+        sparse = out.get("sparse")
+    else:
+        raise TypeError(
+            f"encoder must return np.ndarray or dict; got {type(out).__name__}"
+        )
+    PageVectorIndex.save(
+        dense_embeddings=dense,
+        sparse_embeddings=sparse,
+        path=output_path,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Build the Level-2 summary index over data/tree.json"
@@ -359,6 +428,13 @@ def main() -> None:
     parser.add_argument("--output", type=str,
                         default=str(_LAB_ROOT / "data" / "summary_index.json"),
                         help="Output path")
+    parser.add_argument("--page-vectors", action="store_true",
+                        help="Also build per-page BGE-M3 dense+sparse vector "
+                             "index (data/page_vectors.npy + .sparse.json) for "
+                             "chunk-level fallback. Adds ~30s to build time.")
+    parser.add_argument("--pdf", type=str,
+                        default=str(_LAB_ROOT / "data" / "brk-2023-ar.pdf"),
+                        help="PDF path for --page-vectors page extraction")
     args = parser.parse_args()
 
     out_path = Path(args.output)
@@ -421,6 +497,28 @@ def main() -> None:
         print(f"[2.5/4] Auto-K chose k={k}", flush=True)
     labels = kmeans_cluster(embeddings, k=k, random_state=42)
     print(f"[3/4] K-means k={k} → {len(set(labels))} clusters", flush=True)
+
+    # Optional — build chunk-level fallback page-vector index
+    if args.page_vectors:
+        from pypdf import PdfReader
+        pdf_path = Path(args.pdf)
+        if not pdf_path.exists():
+            print(f"[3.5/4] WARN: pdf {pdf_path} not found; "
+                  f"skipping --page-vectors", flush=True)
+        else:
+            print(f"[3.5/4] Building per-page BGE-M3 hybrid index from "
+                  f"{pdf_path.name} ...", flush=True)
+            pages_text = [
+                (p.extract_text() or "") for p in PdfReader(str(pdf_path)).pages
+            ]
+            page_vec_path = _LAB_ROOT / "data" / "page_vectors.npy"
+            build_page_vector_index(
+                pages_text=pages_text,
+                output_path=page_vec_path,
+                encoder=_bge_m3_hybrid_encoder,
+            )
+            print(f"[3.5/4] Wrote {page_vec_path} ({len(pages_text)} pages "
+                  f"dense + sparse)", flush=True)
 
     # Compute cluster centroids (used as cluster_embeddings)
     centroids = np.zeros((k, embeddings.shape[1]), dtype=np.float32)

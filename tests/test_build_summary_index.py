@@ -6,6 +6,7 @@ import pytest
 
 from build_summary_index import (
     auto_k_silhouette,
+    build_page_vector_index,
     extract_summary_nodes,
     kmeans_cluster,
     resolve_k,
@@ -307,3 +308,71 @@ def test_resolve_k_caps_auto_at_requested_k() -> None:
     assert k <= 4
     assert curve is not None
     assert all(k_val <= 4 for k_val, _ in curve)
+
+
+# ===== build_page_vector_index tests (chunk-level fallback build artifact) =====
+
+def test_build_page_vector_index_writes_dense_artifact(tmp_path: Path) -> None:
+    """Hybrid encoder writes dense .npy. File is shape (n_pages, dim)."""
+    pages = ["page one text", "page two text", "page three text"]
+
+    def encoder(texts: list[str]) -> dict:
+        dense = np.array([[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]],
+                         dtype=np.float32)[: len(texts)]
+        sparse = [{ord(t[0]): 1.0} for t in texts]
+        return {"dense": dense, "sparse": sparse}
+
+    out = tmp_path / "page_vectors.npy"
+    build_page_vector_index(pages_text=pages, output_path=out, encoder=encoder)
+
+    assert out.exists()
+    loaded = np.load(out)
+    assert loaded.shape == (3, 2), f"expected (3, 2), got {loaded.shape}"
+
+
+def test_build_page_vector_index_writes_sparse_when_provided(tmp_path: Path) -> None:
+    """Sparse output → .sparse.json sibling file with serialized weights."""
+    pages = ["alpha", "beta"]
+
+    def encoder(texts: list[str]) -> dict:
+        return {
+            "dense": np.eye(2, dtype=np.float32),
+            "sparse": [{1: 5.5, 2: 3.0}, {7: 9.0}],
+        }
+
+    out = tmp_path / "page_vectors.npy"
+    build_page_vector_index(pages_text=pages, output_path=out, encoder=encoder)
+
+    sparse_file = tmp_path / "page_vectors.sparse.json"
+    assert sparse_file.exists()
+    raw = json.loads(sparse_file.read_text())
+    assert len(raw) == 2
+    # Keys serialized as strings; values preserved
+    assert raw[0]["1"] == 5.5
+    assert raw[1]["7"] == 9.0
+
+
+def test_build_page_vector_index_dense_only_mode(tmp_path: Path) -> None:
+    """When encoder returns only dense (no 'sparse' key), no sparse file
+    written. PageVectorIndex.load() then runs in dense-only mode."""
+    pages = ["a", "b"]
+
+    def encoder(texts: list[str]) -> dict:
+        return {"dense": np.eye(2, dtype=np.float32)}
+
+    out = tmp_path / "page_vectors.npy"
+    build_page_vector_index(pages_text=pages, output_path=out, encoder=encoder)
+
+    assert out.exists()
+    sparse_file = tmp_path / "page_vectors.sparse.json"
+    assert not sparse_file.exists(), \
+        "no sparse file should be written when encoder omits sparse"
+
+
+def test_build_page_vector_index_creates_parent_dir(tmp_path: Path) -> None:
+    """Output path with non-existent parent directory must auto-mkdir."""
+    pages = ["x"]
+    encoder = lambda t: {"dense": np.array([[1.0, 0.0]], dtype=np.float32)}
+    nested = tmp_path / "nested" / "subdir" / "page_vectors.npy"
+    build_page_vector_index(pages_text=pages, output_path=nested, encoder=encoder)
+    assert nested.exists()
