@@ -396,25 +396,46 @@ class AgenticTreeRetriever:
         return header + "\n\n".join(rows)
 
     def _find_cluster(self, query: str) -> str:
-        """CLUSTER-FIRST LOOKUP: returns cluster summary + member pages."""
+        """CLUSTER-FIRST LOOKUP: returns top-K candidate clusters when scores
+        are within delta of best. Lets LLM tiebreak via tags/member-titles.
+        """
         if self.summary_index is None:
             return "[ERROR] find_cluster_for_synthesis requires summary_index"
-        threshold = float(os.getenv(
-            "SUMMARY_INDEX_THRESHOLD", "0.5"))
-        hit = self.summary_index.find_cluster_for_query(query, threshold=threshold)
-        if hit is None:
+        threshold = float(os.getenv("SUMMARY_INDEX_THRESHOLD", "0.5"))
+        top_k = int(os.getenv("SUMMARY_INDEX_TOP_K", "2"))
+        delta = float(os.getenv("SUMMARY_INDEX_DELTA", "0.10"))
+        hits = self.summary_index.find_clusters_for_query(
+            query, threshold=threshold, top_k=top_k, delta=delta,
+        )
+        if not hits:
             return f"No cluster matches {query!r} above threshold {threshold:.2f}"
-        c = hit["cluster"]
-        pages = c.get("primary_pages", [])
-        pages_str = ", ".join(f"[{p[0]}-{p[1]}]" for p in pages)
-        return (f"Cluster {c['cluster_id']!r}: {c['title']}\n"
-                f"  confidence: {hit['confidence']:.2f}\n"
-                f"  member_node_ids: {c['member_node_ids']}\n"
-                f"  primary_pages: {pages_str}\n"
-                f"  summary: {c['summary'][:300]}\n"
-                f"  tags: {c.get('tags', [])[:15]}\n"
-                f"NEXT: call get_page_content with the page range covering "
-                f"member_node_ids, OR fetch each range and synthesize.")
+
+        def _fmt_one(h: dict, rank: int) -> str:
+            c = h["cluster"]
+            pages = c.get("primary_pages", [])
+            pages_str = ", ".join(f"[{p[0]}-{p[1]}]" for p in pages)
+            return (f"Candidate #{rank} — Cluster {c['cluster_id']!r}: {c['title']}\n"
+                    f"  confidence: {h['confidence']:.2f}\n"
+                    f"  member_node_ids: {c['member_node_ids']}\n"
+                    f"  primary_pages: {pages_str}\n"
+                    f"  summary: {c['summary'][:300]}\n"
+                    f"  tags: {c.get('tags', [])[:15]}")
+
+        if len(hits) == 1:
+            return (_fmt_one(hits[0], 1) + "\n"
+                    f"NEXT: call get_page_content with the page range covering "
+                    f"member_node_ids, OR fetch each range and synthesize.")
+
+        body = "\n\n".join(_fmt_one(h, i + 1) for i, h in enumerate(hits))
+        gap = hits[0]["confidence"] - hits[-1]["confidence"]
+        return (f"AMBIGUOUS — {len(hits)} candidate clusters within {gap:.2f} "
+                f"cosine of best (noise-band tie). Pick the one whose tags + "
+                f"member node coverage best matches the question's specific "
+                f"entities/keywords; do NOT default to highest score.\n\n"
+                f"{body}\n\n"
+                f"NEXT: choose ONE candidate, then call get_page_content with "
+                f"its primary_pages range. If the question spans entities found "
+                f"in DIFFERENT candidates, fetch from each.")
 
     def _fetch(self, start: int, end: int) -> str:
         text = self.page_provider(start, end)

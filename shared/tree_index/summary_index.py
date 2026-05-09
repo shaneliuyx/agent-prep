@@ -109,6 +109,11 @@ class SummaryIndex:
         """Return top-1 cluster match if cosine >= threshold, else None.
 
         Returns: {cluster: dict, confidence: float} or None.
+
+        NOTE: Prefer find_clusters_for_query() (plural) for new callers.
+        BGE-M3 cosine on ~1k-token cluster centroids has noise floor ~0.05;
+        demanding top-1 to be right loses Q4-class queries where the
+        correct cluster trails the wrong one by less than the noise band.
         """
         if self._embedder is None:
             raise RuntimeError(
@@ -125,3 +130,40 @@ class SummaryIndex:
         if best_score < threshold:
             return None
         return {"cluster": self.clusters[best_idx], "confidence": best_score}
+
+    def find_clusters_for_query(
+        self, query: str, threshold: float = 0.5,
+        top_k: int = 2, delta: float = 0.10,
+    ) -> list[dict]:
+        """Return up to `top_k` clusters above `threshold`, all within
+        `delta` cosine of the best score.
+
+        Rationale: when two clusters score within `delta` (default 0.10),
+        BGE-M3 cannot reliably tell them apart at this granularity — the
+        gap is below the noise floor for ~1k-token centroids. Returning
+        both lets the LLM tiebreak via tags/member-titles inspection.
+
+        Returns: list of {cluster, confidence} sorted by confidence desc.
+                 Empty list if no cluster meets threshold.
+        """
+        if self._embedder is None:
+            raise RuntimeError(
+                "set_embedder() must be called before find_clusters_for_query"
+            )
+        q_emb = self._embedder(query).astype(np.float32)
+        n = float(np.linalg.norm(q_emb))
+        if n < 1e-8:
+            return []
+        q_emb = q_emb / n
+        scores = self._cluster_emb @ q_emb
+        ranked = sorted(range(len(scores)), key=lambda i: -scores[i])
+        best = float(scores[ranked[0]])
+        if best < threshold:
+            return []
+        out: list[dict] = []
+        for idx in ranked[:top_k]:
+            s = float(scores[idx])
+            if s < threshold or (best - s) > delta:
+                break
+            out.append({"cluster": self.clusters[idx], "confidence": s})
+        return out
