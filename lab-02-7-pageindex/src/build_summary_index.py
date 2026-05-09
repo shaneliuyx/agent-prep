@@ -13,7 +13,10 @@ clusters. Idempotent given fixed random_state."""
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -62,3 +65,68 @@ def kmeans_cluster(
     from sklearn.cluster import KMeans
     km = KMeans(n_clusters=k, random_state=random_state, n_init=10)
     return km.fit_predict(embeddings)
+
+
+def write_atomic(out_path: Path, payload: dict) -> None:
+    """Write JSON atomically: temp file in same dir, fsync, rename."""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(
+        prefix=out_path.name + ".",
+        suffix=".tmp",
+        dir=str(out_path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, out_path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+    # Clean up any stale partial
+    partial = out_path.parent / (out_path.name + ".partial")
+    if partial.exists():
+        partial.unlink()
+
+
+def _partial_path(out_path: Path) -> Path:
+    return out_path.parent / (out_path.name + ".partial")
+
+
+def journal_partial(out_path: Path, clusters_so_far: list[dict]) -> None:
+    """Per-cluster journal — atomic full-file rewrite of .partial."""
+    payload = {"clusters_completed": clusters_so_far,
+               "journal_ts": time.time()}
+    pp = _partial_path(out_path)
+    pp.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(
+        prefix=pp.name + ".", suffix=".tmp", dir=str(pp.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, pp)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def load_partial(out_path: Path) -> list[dict]:
+    """Return list of already-completed clusters from .partial, [] if none."""
+    pp = _partial_path(out_path)
+    if not pp.exists():
+        return []
+    try:
+        return json.loads(pp.read_text(encoding="utf-8")).get("clusters_completed", [])
+    except Exception:
+        return []
