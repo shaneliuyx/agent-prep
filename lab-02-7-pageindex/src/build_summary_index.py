@@ -70,6 +70,68 @@ def kmeans_cluster(
     return km.fit_predict(embeddings)
 
 
+def auto_k_silhouette(
+    embeddings: "np.ndarray",
+    k_range: tuple[int, int] = (5, 12),
+    min_improvement: float = 0.01,
+    random_state: int = 42,
+) -> tuple[int, list[tuple[int, float]]]:
+    """Pick `k` for K-means by maximizing cosine silhouette over `k_range`.
+
+    Returns (chosen_k, [(k, score), ...]) — full curve for diagnostics.
+
+    Tie-break: prefers smaller k (Occam). A larger k only wins if its
+    silhouette beats the current best by at least `min_improvement`.
+
+    k_range upper bound is silently truncated to `n - 1` (silhouette
+    requires k < n_samples and k >= 2).
+
+    Use case: replacement for hardcoded k=8 in build pipeline. Adds
+    one-time ~5-10s build cost (8 K-means fits + 8 silhouettes on
+    typical 45 × 1024 BGE-M3 embeddings); zero query-time cost.
+    """
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+
+    n = len(embeddings)
+    lo, hi = max(2, k_range[0]), min(k_range[1], n - 1)
+    if lo > hi:
+        raise ValueError(
+            f"k_range ({k_range}) empty after truncation to n-1={n-1}"
+        )
+
+    scores: list[tuple[int, float]] = []
+    for k in range(lo, hi + 1):
+        km = KMeans(n_clusters=k, random_state=random_state, n_init=10)
+        labels = km.fit_predict(embeddings)
+        s = float(silhouette_score(embeddings, labels, metric="cosine"))
+        scores.append((k, s))
+
+    best_k, best_score = scores[0]
+    for k, s in scores[1:]:
+        if s > best_score + min_improvement:
+            best_k, best_score = k, s
+    return best_k, scores
+
+
+def resolve_k(
+    requested_k: int, auto_k: bool, embeddings: "np.ndarray",
+) -> tuple[int, list[tuple[int, float]] | None]:
+    """Resolve final k for the cluster build.
+
+    auto_k=False: return requested_k as-is, no curve.
+    auto_k=True : run silhouette over k in [2, requested_k]; return chosen
+                  k + full curve for build_meta forensics.
+
+    requested_k acts as the upper bound on the silhouette sweep when
+    auto_k=True — prevents the auto path from exploring k larger than
+    the user's stated max.
+    """
+    if not auto_k:
+        return requested_k, None
+    return auto_k_silhouette(embeddings, k_range=(2, requested_k))
+
+
 def _partial_path(out_path: Path) -> Path:
     return out_path.parent / (out_path.name + ".partial")
 
@@ -285,7 +347,12 @@ def main() -> None:
     parser.add_argument("--force", action="store_true",
                         help="Ignore .partial and rebuild from scratch")
     parser.add_argument("--k", type=int, default=8,
-                        help="Number of clusters (default: 8)")
+                        help="Number of clusters (default: 8). When --auto-k is "
+                             "set, this acts as the upper bound for the "
+                             "silhouette sweep.")
+    parser.add_argument("--auto-k", action="store_true",
+                        help="Pick k via cosine silhouette over [2, --k]; "
+                             "logs full curve to build_meta.silhouette_scores")
     parser.add_argument("--check", action="store_true",
                         help="Verify tree_hash match without rebuilding; "
                              "exit 0 if fresh, 1 if stale")
@@ -343,8 +410,15 @@ def main() -> None:
     print(f"[2/4] Embedding leaf summaries via BGE-M3 ...", flush=True)
     embeddings = _embed_summaries([n["summary"] for n in leaves])
 
-    # Cluster
-    k = min(args.k, len(leaves) - 1)
+    # Cluster — k may be auto-selected by silhouette
+    requested_k = min(args.k, len(leaves) - 1)
+    k, silhouette_curve = resolve_k(
+        requested_k=requested_k, auto_k=args.auto_k, embeddings=embeddings,
+    )
+    if silhouette_curve is not None:
+        curve_str = ", ".join(f"k={kv}:{s:.3f}" for kv, s in silhouette_curve)
+        print(f"[2.5/4] Auto-K silhouette curve: {curve_str}", flush=True)
+        print(f"[2.5/4] Auto-K chose k={k}", flush=True)
     labels = kmeans_cluster(embeddings, k=k, random_state=42)
     print(f"[3/4] K-means k={k} → {len(set(labels))} clusters", flush=True)
 
@@ -415,16 +489,17 @@ def main() -> None:
               f"{cluster_obj['title']!r}", flush=True)
 
     # Final atomic write
-    payload = {
-        "build_meta": {
-            "tree_hash": tree_hash(tree_path),
-            "k": k,
-            "embedding_model": "BGE-M3",
-            "cluster_embeddings": centroids.tolist(),
-            "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        },
-        "clusters": clusters,
+    build_meta: dict[str, Any] = {
+        "tree_hash": tree_hash(tree_path),
+        "k": k,
+        "embedding_model": "BGE-M3",
+        "cluster_embeddings": centroids.tolist(),
+        "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
+    if silhouette_curve is not None:
+        build_meta["k_selection"] = "auto-silhouette"
+        build_meta["silhouette_scores"] = [[kv, s] for kv, s in silhouette_curve]
+    payload = {"build_meta": build_meta, "clusters": clusters}
     write_atomic(out_path, payload)
     print(f"\nWrote {out_path} — {k} clusters", flush=True)
 

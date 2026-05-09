@@ -4,7 +4,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from build_summary_index import extract_summary_nodes, kmeans_cluster
+from build_summary_index import (
+    auto_k_silhouette,
+    extract_summary_nodes,
+    kmeans_cluster,
+    resolve_k,
+)
 
 
 @pytest.fixture
@@ -216,3 +221,89 @@ def test_summarize_cluster_list_response_preserved_as_tags() -> None:
         "Charlie Munger", "Berkshire Hathaway",
         "Our Not-So-Secret Weapon", "$96 billion",
     ]
+
+
+# ===== auto_k_silhouette tests (Phase 7 follow-up — Auto-K selection) =====
+
+def _three_cluster_synthetic(n_per_cluster: int = 8, dim: int = 16,
+                             rng_seed: int = 7) -> np.ndarray:
+    """Synthetic 3-cluster data: well-separated isotropic Gaussians around
+    3 distinct centers. Silhouette score should clearly peak at k=3."""
+    rng = np.random.default_rng(rng_seed)
+    centers = np.array([
+        [1.0] * dim,                             # cluster A
+        [-1.0] * dim,                            # cluster B
+        [1.0 if i % 2 == 0 else -1.0 for i in range(dim)],  # cluster C alternating
+    ], dtype=np.float32)
+    parts = [centers[i] + rng.normal(0, 0.1, (n_per_cluster, dim)).astype(np.float32)
+             for i in range(3)]
+    return np.vstack(parts)
+
+
+def test_auto_k_silhouette_picks_correct_k_on_synthetic_3_cluster() -> None:
+    embeddings = _three_cluster_synthetic()
+    chosen_k, scores = auto_k_silhouette(embeddings, k_range=(2, 6))
+    # Strict assertion: 3 well-separated clusters → silhouette peaks at k=3
+    assert chosen_k == 3, f"expected k=3 on synthetic, got {chosen_k}; scores={scores}"
+    assert isinstance(scores, list) and len(scores) == 5, \
+        f"expected 5 (k=2..6) score entries, got {len(scores)}"
+    assert all(isinstance(s, tuple) and len(s) == 2 for s in scores), \
+        "scores entries must be (k, score) tuples"
+
+
+def test_auto_k_silhouette_truncates_when_k_exceeds_n() -> None:
+    """k_range upper bound > n_embeddings - 1 must be silently truncated,
+    not crash. silhouette_score requires at least 2 clusters AND k < n."""
+    embeddings = _three_cluster_synthetic(n_per_cluster=2)  # n=6 only
+    chosen_k, scores = auto_k_silhouette(embeddings, k_range=(2, 12))
+    assert chosen_k <= 5, f"chosen_k must respect n-1 ceiling for n=6, got {chosen_k}"
+    assert all(k <= 5 for k, _ in scores), \
+        f"scores curve must not include k > n-1; got {[k for k, _ in scores]}"
+
+
+def test_auto_k_silhouette_tiebreak_prefers_smaller_k() -> None:
+    """When k=4 score is within min_improvement of k=3, prefer k=3 (Occam)."""
+    embeddings = _three_cluster_synthetic()
+    chosen_k, _ = auto_k_silhouette(embeddings, k_range=(3, 5),
+                                     min_improvement=0.5)
+    assert chosen_k == 3, \
+        f"with min_improvement=0.5, k=3 should win unconditionally, got {chosen_k}"
+
+
+def test_auto_k_silhouette_returns_curve_for_diagnostics() -> None:
+    """Full (k, score) curve must be persistable for build_meta forensics."""
+    embeddings = _three_cluster_synthetic()
+    _, scores = auto_k_silhouette(embeddings, k_range=(2, 5))
+    # All scores must be in [-1, 1] (silhouette range)
+    for k, s in scores:
+        assert -1.0 <= s <= 1.0, f"silhouette score out of range: k={k} s={s}"
+        assert k >= 2, f"silhouette undefined for k<2; got {k}"
+
+
+# ===== resolve_k tests (CLI flag → final k decision) =====
+
+def test_resolve_k_returns_requested_when_auto_off() -> None:
+    """auto_k=False: pass through requested k, no curve computed."""
+    embeddings = _three_cluster_synthetic()
+    k, curve = resolve_k(requested_k=8, auto_k=False, embeddings=embeddings)
+    assert k == 8
+    assert curve is None
+
+
+def test_resolve_k_runs_silhouette_when_auto_on() -> None:
+    """auto_k=True: pick k via silhouette, return curve for build_meta."""
+    embeddings = _three_cluster_synthetic()
+    k, curve = resolve_k(requested_k=8, auto_k=True, embeddings=embeddings)
+    assert k == 3, f"silhouette should pick k=3 on synthetic 3-cluster, got {k}"
+    assert curve is not None and len(curve) > 0
+    assert all(isinstance(t, tuple) and len(t) == 2 for t in curve)
+
+
+def test_resolve_k_caps_auto_at_requested_k() -> None:
+    """When auto_k=True, requested_k acts as upper bound on the silhouette
+    sweep. Prevents auto-K from exploring k larger than the user's max."""
+    embeddings = _three_cluster_synthetic()
+    k, curve = resolve_k(requested_k=4, auto_k=True, embeddings=embeddings)
+    assert k <= 4
+    assert curve is not None
+    assert all(k_val <= 4 for k_val, _ in curve)
