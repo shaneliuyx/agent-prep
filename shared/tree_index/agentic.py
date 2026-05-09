@@ -183,6 +183,29 @@ _V2_TOOLS = [
     },
 ]
 
+_CLUSTER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "find_cluster_for_synthesis",
+        "description": (
+            "Cluster-first lookup for cross-section synthesis questions "
+            "('what did X say/write about Y'). Returns one thematic cluster "
+            "with member node_ids + page ranges. Use BEFORE get_page_content "
+            "when the question spans multiple sub-sections — one batched "
+            "fetch over all member pages is more efficient than sequential "
+            "single-node fetches."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string",
+                          "description": "the user's question or topic"},
+            },
+            "required": ["query"],
+        },
+    },
+}
+
 
 def _tree_view(tree: dict) -> str:
     """Compact JSON view: id, title, pages, summary. Skip raw text/children fields."""
@@ -242,6 +265,7 @@ class AgenticTreeRetriever:
         # Optional v2 — entity-graph + auto-merge tools
         tree_index=None,        # TreeIndex instance for subtree fetch
         entity_index=None,      # EntityIndex for find_nodes_mentioning
+        summary_index=None,     # NEW — Optional[SummaryIndex] for cluster routing
     ) -> None:
         self.tree = tree
         self.page_provider = page_provider
@@ -253,12 +277,15 @@ class AgenticTreeRetriever:
         self.debug_log_path = debug_log_path
         self.tree_index = tree_index
         self.entity_index = entity_index
+        self.summary_index = summary_index
         # Tool list: extend with v2 tools only if both indexes are supplied
         self._tools = list(_DEFAULT_TOOLS)
         if tree_index is not None:
             self._tools.append(_V2_TOOLS[0])  # get_subtree_text
         if entity_index is not None:
             self._tools.append(_V2_TOOLS[1])  # find_nodes_mentioning
+        if summary_index is not None:
+            self._tools.append(_CLUSTER_TOOL)
         # Cache expansions per-instance to avoid duplicate LLM calls within
         # one agent loop. Cleared per-query in answer().
         self._expansion_cache: dict[str, list[str]] = {}
