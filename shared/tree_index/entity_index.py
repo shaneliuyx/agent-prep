@@ -134,7 +134,17 @@ class EntityIndex:
                     except Exception:  # noqa: BLE001
                         pass
             text = " ".join(p for p in text_parts if p)
+            # Regex-extracted entities (recall layer)
             entities = extract_entities(text)
+            # LLM-curated tags from build_tree.py multi-pass summarization
+            # (precision layer — preserves quoted phrases + aliases that
+            # regex would miss, e.g. "not-so-secret weapon", "Bertie",
+            # "Rip Van Winkle slumber"). Tags are stored verbatim under
+            # node["tags"] when available.
+            for raw_tag in node.get("tags", []) or []:
+                tag = (raw_tag or "").strip()
+                if tag and len(tag) >= 2:
+                    entities.add(tag)
             self.node_to_entities[nid] = entities
             for ent in entities:
                 self.entity_to_nodes[ent].add(nid)

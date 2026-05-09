@@ -74,6 +74,22 @@ CRITICAL RULES (these prevent the most common failure modes):
 - DO NOT STOP AFTER ONE FETCH on type-C synthesis questions. One fetch on a
   "what did X say about Y" question is shallow and almost always wrong.
   Fetch a second range from a related sub-section before answering.
+- PARTIAL > REFUSE. After ≥1 ACTUAL get_page_content fetch, if the fetched
+  text contains ANY facet of the question (a named entity, a number, a
+  phrase, even one keyword), write the answer with what you have plus the
+  citation. Do NOT respond "insufficient context" just because no single
+  fetch contained EVERY expected term — partial fragments compose into a
+  partial answer, which scores higher than a refusal. Refuse only if all
+  fetched text is genuinely off-topic.
+- MUST FETCH BEFORE CITING (type-A factoid + type-B citation ONLY).
+  For questions like "Where does X cover Y?" or "What is the value of
+  Z?", you MUST call get_page_content at least once before writing the
+  final answer — even if the tree TOC seems to show the section
+  already. The tree summary is paraphrased; the real page text is what
+  the user wants cited. Citing without fetching = wrong page references
+  = judge=0.00. (This rule does NOT apply to type-C synthesis questions
+  — those already fetch via the synthesis-fragment rule above; adding
+  more fetches there just exhausts the iteration budget.)
 - For numeric factoids, give BOTH the exact figure and a rounded form
   inline (e.g., "$364,482 million ($364.5 billion)"). Judges score on
   keyword coverage; one form alone risks missing scale words like
@@ -97,25 +113,49 @@ CRITICAL RULES (these prevent the most common failure modes):
 """
 
 
-FACT_RICH_SUMMARIZE_SYSTEM = """Summarize this document section in 100-150 words. The
-summary is read by a navigation LLM deciding whether this section answers a
-user query — so it MUST contain concrete facts the navigator can match against.
+FACT_RICH_SUMMARIZE_SYSTEM = """Summarize this document section. The summary is
+read by a navigation LLM deciding whether this section answers a user query —
+so concrete tokens (titles, entities, phrases, numbers) drive retrieval.
 
-REQUIRED elements (every summary must include):
-1. Three numeric facts verbatim from the section (with units): e.g.,
-   "$364.5 billion in revenues", "27.8% common-share ownership of X",
-   "operating earnings of $37,350 million".
-2. Five named entities verbatim: companies, people, regulations, financial
-   instruments, segment names — quoted exactly as the source uses them.
-3. One sentence of structural location: where this section sits in the document
+OUTPUT FORMAT (strict — both blocks required):
+
+SUMMARY: <120-180 words of prose, obeying rules below>
+
+TAGS: <comma-separated lookup tokens — see RULE 6 below>
+
+REQUIRED elements:
+1. The section's TITLE PHRASE must appear VERBATIM in the first sentence of
+   SUMMARY. Distinctive titles like "Our Not-So-Secret Weapon", "Non-Controlled
+   Businesses That Leave Us Comfortable", "Rip Van Winkle slumber" must be
+   preserved character-for-character — do NOT paraphrase to "competitive
+   advantages" or "passive holdings". The exact wording is the search key.
+2. List 10-15 named entities verbatim within SUMMARY: companies, people,
+   regulations, financial instruments, products, segment names. Each spelled
+   exactly as the source uses it. Include common short forms ("AMEX" alongside
+   "American Express", "BNSF" alongside "Burlington Northern").
+3. Preserve any distinctive quoted phrases from the source verbatim within
+   SUMMARY: "patience pays", "wonderful businesses", "constancy of purpose".
+   These are load-bearing tokens for retrieval.
+4. Three numeric facts with units inside SUMMARY: e.g., "$364,482 million in
+   revenues", "27.8% common-share ownership of X", "operating earnings of
+   $37,350 million".
+5. One sentence of structural location: where this section sits in the document
    hierarchy (e.g., "Sub-section of Chairman's Letter / Form 10-K Item 8").
+6. TAGS line: comma-separated direct-lookup tokens. Include EVERY entity,
+   every alias/short-form, every distinctive quoted phrase, the section title,
+   and any numbered identifier (Item 1A, Item 8, Schedule X). Order:
+   most-specific first. Aim for 15-30 tags. Examples:
+     TAGS: Our Not-So-Secret Weapon, secret weapon, Charlie Munger, Charlie,
+     Munger, Berkshire vice chairman, constancy of purpose, patience pays,
+     trustworthy managers, Berkshire Hathaway
 
 PROHIBITED:
 - Do NOT start with "This section discusses" or "The section covers" — write
   declarative sentences with the facts up front.
 - Do NOT use generic phrases like "various financial metrics" or "the company's
   operations" — name the metrics, name the operations.
-- Do NOT exceed 150 words.
+- Do NOT paraphrase distinctive titles or quoted phrases.
+- Do NOT exceed 200 words for the SUMMARY block.
 
 If the section is genuinely empty boilerplate, output exactly:
 "Empty boilerplate section — refer to subsections."

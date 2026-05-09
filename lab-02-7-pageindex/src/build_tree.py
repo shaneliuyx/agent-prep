@@ -39,7 +39,10 @@ omlx = OpenAI(
     base_url=os.getenv("OMLX_BASE_URL"),
     api_key=os.getenv("OMLX_API_KEY"),
 )
-MODEL = os.getenv("MODEL_SONNET")
+# MODEL_BUILD overrides MODEL_SONNET specifically for tree-build/summarize.
+# Decoupling lets you build with a stronger model (e.g., Qwen3.6-35B-A3B-DWQ
+# for richer fact extraction) while keeping the judge model independent.
+MODEL = os.getenv("MODEL_BUILD") or os.getenv("MODEL_SONNET")
 
 # ---------------------------------------------------------------- PDF parsing
 
@@ -148,17 +151,14 @@ def build_tree(headings: list[dict], doc_title: str, last_page: int) -> dict:
         f"Heading candidates ({len(headings)} total):\n"
         + json.dumps(headings, indent=1)
     )
-    resp = omlx.chat.completions.create(
-        model=MODEL,
+    content = _llm_call_with_retry(
         messages=[
             {"role": "system", "content": TREE_BUILDER_SYSTEM},
             {"role": "user", "content": user_msg},
         ],
-        temperature=0.0,
         max_tokens=6000,
         response_format={"type": "json_object"},
-    )
-    content = resp.choices[0].message.content or "{}"
+    ) or "{}"
     return json.loads(content)
 
 
@@ -169,8 +169,153 @@ def build_tree(headings: list[dict], doc_title: str, last_page: int) -> dict:
 SUMMARIZE_SYSTEM = FACT_RICH_SUMMARIZE_SYSTEM
 
 
-def summarize_node(node: dict, pages: list[dict]) -> str:
-    """Pull text spanning node['start_page']..node['end_page'] and summarize.
+_EXTRACT_SYSTEM = """First-pass extractor for tree-index summarization.
+Read the section text and emit a strict JSON object with:
+  {
+    "title_phrase": "<the section's heading phrase verbatim, if visible
+                      in the first 200 chars; else empty string>",
+    "entities": ["<10-30 named entities verbatim — companies, people,
+                   regulations, financial instruments, segment names,
+                   product names>"],
+    "aliases": ["<short forms / nicknames / acronyms paired with the
+                  full names above; e.g. 'AMEX' for 'American Express'>"],
+    "quoted_phrases": ["<distinctive multi-word phrases worth preserving:
+                         'patience pays', 'wonderful businesses', etc.
+                         Include scare-quoted phrases and metaphors>"],
+    "numeric_facts": ["<3-5 numeric facts with units, verbatim from source:
+                        '$364,482 million in revenues', '27.8% ownership'>"],
+    "section_id": "<numbered identifier if present: 'Item 1A', 'Item 8',
+                   'Schedule X', or empty string>"
+  }
+
+Output ONLY this JSON, no prose. Be exhaustive — downstream summarizer
+needs all distinctive tokens preserved verbatim."""
+
+
+def _llm_call_with_retry(messages: list, max_tokens: int,
+                          response_format: dict | None = None) -> str:
+    """LLM call with backoff retry on transient errors + post-call cooldown.
+    vMLX returns 503 'Metal GPU working set too full' under accumulated load.
+    Strategy:
+      - Pre-call: progressive backoff retry on transient errors (up to 8
+        attempts: 15, 30, 60, 90, 120, 180, 240, 300 s).
+      - Post-call: brief cooldown sleep (2s) so GPU can release before next
+        call. Trades ~5 min total build time for OOM elimination.
+    """
+    import time as _time
+    last_err = None
+    backoff_schedule = [15, 30, 60, 90, 120, 180, 240, 300]
+    for attempt, sleep_s in enumerate(backoff_schedule):
+        try:
+            kwargs = dict(model=MODEL, messages=messages,
+                          temperature=0.0, max_tokens=max_tokens)
+            if response_format:
+                kwargs["response_format"] = response_format
+            r = omlx.chat.completions.create(**kwargs)
+            content = (r.choices[0].message.content or "").strip()
+            _time.sleep(2)  # cooldown: let GPU release before next call
+            return content
+        except Exception as e:                                # noqa: BLE001
+            last_err = e
+            msg = str(e)
+            transient = ("503" in msg or "GPU working set" in msg
+                         or "ConnectionError" in type(e).__name__
+                         or "Connection" in msg)
+            if not transient:
+                raise
+            print(f"  [build] transient {type(e).__name__} on attempt "
+                  f"{attempt+1}/{len(backoff_schedule)}; sleep {sleep_s}s "
+                  f"before retry. detail={msg[:120]}", flush=True)
+            _time.sleep(sleep_s)
+    raise RuntimeError(f"_llm_call_with_retry exhausted {len(backoff_schedule)} "
+                       f"attempts; last_err={last_err}")
+
+
+def _extract_facts(text: str) -> dict:
+    """Pass 1 of multi-pass summarization: pull entities, quoted phrases,
+    numeric facts, and the section's title phrase. JSON-mode response.
+    max_tokens=400 caps GPU command-buffer size (smaller = less memory
+    pressure on Apple Silicon)."""
+    fallback = {"title_phrase": "", "entities": [], "aliases": [],
+                "quoted_phrases": [], "numeric_facts": [], "section_id": ""}
+    try:
+        raw = _llm_call_with_retry(
+            messages=[
+                {"role": "system", "content": _EXTRACT_SYSTEM},
+                {"role": "user", "content": text},
+            ],
+            max_tokens=400,
+            response_format={"type": "json_object"},
+        )
+        parsed = json.loads(raw or "{}")
+        # Some models (Gemma in particular) emit a top-level list when asked
+        # for JSON-object output. Guard against that here — fall back to
+        # empty-fields dict so caller's `.get()` calls don't crash.
+        if not isinstance(parsed, dict):
+            return fallback
+        # Coerce any field that should be a list but came back as something
+        # else (string, dict) into a list — defensive against schema drift.
+        for k in ("entities", "aliases", "quoted_phrases", "numeric_facts"):
+            v = parsed.get(k)
+            if v is None:
+                parsed[k] = []
+            elif isinstance(v, str):
+                parsed[k] = [v]
+            elif not isinstance(v, list):
+                parsed[k] = []
+        for k in ("title_phrase", "section_id"):
+            v = parsed.get(k)
+            if not isinstance(v, str):
+                parsed[k] = ""
+        return parsed
+    except Exception:                                   # noqa: BLE001
+        return fallback
+
+
+def _compose_summary(text: str, facts: dict) -> str:
+    """Pass 2: write the summary preserving Pass-1 vocabulary verbatim.
+    max_tokens=400 keeps GPU command buffers small."""
+    facts_block = json.dumps(facts, indent=2)
+    user_msg = (
+        f"Extracted facts (you MUST preserve every entity, alias, quoted "
+        f"phrase, and numeric fact from this JSON in your SUMMARY block "
+        f"verbatim):\n{facts_block}\n\n"
+        f"Section text:\n{text}"
+    )
+    return _llm_call_with_retry(
+        messages=[
+            {"role": "system", "content": SUMMARIZE_SYSTEM},
+            {"role": "user", "content": user_msg},
+        ],
+        max_tokens=400,
+    )
+
+
+def _parse_tags_block(summary_text: str) -> list[str]:
+    """Extract the TAGS: line tokens from a multi-block summary output.
+    Returns a list of comma-separated tokens, deduped, preserving order."""
+    import re as _re
+    m = _re.search(r"^\s*TAGS\s*:\s*(.+?)$", summary_text,
+                   _re.MULTILINE | _re.DOTALL)
+    if not m:
+        return []
+    raw = m.group(1).split("\n", 1)[0]  # only the first TAGS line
+    seen: set = set()
+    out: list[str] = []
+    for tok in raw.split(","):
+        t = tok.strip()
+        if t and t.lower() not in seen:
+            seen.add(t.lower())
+            out.append(t)
+    return out
+
+
+def summarize_node(node: dict, pages: list[dict]) -> tuple[str, list[str]]:
+    """Two-pass summarization. Returns (summary_text, tags_list).
+
+    Pass 1: extract entities, quoted phrases, numeric facts.
+    Pass 2: compose summary that preserves Pass-1 vocabulary verbatim.
+    The TAGS: line is parsed out for direct EntityIndex lookup.
 
     Head-truncate at 12000 chars — a 10-K's longest section fits, longer
     sections get the head where the topic sentence usually lives.
@@ -180,28 +325,38 @@ def summarize_node(node: dict, pages: list[dict]) -> str:
     text = "\n".join(
         p["text"] for p in pages if start <= p["page_num"] <= end
     )
-    if len(text) > 12000:
-        text = text[:12000]
+    if len(text) > 8000:
+        text = text[:8000]   # reduced from 12000 — smaller K/V cache, less GPU pressure
     if not text.strip():
-        return "Empty section (no extractable text)."
+        return ("Empty section (no extractable text).", [])
 
-    resp = omlx.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SUMMARIZE_SYSTEM},
-            {"role": "user", "content": text},
-        ],
-        temperature=0.0,
-        max_tokens=400,
-    )
-    return (resp.choices[0].message.content or "").strip()
+    facts = _extract_facts(text)
+    summary = _compose_summary(text, facts)
+    tags = _parse_tags_block(summary)
+    # Augment tags with Pass-1 extraction (ensures verbatim preservation
+    # even if compose pass dropped one). Dedupe case-insensitively.
+    extra = (facts.get("entities", []) + facts.get("aliases", [])
+             + facts.get("quoted_phrases", []))
+    if facts.get("title_phrase"):
+        extra = [facts["title_phrase"]] + extra
+    if facts.get("section_id"):
+        extra.append(facts["section_id"])
+    seen = {t.lower() for t in tags}
+    for t in extra:
+        ts = (t or "").strip()
+        if ts and ts.lower() not in seen:
+            seen.add(ts.lower())
+            tags.append(ts)
+    return (summary, tags)
 
 
 def add_summaries_recursive(node: dict, pages: list[dict]) -> None:
-    """In-place: write a `summary` field to every node that has a page range.
-    Recurse into children. Idempotent — re-running re-summarizes."""
+    """In-place: write `summary` and `tags` fields to every node that has a
+    page range. Recurse into children. Idempotent — re-running rewrites both."""
     if "start_page" in node and "end_page" in node:
-        node["summary"] = summarize_node(node, pages)
+        summary, tags = summarize_node(node, pages)
+        node["summary"] = summary
+        node["tags"] = tags
     for child in node.get("nodes", []):
         add_summaries_recursive(child, pages)
 
@@ -267,12 +422,22 @@ def main() -> None:
     print("[3/4] Building tree (LLM call, ~10-25 s) ...")
     tree = build_tree(headings, "Berkshire Hathaway 2023 Annual Report", last_page=len(pages))
 
+    # Raise recursion limit upfront — the recursive PageIndex split has a known
+    # bug producing depth-46 chains, and even depth-of-skeleton recursion through
+    # nested generators (count_nodes, tree_depth) hits Python's default 1000
+    # frame ceiling. 5000 is comfortable for any reasonable W2.7 tree.
+    sys.setrecursionlimit(5000)
+
     print(f"      Tree skeleton: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")
 
-    print(f"[4/5] Splitting large leaves (> {MAX_PAGES_PER_LEAF} pages or "
-          f"> {MAX_CHARS_PER_LEAF} chars) — PageIndex pattern ...")
-    split_large_nodes(tree, pages, doc_root=True)
-    print(f"      After split: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")
+    # SPLIT DISABLED 2026-05-09 — recursive split in shared/tree_index/builder.py
+    # creates degenerate depth-46 chains that crash post-process. The 46-node
+    # skeleton from Phase 3 is sufficient for multi-pass summarization
+    # (matches W2.7's original 50-node published baseline).
+    # print(f"[4/5] Splitting large leaves (> {MAX_PAGES_PER_LEAF} pages or "
+    #       f"> {MAX_CHARS_PER_LEAF} chars) — PageIndex pattern ...")
+    # split_large_nodes(tree, pages, doc_root=True)
+    # print(f"      After split: {count_nodes(tree)} nodes, depth={tree_depth(tree)}.")
 
     print(f"[5/5] Generating per-node summaries ({count_nodes(tree)} LLM calls) ...")
     add_summaries_recursive(tree, pages)

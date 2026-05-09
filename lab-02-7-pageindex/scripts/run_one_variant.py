@@ -39,6 +39,18 @@ from tree_index import (                                # noqa: E402
     TreeIndex,
 )
 
+# Phoenix tracing — auto-instruments OpenAI calls. Lazy/optional: skip silently
+# if not installed or server not reachable. View at http://127.0.0.1:6006.
+sys.path.insert(0, str(_LAB_ROOT.parents[0] / "shared"))
+try:
+    from phoenix_tracing import init_phoenix, phoenix_span  # noqa: E402
+    _PHOENIX_OK = True
+except Exception:                                            # noqa: BLE001
+    _PHOENIX_OK = False
+    def phoenix_span(label, attrs=None):                     # type: ignore
+        from contextlib import nullcontext
+        return nullcontext()
+
 
 def _make_pp(pdf_path: str):
     pages = [p.extract_text() or "" for p in PdfReader(pdf_path).pages]
@@ -62,6 +74,16 @@ def main():
         print(f"ERROR: variant must be v1, v2, or ensemble; got {variant!r}",
               file=sys.stderr)
         sys.exit(1)
+
+    if _PHOENIX_OK:
+        try:
+            init_phoenix(project_name=f"lab-02-7-{variant}",
+                         server_url="http://127.0.0.1:6006")
+            print(f"[{variant}] Phoenix tracing enabled "
+                  f"(http://127.0.0.1:6006/projects)", flush=True)
+        except Exception as e:                              # noqa: BLE001
+            print(f"[{variant}] Phoenix init failed (continuing without): "
+                  f"{type(e).__name__}: {str(e)[:80]}", flush=True)
 
     omlx = OpenAI(base_url=os.getenv("OMLX_BASE_URL"),
                   api_key=os.getenv("OMLX_API_KEY"))
@@ -133,25 +155,28 @@ def main():
     for q_idx, item in enumerate(full):
         q, exp, ty = item["q"], item["expected_entities"], item["type"]
         t0 = time.time()
-        try:
-            out = retriever.answer(q)
-            ans = out["answer"]
-            tools = [tc["tool"] for tc in out.get("tool_calls", [])]
-            iters = out.get("iterations", 0)
-            # Retry once on empty (oMLX state-degradation pattern: 0.6s + iter=1
-            # + empty answer). Brief sleep + retry usually gets a real response.
-            if not ans.strip() and iters == 1 and len(tools) == 0:
-                print(f"  [{variant}] EMPTY on q{q_idx+1}, sleeping 3s + retrying...",
-                      flush=True)
-                time.sleep(3.0)
+        with phoenix_span(label=f"q{q_idx+1:02d}-{ty[:14]}",
+                          attrs={"variant": variant, "question": q,
+                                 "type": ty, "expected": ",".join(exp)}):
+            try:
                 out = retriever.answer(q)
                 ans = out["answer"]
                 tools = [tc["tool"] for tc in out.get("tool_calls", [])]
                 iters = out.get("iterations", 0)
-        except Exception as e:                          # noqa: BLE001
-            ans = f"[ERROR {type(e).__name__}: {e}]"
-            tools = []
-            iters = 0
+                # Retry once on empty (oMLX state-degradation pattern: 0.6s
+                # + iter=1 + empty answer).
+                if not ans.strip() and iters == 1 and len(tools) == 0:
+                    print(f"  [{variant}] EMPTY on q{q_idx+1}, sleeping 3s + retry...",
+                          flush=True)
+                    time.sleep(3.0)
+                    out = retriever.answer(q)
+                    ans = out["answer"]
+                    tools = [tc["tool"] for tc in out.get("tool_calls", [])]
+                    iters = out.get("iterations", 0)
+            except Exception as e:                          # noqa: BLE001
+                ans = f"[ERROR {type(e).__name__}: {e}]"
+                tools = []
+                iters = 0
         lat = time.time() - t0
         sub = score_substring(ans, exp)
         try:

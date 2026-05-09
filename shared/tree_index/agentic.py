@@ -191,7 +191,12 @@ def _tree_view(tree: dict) -> str:
             "node_id": node.get("node_id"),
             "title":   node.get("title"),
             "pages":   f"{node.get('start_page', '?')}-{node.get('end_page', '?')}",
-            "summary": (node.get("summary") or "")[:300],
+            # Cap summary at 120 chars (~1 sentence) for the navigator TOC.
+            # Multi-pass build produces 800-1200 char summaries; injecting all
+            # of them inflates prompt to ~12K tokens and degrades DWQ attention.
+            # Full summary stays in tree.json + ingested by EntityIndex tags
+            # — navigator only needs first sentence to route.
+            "summary": (node.get("summary") or "").split("\n", 1)[0][:120],
             "depth":   depth,
         }]
         for c in node.get("nodes", []):
@@ -231,7 +236,7 @@ class AgenticTreeRetriever:
         model_client,
         model_name: str,
         system_prompt: str,
-        max_iterations: int = 6,
+        max_iterations: int = 4,
         max_range_chars: int = 8000,
         debug_log_path: str | None = None,
         # Optional v2 — entity-graph + auto-merge tools
@@ -437,10 +442,19 @@ class AgenticTreeRetriever:
                         f"unless the tree shows a more specific match."
                     )
 
+        # Per-call nonce — breaks vMLX paged-KV-cache content-addressable
+        # deduplication so a polluted cache entry from a prior request can't
+        # contaminate this one. Documented bug class: mlx-lm Issue #965 + #975
+        # (KV cache cross-contamination between separate requests).
+        # Prepended to BOTH system + user prefixes so neither hits a stale page.
+        # Cost: ~2-3s extra prefill per question; benefit: reproducible answers.
+        import time as _time, uuid as _uuid
+        _nonce = f"<!-- session={_uuid.uuid4().hex[:12]} t={_time.time_ns()} -->"
         msgs: list[dict] = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system",
+             "content": f"{_nonce}\n{self.system_prompt}"},
             {"role": "user",
-             "content": f"Document tree:\n{tree_str}{entity_hint}\n\nQuestion: {query}"},
+             "content": f"{_nonce}\nDocument tree:\n{tree_str}{entity_hint}\n\nQuestion: {query}"},
         ]
         tool_call_log: list[dict] = []
         final_answer = "insufficient context"
@@ -555,6 +569,39 @@ class AgenticTreeRetriever:
                 except Exception as e:  # noqa: BLE001
                     content = f"[ERROR] {type(e).__name__}: {e}"
                 msgs.append({"role": "tool", "tool_call_id": tc.id, "content": content})
+
+        # Forced final synthesis — if loop exited at max_iterations with model
+        # still calling tools (final_answer never set, so still the
+        # "insufficient context" placeholder) AND we have fetched observations
+        # in the conversation, do ONE more LLM call asking the model to
+        # synthesize from what it fetched. Closes the iters=4 cliff that
+        # crashed Q11/Q12 in iter2 — model was about to write the answer
+        # when the loop pulled the rug.
+        if (final_answer == "insufficient context"
+                and any(tc.get("tool") == "get_page_content" for tc in tool_call_log)):
+            msgs.append({
+                "role": "user",
+                "content": (
+                    "BUDGET EXHAUSTED. Stop calling tools. Write the final "
+                    "answer NOW from the observations you already have above. "
+                    "If you found ANY relevant facts in the fetched text "
+                    "(named entities, numbers, phrases), state them with the "
+                    "page citations. Do NOT respond 'insufficient context' "
+                    "if your fetches contain anything on-topic — partial "
+                    "answers score higher than refusals. Three sentences max."
+                ),
+            })
+            try:
+                resp = self.client.chat.completions.create(
+                    model=self.model, messages=msgs,
+                    temperature=0.0, max_tokens=400,
+                    # Note: no `tools` argument — force text-only output
+                )
+                forced = (resp.choices[0].message.content or "").strip()
+                if forced:
+                    final_answer = forced
+            except Exception:                                # noqa: BLE001
+                pass
 
         if self.debug_log_path:
             try:
