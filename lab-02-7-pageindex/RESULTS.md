@@ -758,6 +758,39 @@ flowchart TB
 
 **Routing (per query):** L2-normalize centroids once; cosine = dot product. Threshold=0.5 floor; top_k=2; δ=0.07 (0.05 noise floor for ~1k-token centroids, padded to 0.07 to avoid Q3-class wander). When 2 candidates within δ, model gets AMBIGUOUS hint with both clusters' tags + member_node_ids → tiebreak by tag inspection.
 
+### Why Vector at the Cluster Layer (mixed-architecture commentary)
+
+Phase 4's three-way comparison framed vector vs tree as competing architectures and measured their head-to-head. This Phase reintroduces vectors. Not a contradiction — they live in different roles.
+
+**Three reasons vectors return at the cluster routing layer:**
+
+1. **Vector at L2 is not vector at leaf level.** Phase 4's vector RAG was a vector-only system (chunk → embed → ANN search → top-K passages). The cluster pre-fetch uses vectors only at the CLUSTER ROUTING layer — to pick which subset of leaves the agent should navigate. Leaves themselves are still navigated by the structural agentic loop. The two techniques live in different roles, not in competition for the same job.
+2. **Cluster routing is the right job for embeddings.** Embeddings excel at "find me the K most similar items in a small fixed set" — exactly cluster routing's job (8 centroids, single cosine call, ~50ms). Embeddings underperform at "find the precise answer in a 200-page document" — that's the leaf-navigation job, where structure matters more than similarity. Use the right tool per layer.
+3. **One LLM-call cheap.** Cluster routing replaces 2-3 agent-loop iterations (~30-60s) with one BGE-M3 cosine call (~50ms). The speed lever IS embeddings; insisting on pure-structural routing leaves it on the table.
+
+**When the mixed pattern is the right choice:**
+
+| Corpus shape + question mix | Best architecture | Why |
+|---|---|---|
+| Long structured doc (10-K, contract, regulatory filing) with cross-section synthesis | **Mixed: vector at L2 + structural at L1** (today's pattern) | Structure IS the index; vector accelerates the routing decision before the agent loop |
+| Short prose (essays, blog posts), questions paraphrase content | Vector only (Phase 4 baseline) | No useful structure; vector handles paraphrase well at the leaf level |
+| Multi-document corpus, questions cross documents | Graph + vector (W2.5 pattern) | Structure varies per doc; entity-graph normalizes across them |
+| Single-paragraph QA, questions extract one fact | Vector only with rerank | Sub-paragraph precision; tree-index overkill |
+
+**Anti-patterns to avoid:**
+
+- **DON'T put vector at the leaf level when structure already disambiguates.** If the document has a clean ToC + section titles, ANN over leaf chunks recreates the paraphrase-confusion / off-by-one-chunk problems the tree was designed to avoid. Phase 4's vector backend scored 0.75 on section-specific factoid because chunks crossed section boundaries — exactly the failure mode tree-index fixes.
+- **DON'T cluster the leaves themselves to skip the agent loop.** Tempting to think "if a cluster has 5 leaves and the answer is in one, just embed the question and pick the closest leaf." That collapses to vector-RAG over the cluster — losing the structural reasoning. Tree-index's win is the agent's ability to fetch + observe + re-decide; clustering leaves at retrieval time removes the observation step.
+- **DON'T trust top-1 cluster pick when gap is below noise floor.** The whole top-K-with-delta-band pattern exists because BGE-M3 cosine on cluster centroids has ~0.05 noise. Top-1 demands precision the embedding cannot reliably provide. Shipping cluster routing without measuring the noise floor on the actual corpus is the calibration anti-pattern.
+- **DON'T use the same model for retriever loop and judge.** Judge agreement test measured |Δ|=0.141 (4/16 disagree ≥0.25). Swapping judges to save latency loses the ability to compare to ANY prior baseline. Speed up the retriever (MODEL_TREE) where calls are 50+ per eval; keep the judge model fixed forever.
+- **DON'T let the LLM decide which retrieval lane to use mid-loop.** The cluster pre-fetch fires BEFORE the first LLM call, deterministically gated by `is_synthesis_question(query)`. Letting the model "decide whether to use vector or tree" mid-loop adds an LLM call and introduces a routing failure mode. Pre-decide based on a cheap regex; do not burn an iteration on routing-decision overhead.
+
+`★ Insight ─────────────────────────────────────`
+- **The right abstraction layer for mixing is the ROUTING layer, not the retrieval layer.** Vector at L2 (clusters) + structural at L1 (leaves) keeps each technique in its strongest role. Inverting (vector at L1 + structural at L2) would still work but with worse precision — vector loses leaf-boundary precision; structural loses cluster-routing speed.
+- **Cluster pre-fetch is a "router that doesn't burn an iteration".** Most agentic-RAG routers add an LLM call to decide which tool to use. The cluster router uses a regex (cheap) + cosine (cheap) — total ~50ms, no LLM call. The model sees routing already done at iter 0.
+- **Mixed beats pure when the corpus + question mix is heterogeneous.** Berkshire 2023 has cross-section synthesis (suits cluster pre-fetch), section-specific factoid (suits structural navigation), citation-required (suits structural), out-of-document refusal (suits both). Any pure architecture loses ≥1 category. Mixed picks the right tool per query type.
+`─────────────────────────────────────────────────`
+
 ### Block 1 — Top-K cluster routing with delta-band tiebreak (`shared/tree_index/summary_index.py`)
 
 ```mermaid
