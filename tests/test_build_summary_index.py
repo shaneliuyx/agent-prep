@@ -187,3 +187,32 @@ def test_summarize_cluster_tags_with_non_strings_filtered() -> None:
 
     out = summarize_cluster(MixedTagsClient(), "test-model", ["x"])
     assert out["tags"] == ["valid", "Coca-Cola"]
+
+
+def test_summarize_cluster_list_response_preserved_as_tags() -> None:
+    """DWQ sometimes returns JSON list (schema-disagreement) — preserve content."""
+    from build_summary_index import summarize_cluster
+
+    class ListResponseClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    class M:
+                        content = json.dumps([
+                            "Charlie Munger", "Berkshire Hathaway",
+                            "Our Not-So-Secret Weapon", "$96 billion",
+                        ])
+                    class C:
+                        message = M()
+                    class R:
+                        choices = [C()]
+                    return R()
+
+    out = summarize_cluster(ListResponseClient(), "test-model", ["x"])
+    assert out["title"] == ""
+    assert out["summary"] == ""
+    assert out["tags"] == [
+        "Charlie Munger", "Berkshire Hathaway",
+        "Our Not-So-Secret Weapon", "$96 billion",
+    ]
