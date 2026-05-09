@@ -25,8 +25,9 @@ sys.path.insert(0, str(_LAB_ROOT.parents[0] / "shared"))
 from tree_index._hashing import tree_hash  # noqa: E402
 
 
-def extract_leaves(tree: dict) -> list[dict]:
-    """Walk the primary tree, return all nodes with non-empty summary."""
+def extract_summary_nodes(tree: dict) -> list[dict]:
+    """Walk the tree, return all nodes with non-empty summary (root,
+    internals, leaves alike). Used as input to clustering."""
     out: list[dict] = []
 
     def walk(node: dict) -> None:
@@ -49,7 +50,15 @@ def extract_leaves(tree: dict) -> list[dict]:
 def kmeans_cluster(
     embeddings: "np.ndarray", k: int, random_state: int = 42,
 ) -> "np.ndarray":
-    """Deterministic k-means with sklearn. Returns cluster labels."""
+    """Deterministic k-means with sklearn. Returns cluster labels.
+
+    Raises ValueError if k > len(embeddings) — sklearn's own error
+    is opaque in a multi-step pipeline."""
+    if k > len(embeddings):
+        raise ValueError(
+            f"k={k} exceeds number of embeddings ({len(embeddings)}). "
+            f"Reduce k or supply more leaf nodes."
+        )
     from sklearn.cluster import KMeans
     km = KMeans(n_clusters=k, random_state=random_state, n_init=10)
     return km.fit_predict(embeddings)

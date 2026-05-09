@@ -7,3 +7,4 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "shared"))
+sys.path.insert(0, str(_REPO_ROOT / "lab-02-7-pageindex" / "src"))
