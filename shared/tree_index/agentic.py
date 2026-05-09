@@ -208,6 +208,52 @@ _CLUSTER_TOOL = {
 }
 
 
+_LOW_QUALITY_REFUSAL_PATTERNS = (
+    "i don't have", "i cannot find", "i am unable",
+    "i do not have", "the document does not",
+    "the document doesn't", "no information about",
+    "not provided in", "not mentioned in",
+    "not available in", "not in the document",
+)
+
+
+def _is_low_quality(answer: str) -> bool:
+    """Composite production-signal trigger for chunk-level fallback.
+
+    Returns True when the agent's answer suggests refusal, pseudo-refusal,
+    or ungrounded synthesis. Used by AgenticTreeRetriever.answer() to
+    decide whether to fire the page-vector fallback.
+
+    Tier 1 — high confidence (any one fires):
+      - empty / whitespace-only answer
+      - literal "insufficient context" substring
+      - common refusal phrases (see _LOW_QUALITY_REFUSAL_PATTERNS)
+      - length < 80 chars (pseudo-refusal)
+
+    Tier 2 — medium confidence (fires only if length > 80):
+      - no `[page` / `pages` citation in answer
+
+    Tier 3 — explicitly NOT triggered (false-positive rate too high):
+      - hedging language (may, might, possibly, approximately)
+
+    Production signal only — never reads judge scores or any test-time
+    oracle. Goodhart-safe.
+    """
+    a = answer.strip()
+    if not a:
+        return True
+    a_low = a.lower()
+    if "insufficient context" in a_low:
+        return True
+    if any(p in a_low for p in _LOW_QUALITY_REFUSAL_PATTERNS):
+        return True
+    if len(a) < 80:
+        return True
+    if "[page" not in a_low and "pages" not in a_low:
+        return True
+    return False
+
+
 def _tree_view(tree: dict) -> str:
     """Compact JSON view: id, title, pages, summary. Skip raw text/children fields."""
     def walk(node: dict, depth: int = 0) -> list[dict]:
@@ -752,14 +798,16 @@ class AgenticTreeRetriever:
                 pass
 
         # Chunk-level fallback — last resort when all structural recovery
-        # paths still produced a refusal AND a PageVectorIndex is wired.
+        # paths still produced a low-quality answer AND a PageVectorIndex
+        # is wired. Trigger uses composite production-signals via
+        # _is_low_quality(): refusal phrases, pseudo-refusal length, or
+        # ungrounded synthesis (no [page N] citation in long answer).
         # Catches Q9-class regressions where the variant generator destroyed
         # the literal-keyword signal and the agent never fetched the right
         # page. BGE-M3 dense+sparse hybrid matches the literal token directly.
         fallback_used = False
         if (self.page_vector_index is not None
-                and (not final_answer.strip()
-                     or "insufficient context" in final_answer.lower())):
+                and _is_low_quality(final_answer)):
             fb = self._chunk_level_fallback(query)
             if fb:
                 final_answer = fb
