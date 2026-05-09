@@ -30,6 +30,11 @@ from pypdf import PdfReader                             # noqa: E402
 load_dotenv(_LAB_ROOT / ".env")
 
 from compare import score_substring, score_llm_judge   # noqa: E402
+
+sys.path.insert(0, str(_LAB_ROOT / "src"))
+from gt_judge import (                                  # noqa: E402
+    load_ground_truth, score_against_ground_truth,
+)
 from tree_index import (                                # noqa: E402
     AGENTIC_SYSTEM_TEMPLATE,
     AGENTIC_SYSTEM_TEMPLATE_V2,
@@ -70,12 +75,33 @@ def _make_pp(pdf_path: str):
     return provider, raw
 
 
+def _reset_vmlx_cache_if_requested(args: list[str]) -> None:
+    """Run scripts/reset_vmlx_cache.sh before eval if --reset-cache=soft|hard.
+
+    Reduces cross-run KV cache pollution variance. Soft mode (~5s) evicts
+    via LRU; hard mode (~60s) kills + respawns per-model server processes.
+    Default off — existing workflows unaffected.
+    """
+    import subprocess
+    mode = None
+    for a in args:
+        if a.startswith("--reset-cache="):
+            mode = a.split("=", 1)[1]
+    if mode in ("soft", "hard"):
+        script = _LAB_ROOT / "scripts" / "reset_vmlx_cache.sh"
+        flag = f"--{mode}"
+        print(f"[reset] running {script.name} {flag} ...", flush=True)
+        subprocess.run([str(script), flag], check=False)
+
+
 def main():
     variant = sys.argv[1] if len(sys.argv) > 1 else "v1"
     if variant not in {"v1", "v2", "ensemble"}:
         print(f"ERROR: variant must be v1, v2, or ensemble; got {variant!r}",
               file=sys.stderr)
         sys.exit(1)
+
+    _reset_vmlx_cache_if_requested(sys.argv[2:])
 
     if _PHOENIX_OK:
         try:
@@ -86,6 +112,10 @@ def main():
         except Exception as e:                              # noqa: BLE001
             print(f"[{variant}] Phoenix init failed (continuing without): "
                   f"{type(e).__name__}: {str(e)[:80]}", flush=True)
+            # Init failed — rebind phoenix_span to a no-op so per-Q calls
+            # below don't crash with 'phoenix_span called before init_phoenix'.
+            from contextlib import nullcontext
+            globals()["phoenix_span"] = lambda label=None, attrs=None: nullcontext()
 
     omlx = OpenAI(base_url=os.getenv("OMLX_BASE_URL"),
                   api_key=os.getenv("OMLX_API_KEY"))
@@ -218,6 +248,18 @@ def main():
         print(f"[{variant}] FATAL: healthcheck failed after 3 retries; abort. last_err={last_err}")
         sys.exit(2)
 
+    # Load ground-truth for GT-judge (binary pass/fail). Falls back to
+    # entity-recall judge when no GT entry exists for a question.
+    gt_qs: dict[str, dict] = {}
+    try:
+        gt_map = load_ground_truth(_LAB_ROOT / "data" / "eval_ground_truth.json")
+        gt_qs = {entry["q"]: entry for entry in gt_map.values()}
+        print(f"[{variant}] GT-judge loaded: {len(gt_qs)} questions covered",
+              flush=True)
+    except FileNotFoundError as e:
+        print(f"[{variant}] GT not loaded ({e}); entity-recall judge for all Qs",
+              flush=True)
+
     rows = []
     for q_idx, item in enumerate(full):
         q, exp, ty = item["q"], item["expected_entities"], item["type"]
@@ -246,29 +288,63 @@ def main():
                 iters = 0
         lat = time.time() - t0
         sub = score_substring(ans, exp)
+        # Entity-recall judge (legacy) — kept for backward comparability.
         try:
             judge, _ = score_llm_judge(q, ans, exp)
         except Exception:                                # noqa: BLE001
             judge = 0.0
+        # GT-judge (PRIMARY) — binary pass/fail when GT entry exists.
+        gt_pass: bool | None
+        gt_rationale = ""
+        if q in gt_qs:
+            gt_entry = gt_qs[q]
+            try:
+                gt_pass, gt_rationale = score_against_ground_truth(
+                    client=omlx, model=os.getenv("MODEL_SONNET", ""),
+                    question=q, gt_answer=gt_entry["gt_answer"],
+                    pass_criteria=gt_entry["pass_criteria"],
+                    candidate_answer=ans,
+                )
+            except Exception as e:                       # noqa: BLE001
+                gt_pass = False
+                gt_rationale = f"GT-judge error: {type(e).__name__}: {e}"
+        else:
+            gt_pass = None
         rows.append({"variant": variant, "q": q, "type": ty,
                      "answer": ans, "sub": sub, "judge": judge,
+                     "gt_pass": gt_pass, "gt_rationale": gt_rationale[:200],
                      "lat": lat, "iters": iters, "tools": tools})
-        print(f"  [{variant}][{ty[:14]:14s}] {q[:50]:50s} judge={judge:.2f} sub={sub:.2f} lat={lat:.1f}s iters={iters}",
+        gt_str = "PASS" if gt_pass is True else ("FAIL" if gt_pass is False else "—")
+        print(f"  [{variant}][{ty[:14]:14s}] {q[:50]:50s} GT={gt_str} judge={judge:.2f} sub={sub:.2f} lat={lat:.1f}s iters={iters}",
               flush=True)
 
     j = sum(r["judge"] for r in rows) / len(rows)
     s = sum(r["sub"] for r in rows) / len(rows)
     L = sum(r["lat"] for r in rows) / len(rows)
+    # GT pass rate (only over Qs with GT)
+    gt_evaluated = [r for r in rows if r.get("gt_pass") is not None]
+    gt_pass_count = sum(1 for r in gt_evaluated if r["gt_pass"])
+    gt_pass_rate = gt_pass_count / max(1, len(gt_evaluated))
     by_cat = defaultdict(list)
+    by_cat_gt: dict[str, list[bool]] = defaultdict(list)
     for r in rows:
         by_cat[r["type"]].append(r["judge"])
+        if r.get("gt_pass") is not None:
+            by_cat_gt[r["type"]].append(bool(r["gt_pass"]))
     cat = {k: sum(v) / len(v) for k, v in by_cat.items()}
+    cat_gt = {k: sum(1 for x in v if x) / len(v) for k, v in by_cat_gt.items() if v}
     summary = {"variant": variant, "agg_judge": j, "agg_sub": s, "agg_lat": L,
-               "per_cat": cat, "rows": rows}
+               "agg_gt_pass_rate": gt_pass_rate,
+               "gt_evaluated": len(gt_evaluated),
+               "gt_pass_count": gt_pass_count,
+               "per_cat": cat, "per_cat_gt": cat_gt, "rows": rows}
     out_path = _LAB_ROOT / "results" / f"ab_{variant}.json"
     out_path.parent.mkdir(exist_ok=True)
     out_path.write_text(json.dumps(summary, indent=2))
-    print(f"\n[{variant}] aggregate: judge={j:.3f} substr={s:.3f} lat={L:.1f}s", flush=True)
+    print(f"\n[{variant}] aggregate (PRIMARY): GT pass_rate={gt_pass_rate:.3f} "
+          f"({gt_pass_count}/{len(gt_evaluated)})", flush=True)
+    print(f"[{variant}] aggregate (legacy):  entity_judge={j:.3f} substr={s:.3f} "
+          f"lat={L:.1f}s", flush=True)
     print(f"[{variant}] wrote {out_path}", flush=True)
 
 

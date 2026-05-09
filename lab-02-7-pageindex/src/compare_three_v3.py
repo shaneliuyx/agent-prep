@@ -76,15 +76,14 @@ def vector_answer(q: str, k: int = 5) -> dict:
     """Dense kNN + cross-encoder rerank + Gemma synthesis.
 
     `_rr.rerank()` from shared/rag_hybrid expects ScoredPoint-like objects
-    with `.payload["text"]` (NOT raw text strings); pass `hits` directly.
-    Returned tuples are `(point, score)` — extract `.payload["text"]`.
+    with `.payload["text"]` and returns `(doc_id, text, score)` 3-tuples.
     """
     qv = _enc.encode([q])[0]
     hits = _qd.query_points(
         collection_name=_VECTOR_COLLECTION, query=qv.tolist(), limit=k * 4,
     ).points
     reranked = _rr.rerank(q, hits, top_k=k)
-    top_text = [point.payload["text"] for point, _score in reranked]
+    top_text = [text for _doc_id, text, _score in reranked]
     ctx = "\n\n---\n\n".join(top_text)
     r = omlx.chat.completions.create(
         model=SONNET, temperature=0.0, max_tokens=300,

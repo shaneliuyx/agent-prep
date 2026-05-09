@@ -85,7 +85,7 @@ After the initial run reported tree judge=0.44, applied 4 PageIndex-inspired opt
 3. **Fact-rich summaries** (`build_tree.py` `SUMMARIZE_SYSTEM`): every summary must include 3 numeric facts verbatim + 5 named entities + structural location. Eliminates vague summaries that confused the navigator.
 4. **TOC-trap rule + explained refusal + synthesis-from-fragments** (`query_tree.py` `AGENTIC_SYSTEM`): three prompt-engineering rules — never cite TOC pages 1-3 as the answer source; refuse with one-sentence explanation + "insufficient context" (not bare keyword); when 3+ partial-info fetches accumulate, synthesize across them rather than refuse.
 
-**Model:** tree backend isolated to `Qwen3.6-35B-A3B-UD-MLX-4bit` (passes 4/4 smoke tests for JSON / tools / multi-turn / 16K context). Vector + graph stay on `gemma-4-26B-A4B-it-heretic-4bit`. The split prevents oMLX KV-cache pollution observed when all 3 backends shared one model — see Bad-Case Entry 7 below.
+**Model:** tree backend isolated to `Qwen3.6-35B-A3B-UD-MLX-4bit` (passes 4/4 smoke tests for JSON / tools / multi-turn / 16K context). Vector + graph stay on `gemma-4-26B-A4B-it-heretic-4bit`. The split prevents oMLX KV-cache pollution observed when all 3 backends shared one model — see Bad-Case Entry 1 below.
 
 ### Aggregate (post-optimization)
 
@@ -137,20 +137,20 @@ Our 0.79 on the local stack with PageIndex-pattern optimizations is the realisti
 
 ## Bad-Case Journal — Optimization Run
 
-**Entry 7 — oMLX KV-cache pollution between request shapes on the same model.**
+**Entry 1 — oMLX KV-cache pollution between request shapes on the same model.**
 *Symptom:* When all 3 backends (vector, graph, tree) routed to the same Qwen3.6 model, every tree call after the first returned `1it/0tc` empty content despite standalone tree calls returning correct answers with 1-3 tool calls. Tree aggregate scored 0.08 in compare runs but 0.61+ in standalone runs on the same questions.
 *Root cause:* oMLX appears to reuse KV-cache state across requests for the same model. When vector_answer issues a no-tools call followed by tree's tools call, the cache from the no-tools shape interfered with tool-routing on the tools call. Standalone runs only invoked tree, so the cache state was consistent.
 *Fix:* Route tree backend to a separate model (`MODEL_TREE=Qwen3.6-35B-A3B-UD-MLX-4bit`) while keeping vector + graph on Gemma. Different model = different KV cache pool on the oMLX server. **Discipline rule:** when running multi-backend comparisons against an oMLX server with mixed request shapes (no-tools call + tools call), give the tools-using backend its own model.
 
-**Entry 8 — Bare "insufficient context" gets penalized by LLM-judge despite substring match.**
+**Entry 2 — Bare "insufficient context" gets penalized by LLM-judge despite substring match.**
 *Symptom:* Tree's OOD refusal scored 0.67 in the optimization run (was 1.00 pre-opt). Q8 (Microsoft CEO) returned bare `"insufficient context"` and got judge=0.33; Q7 returned a longer `"This is the Berkshire 2023 AR... insufficient context"` and got judge=1.00. Substring scoring gave both 0.33 (matches "insufficient" only).
 *Root cause:* `score_llm_judge` rewards refusals that demonstrate reasoning (explain *why* the document doesn't have the answer). Bare keyword matches are scored as partial answers, not full refusals. AGENTIC_SYSTEM was instructing the LLM to "respond with exactly: insufficient context" — short-circuit refusal with no explanation.
 *Fix:* Change AGENTIC_SYSTEM to require two-part refusal: (a) one sentence explaining what the document IS and why it doesn't contain the answer, (b) close with "insufficient context". This matches graph backend's refusal shape, which always scored 1.00. Side-effect: also lifted synthesis Q4 from 0.00 → 1.00 because removing the "respond with exactly" instruction made the LLM more willing to write partial-info answers.
 
-**Entry 9 — Recursive node split helps factoid but fragments synthesis.**
+**Entry 3 — Recursive node split helps factoid but fragments synthesis.**
 *Symptom:* After applying recursive split (opt #2), tree synthesis dropped 0.50 → 0.12 in compare8. The agentic loop made 6 tool calls then refused with "insufficient context" on Q4 (non-controlled businesses) — pre-opt greedy nav had landed on the whole pre-split section and synthesized correctly.
 *Root cause:* Splitting the Chairman's Letter into 5 sub-sections meant Q4's answer (Coca-Cola + American Express + Occidental + Japanese houses) lived across multiple sub-sections instead of one. Greedy nav fetched the parent → got everything; agentic loop fetched sub-sections individually → each had partial info → over-refused.
-*Fix:* Add explicit synthesis-from-fragments rule to AGENTIC_SYSTEM: "After 3+ fetches that each contribute partial information, SYNTHESIZE the final answer by combining the fragments." Combined with Entry 8's explained-refusal fix, synthesis recovered to 0.50 (compare10), reaching parity with graph backend.
+*Fix:* Add explicit synthesis-from-fragments rule to AGENTIC_SYSTEM: "After 3+ fetches that each contribute partial information, SYNTHESIZE the final answer by combining the fragments." Combined with Entry 2's explained-refusal fix, synthesis recovered to 0.50 (compare10), reaching parity with graph backend.
 
 ## Files
 
@@ -523,22 +523,22 @@ def _parse_tags_block(summary_text: str) -> list[str]:
 
 ### Bad-Case Journal — v2 Architecture Run
 
-**Entry 10 — NVFP4/flat-quant Qwen MoE degradation under sustained load.**
+**Entry 4 — NVFP4/flat-quant Qwen MoE degradation under sustained load.**
 *Symptom:* `Qwen3.6-35B-A3B-nvfp4` perfect Q1 then iters=0/judge=0 from Q2+. Same on `Qwen3.5-27B-4bit`. *Root cause:* mlx-lm Issue #1011 — quantization corrupts MoE gate scales. *Fix:* use DWQ-distilled 4-bit. **Discipline rule:** Qwen MoE on MLX must be DWQ or GGUF Q4_K_XL.
 
-**Entry 11 — vMLX doesn't extract Hermes-style tool-call template.**
+**Entry 5 — vMLX doesn't extract Hermes-style tool-call template.**
 *Symptom:* DWQ retriever scored 0.39. Model emitted `<function=NAME>...</function>` as plain text in `message.content`. *Root cause:* vMLX handles OpenAI + Qwen-native templates, not Hermes/Llama. Probes used `tool_choice='required'` (forces extraction), masked the gap. *Fix:* added `_TC_HERMES_RE` regex to `_parse_native_toolcalls()`. **+0.28 aggregate.**
 
-**Entry 12 — Regex EntityIndex misses semantic equivalents.**
+**Entry 6 — Regex EntityIndex misses semantic equivalents.**
 *Symptom:* Q-ENTITY capped at 0.25-0.75. *Root cause:* regex literal-string match only. *Fix:* multi-query expansion via 3 LLM-generated phrasings + RRF (k=60). **+0.10-0.20 on entity-graph queries.**
 
-**Entry 13 — DWQ tool routing is stochastic at temp=0.0.**
+**Entry 7 — DWQ tool routing is stochastic at temp=0.0.**
 *Symptom:* 3 identical Q-ENTITY runs scored 0.75, 0.00, 0.50. *Root cause:* MLX MoE expert routing has fp16 gate-score tie-break drift; compounded across 4-6 iter agent loops. *Fix:* entity-prefetch fires `find_nodes_mentioning` BEFORE first LLM call when query has quoted-phrase / acronym / "described as" pattern. **Q-ENTITY worst 0.00 → 0.50, mean 0.33 → 0.67.**
 
-**Entry 14 — Tree summaries lose distinctive title phrases.**
+**Entry 8 — Tree summaries lose distinctive title phrases.**
 *Symptom:* "Our Not-So-Secret Weapon" → tree summary "competitive advantages". Every retrieval call routed through this lossy summary. *Root cause:* `FACT_RICH_SUMMARIZE_SYSTEM` required entities + numeric facts but didn't require verbatim title preservation. *Fix:* multi-pass build: Pass 1 JSON-extracts title_phrase/entities/aliases/quoted_phrases; Pass 2 composes summary preserving Pass-1 vocabulary verbatim + TAGS line ingested by EntityIndex. **Closes upstream leak permanently.**
 
-**Entry 15 — vMLX 503 GPU OOM mid-build under accumulated load.**
+**Entry 9 — vMLX 503 GPU OOM mid-build under accumulated load.**
 *Symptom:* Multi-pass build crashed at GPU 85% during summarization. *Root cause:* Multiple models (DWQ + Gemma + others) accumulated in vMLX unified-memory pool; no auto-eviction; large model swap pushed past `VMLX_METAL_WS_REJECT_PCT=85`. *Fix:* added `_llm_call_with_retry` to build_tree.py with progressive sleep (30/60/90/120/150s) and 5-attempt retry on 503/Connection errors. Build resumes from where it crashed.
 
 ---
@@ -916,19 +916,19 @@ Hypothesis: K-means on BGE-M3 summary embeddings groups by lexical/topical simil
 
 ### Bad-Case Journal — Cluster Pre-Fetch Run
 
-**Entry 16 — DWQ schema-disagreement: list response when dict expected.**
+**Entry 10 — DWQ schema-disagreement: list response when dict expected.**
 *Symptom:* Build summarize_cluster returned `[entity1, entity2, ...]` (flat array of strings) instead of `{title, summary, tags}` dict. 5/8 then 2/8 empty cluster titles in early DWQ-built indexes. *Root cause:* DWQ-quantized Qwen3.6-35B-A3B occasionally interprets "preserve verbatim entities" as "return entities directly" when prompt is dense with examples; even with `response_format=json_object`, the model emits valid JSON of the wrong shape. *Fix:* in `summarize_cluster`, detect `isinstance(parsed, list)` and salvage as `{"title":"", "summary":"", "tags": [filtered strings]}`. Then `main()` synthesizes title from first 2 member titles when `meta["title"]` is empty. Three-tier fallback ladder. **Permanent — works for any future DWQ list-response.**
 
-**Entry 17 — Top-1 cluster routing wrong on noise-band ties.**
+**Entry 11 — Top-1 cluster routing wrong on noise-band ties.**
 *Symptom:* Q4 ("non-controlled businesses") routed to CC1 (Chairman's intro) at cosine 0.690; correct cluster CC2 (containing node 0007) was 0.638 — gap 0.052 below noise floor. Top-1 deterministic pick → no answer reachable → judge=0.00. *Root cause:* BGE-M3 cosine on ~1k-token centroids has noise floor ~0.05 for sibling narrative-style clusters. Top-1 demands embedding model be right at the granularity it cannot reliably distinguish. *Fix:* `find_clusters_for_query()` returns top-K (default 2) within `delta` of best. AMBIGUOUS hint instructs model to tiebreak via tags + members. **Q4 0.00 → 0.75.**
 
-**Entry 18 — AMBIGUOUS hint paralysis on wider top-K trigger pattern (Approach B regression).**
+**Entry 12 — AMBIGUOUS hint paralysis on wider top-K trigger pattern (Approach B regression).**
 *Symptom:* Approach B's tighter LLM-grouped clusters caused all 4 cross-section questions to trigger AMBIGUOUS hint. Q11 went 1.00 → 0.00. *Root cause:* AMBIGUOUS hint is calibrated to fire rarely (only on noise-band ties). When it fires for ALL cross-section questions (because Approach B's clusters are tight enough that pairs frequently sit within δ), 9B-GLM gets confused on questions where one cluster is clearly correct. *Fix:* reverted to K-means clusters (champion config). AMBIGUOUS triggers selectively via δ=0.07. **Champion stays at 0.885.**
 
-**Entry 19 — Variant generator paraphrases distinctive document terms.**
+**Entry 13 — Variant generator paraphrases distinctive document terms.**
 *Symptom:* Q9 ("operating earnings figure for 2023 according to the **Scorecard**") refused with "no section uses the term Scorecard" — but Buffett's Scorecard table is on page 5. Variant generator expanded "Scorecard" → ["performance metrics", "KPI dashboard", "evaluation tool"] (MBA jargon, not in document). Model never fetched pages 4-22 (Chairman's Letter where Scorecard lives) before iteration budget exhausted. *Root cause:* `_expand_phrase()` calls 9B-GLM with examples that bias toward MBA paraphrases. For document-specific terms like "Scorecard" (Buffett's coinage), paraphrasing destroys signal. *Fix (deferred):* preserve literal phrase as variant #1 always; only generate paraphrases when literal is generic (e.g., "earnings"). Out of scope for this iteration; logged as future work.
 
-**Entry 20 — Judge model swap is a one-way door.**
+**Entry 14 — Judge model swap is a one-way door.**
 *Symptom:* Tested replacing Gemma-26B judge with 9B-GLM-Distill (3× faster). Re-judging 16 prior champion answers with both: mean \|Δ\| = 0.141, max Δ = 0.75 on out-of-document refusals (Q15, Q16). 4/16 questions disagree by ≥0.25. *Root cause:* judges have systematically different sensitivity to refusal-style answers and partial-credit decisions. No single calibration offset can reconcile them. *Fix:* keep Gemma-26B as MODEL_SONNET permanently. Document this discipline rule. **Lesson:** judge baseline is sacred; switching judges retroactively invalidates all prior comparisons.
 
 ### Files Added/Modified — Cluster Pre-Fetch Run
@@ -972,13 +972,13 @@ The original PageIndex paper introduced ToC-tree-as-scaffold + agentic LLM navig
 
 | Improvement | What it fixes | Measured lift |
 |---|---|---|
-| **Multi-pass tree summarization with verbatim-title preservation** | Original single-pass summary loses distinctive phrases ("Our Not-So-Secret Weapon" → "competitive advantages"). Multi-pass extracts title_phrase / quoted_phrases / numeric_facts in Pass 1, composes Pass 2 preserving them verbatim + emits TAGS line for entity index ingestion. | Closes upstream leak permanently. Q-ENTITY worst 0.00 → 0.50, mean 0.33 → 0.67 (Bad-Case Entry 14). |
+| **Multi-pass tree summarization with verbatim-title preservation** | Original single-pass summary loses distinctive phrases ("Our Not-So-Secret Weapon" → "competitive advantages"). Multi-pass extracts title_phrase / quoted_phrases / numeric_facts in Pass 1, composes Pass 2 preserving them verbatim + emits TAGS line for entity index ingestion. | Closes upstream leak permanently. Q-ENTITY worst 0.00 → 0.50, mean 0.33 → 0.67 (Bad-Case Entry 8). |
 | **EntityIndex + multi-query expansion + RRF** | PageIndex relies on title-string match. Cross-section synthesis questions ("what did Buffett write about Y") have no single title-keyword anchor. EntityIndex regex over body+tags + 3-variant LLM expansion + RRF fusion routes by entity content. | Q-ENTITY +0.10-0.20 over greedy nav. |
 | **Synthesis-question guard** | Greedy convergence stops after first fetch on "what did X say about Y" queries → shallow answer → 0.00. Inject "fetch a second range" user message after one fetch on synthesis questions. | Synthesis 0.12 → 0.50. |
 | **Hermes-format tool-call parser fallback** | Some MLX-quantized Qwen models emit tool calls as `<function=NAME>...</function>` plain text in `message.content`. vMLX doesn't extract this template. Regex fallback recovers. | DWQ retriever 0.39 → 0.67 (+0.28). |
-| **Level-2 RAPTOR-style cluster pre-fetch** | Cross-section synthesis + multi-query expansion still spend 2-3 LLM iterations per query just locating relevant page ranges. Pre-fetch the cluster of related leaves in one BGE-M3 cosine call BEFORE first LLM call → model gets exact pages to fetch in iter 0. | Q4 0.00 → 0.75 (Bad-Case Entry 17); Q11 1.00 preserved; -33% latency. |
+| **Level-2 RAPTOR-style cluster pre-fetch** | Cross-section synthesis + multi-query expansion still spend 2-3 LLM iterations per query just locating relevant page ranges. Pre-fetch the cluster of related leaves in one BGE-M3 cosine call BEFORE first LLM call → model gets exact pages to fetch in iter 0. | Q4 0.00 → 0.75 (Bad-Case Entry 11); Q11 1.00 preserved; -33% latency. |
 | **Top-K with delta-band tiebreak on cluster routing** | Top-1 cluster pick demands embedding precision below noise floor (~0.05 cosine). Top-K within δ=0.07 returns both candidates when ambiguous; LLM tiebreak via tags. | Block 1+2 walkthrough above. |
-| **Multi-pass build with retry helper** | vMLX returns 503 'GPU working set too full' under accumulated load. Original PageIndex assumes reliable inference. `_llm_call_with_retry` with progressive backoff (15→300s) + per-cluster journaling absorbs transient failures. | Build went from "5/8 empty cluster titles" to "8/8 reliable" (Entry 16). |
+| **Multi-pass build with retry helper** | vMLX returns 503 'GPU working set too full' under accumulated load. Original PageIndex assumes reliable inference. `_llm_call_with_retry` with progressive backoff (15→300s) + per-cluster journaling absorbs transient failures. | Build went from "5/8 empty cluster titles" to "8/8 reliable" (Entry 10). |
 | **2-model split discipline** | Single MoE model for everything (PageIndex assumption) breaks under sustained tool-call load (Issue #1011). Splitting MODEL_TREE (hot path, 9B-GLM) from MODEL_SONNET (judge baseline, Gemma-26B) preserves both speed and comparability. | Eval wall-clock 30 min → 12 min (2.5×) with quality preserved. |
 
 #### What we can leverage further from PageIndex
@@ -999,7 +999,7 @@ PageIndex's structural insight (ToC tree as scaffold) is the right primitive for
 
 ### Open Questions (post-cluster-prefetch)
 
-4. **Variant generator literal-preservation** — fix Entry 19 by always preserving query phrase as variant #0. Estimated +0.10 on document-specific-term factoids (Q9, similar).
+4. **Variant generator literal-preservation** — fix Entry 13 by always preserving query phrase as variant #0. Estimated +0.10 on document-specific-term factoids (Q9, similar).
 5. **Q3/Q12 synthesis breadth** — broaden synthesis prompt to encourage multi-page entity coverage when expected_entities span themes. Phoenix trace shows Q3's retrieval is correct (page 9 fetched first) but synthesis only summarizes that one page. Estimated +0.25-0.50 on Q3 + Q12.
 6. **Approach B with title-injecting hint** — replace AMBIGUOUS hint with cluster member TITLES list. Eliminates tiebreak ambiguity for Q11-class queries. May make Approach B viable. Estimated +0.05 if combined with current K-means; +0.15 if combined with LLM-grouping.
 7. **Dynamic δ tuning** — vary δ per query based on max cosine score (high confidence → tighter δ → fewer AMBIGUOUS triggers). Could let LLM-grouping work without breaking Q11-class.

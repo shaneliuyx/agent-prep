@@ -208,6 +208,41 @@ _CLUSTER_TOOL = {
 }
 
 
+def _expand_with_neighbors(
+    pages: list[int], window: int = 1,
+) -> list[tuple[int, int]]:
+    """Expand each page number by ±window neighbors, dedup, and emit
+    contiguous (start, end) ranges.
+
+    Page-level vector match returns single pages, but multi-page topics
+    (e.g. Berkshire's Japanese trading houses section spans pages 12-13)
+    need neighbor context. Caller fetches each (start, end) range as one
+    contiguous block — efficient over per-page fetches when neighbors
+    overlap.
+
+    Lower bound clipped to 1 (PDF page numbers are 1-indexed).
+    """
+    if not pages:
+        return []
+    expanded: set[int] = set()
+    for p in pages:
+        for d in range(-window, window + 1):
+            np = p + d
+            if np >= 1:
+                expanded.add(np)
+    sorted_pages = sorted(expanded)
+    ranges: list[tuple[int, int]] = []
+    start = prev = sorted_pages[0]
+    for p in sorted_pages[1:]:
+        if p == prev + 1:
+            prev = p
+        else:
+            ranges.append((start, prev))
+            start = prev = p
+    ranges.append((start, prev))
+    return ranges
+
+
 _LOW_QUALITY_REFUSAL_PATTERNS = (
     "i don't have", "i cannot find", "i am unable",
     "i do not have", "the document does not",
@@ -291,7 +326,11 @@ class AgenticTreeRetriever:
                         fragments). Pass a different prompt only when the
                         corpus has a structurally different shape.
         max_iterations: bounded loop ceiling (default 6).
-        max_range_chars: per-fetch char cap on returned text (default 8000).
+        max_range_chars: per-fetch char cap on returned text (default 25000).
+                         Bumped from 8000 (2026-05-09) — 8000 truncated mid-
+                         Chairman's-Letter on Q9-class queries, hiding the
+                         Scorecard table on page 13. 25K covers full sections
+                         (Chairman's Letter is ~30K; most subsections fit).
         debug_log_path: if set, append `[Nit/Mtc] q=... ans=...` per call for
                         cross-process debugging.
 
@@ -307,7 +346,7 @@ class AgenticTreeRetriever:
         model_name: str,
         system_prompt: str,
         max_iterations: int = 4,
-        max_range_chars: int = 8000,
+        max_range_chars: int = 25000,
         debug_log_path: str | None = None,
         # Optional v2 — entity-graph + auto-merge tools
         tree_index=None,        # TreeIndex instance for subtree fetch
@@ -510,15 +549,20 @@ class AgenticTreeRetriever:
             return ""
         if not top_pages:
             return ""
+        # Expand each top hit by ±1 neighbor + dedup to contiguous ranges.
+        # Multi-page topics (e.g. Japanese trading houses spans pages 12-13)
+        # are missed when only the top-1 page is fetched.
+        page_nums = [p for p, _ in top_pages]
+        ranges = _expand_with_neighbors(page_nums, window=1)
         passages = "\n\n".join(
-            f"[page {p}]\n{self.page_provider(p, p)}"
-            for p, _ in top_pages
+            f"[pages {s}-{e}]\n{self.page_provider(s, e)}"
+            for s, e in ranges
         )
         try:
             resp = self.client.chat.completions.create(
                 model=self.model,
                 temperature=0.0,
-                max_tokens=400,
+                max_tokens=1000,
                 messages=[
                     {"role": "system", "content": (
                         "Answer the question using ONLY the provided passages. "
@@ -649,7 +693,7 @@ class AgenticTreeRetriever:
         for iteration in range(self.max_iterations):
             resp = self.client.chat.completions.create(
                 model=self.model, messages=msgs, tools=self._tools,
-                temperature=0.0, max_tokens=800,
+                temperature=0.0, max_tokens=1500,
             )
             msg = resp.choices[0].message
             tcalls = getattr(msg, "tool_calls", None) or []
@@ -777,18 +821,65 @@ class AgenticTreeRetriever:
                 "role": "user",
                 "content": (
                     "BUDGET EXHAUSTED. Stop calling tools. Write the final "
-                    "answer NOW from the observations you already have above. "
-                    "If you found ANY relevant facts in the fetched text "
-                    "(named entities, numbers, phrases), state them with the "
-                    "page citations. Do NOT respond 'insufficient context' "
-                    "if your fetches contain anything on-topic — partial "
-                    "answers score higher than refusals. Three sentences max."
+                    "answer NOW from the observations you already have above.\n\n"
+                    "STRICT RULES (these prevent hallucination under pressure):\n"
+                    "1. Use ONLY facts that appear VERBATIM in the fetched "
+                    "text observations above. Do NOT supplement with knowledge "
+                    "from outside the fetched text, even if you remember the "
+                    "answer from training data.\n"
+                    "2. Cite ONLY page numbers that appear in the fetched "
+                    "ranges above. Do NOT cite pages you did not fetch.\n"
+                    "3. If the fetched text contains a partial answer "
+                    "(named entities, numbers, phrases on the question's "
+                    "specific topic), state what you found with the actual "
+                    "fetched page citation. Partial answers score higher "
+                    "than refusals.\n"
+                    "4. If the fetched text does NOT contain any answer "
+                    "to THIS specific question (e.g. question asks about "
+                    "Scorecard but fetched text is about non-controlled "
+                    "businesses), respond with the exact phrase "
+                    "'insufficient context' — fabricating a confident "
+                    "answer from training memory is the worst outcome.\n"
+                    "5. OUTPUT FORMAT — ABSOLUTE RULES:\n"
+                    "   (a) Your FIRST token must be the first word of the "
+                    "answer. NO preamble. FORBIDDEN openings: 'The user is "
+                    "asking', 'This is a', 'From what I've fetched', "
+                    "'Let me synthesize', 'Actually,', 'Based on the "
+                    "fetched text', 'I have enough', 'Looking at the "
+                    "passages', 'Here is the answer'. If you start with "
+                    "any of those, you have failed.\n"
+                    "   (b) NO numbered lists. NO bullet points. NO bold "
+                    "headers like '**Stewardship**:'. Write flowing "
+                    "prose paragraphs only.\n"
+                    "   (c) NO quoted passage dumps. Do not paste "
+                    "sentences from the source text in quote marks. "
+                    "Paraphrase into your own prose.\n"
+                    "   (d) NO meta-commentary about your process. "
+                    "Do not say what you fetched, what's in the source, "
+                    "or what you're about to do.\n"
+                    "   (e) Length: 2-5 sentences in 1-2 short "
+                    "paragraphs. Cite pages inline as [page N] or "
+                    "[pages X-Y].\n\n"
+                    "Example of CORRECT output for a contrast question:\n"
+                    "  'Buffett frames Berkshire as a steward for "
+                    "long-term shareholders rather than a vehicle for "
+                    "trading activity. Where Wall Street thrives on "
+                    "feverish turnover and markets whatever sells "
+                    "[page 9], Berkshire pledges extreme fiscal "
+                    "conservatism and direct CEO communication to its "
+                    "lifetime owners [pages 5, 10].'\n\n"
+                    "Example of WRONG output (DO NOT DO THIS):\n"
+                    "  'The user is asking about... From the Chairman's "
+                    "Letter I found: 1. Page 5: ...quote... 2. Page 10: "
+                    "...quote...'\n\n"
+                    "Begin your answer with the first word of the "
+                    "actual answer NOW."
                 ),
             })
             try:
                 resp = self.client.chat.completions.create(
                     model=self.model, messages=msgs,
-                    temperature=0.0, max_tokens=400,
+                    temperature=0.0, max_tokens=800,
                     # Note: no `tools` argument — force text-only output
                 )
                 forced = (resp.choices[0].message.content or "").strip()

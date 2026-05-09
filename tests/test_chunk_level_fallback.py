@@ -150,6 +150,65 @@ def test_chunk_level_fallback_returns_empty_on_llm_refusal() -> None:
         f"refusal answer must propagate as empty string, got {result!r}"
 
 
+def test_neighbor_page_expansion_dedup_to_contiguous_ranges() -> None:
+    """When top-K page hits are [13, 151, 57], expand each by ±1 neighbor,
+    dedup, and emit contiguous (start, end) ranges. Catches multi-page
+    topics (e.g. Japanese trading houses spans pages 12-13)."""
+    from tree_index.agentic import _expand_with_neighbors
+    ranges = _expand_with_neighbors([13, 151, 57], window=1)
+    assert ranges == [(12, 14), (56, 58), (150, 152)], \
+        f"unexpected ranges: {ranges}"
+
+
+def test_neighbor_page_expansion_merges_overlapping_neighbors() -> None:
+    """Adjacent pages with overlapping windows must merge into one range."""
+    from tree_index.agentic import _expand_with_neighbors
+    # Pages 13 and 14 with window=1 → {12,13,14, 13,14,15} → merged (12, 15)
+    ranges = _expand_with_neighbors([13, 14], window=1)
+    assert ranges == [(12, 15)], f"unexpected ranges: {ranges}"
+
+
+def test_neighbor_page_expansion_clips_at_page_one() -> None:
+    """Page 1 with window=2 must clip lower bound to 1, not 0 or negative."""
+    from tree_index.agentic import _expand_with_neighbors
+    ranges = _expand_with_neighbors([1, 2], window=2)
+    assert ranges[0][0] == 1, f"lower bound must be 1, got {ranges[0]}"
+
+
+def test_chunk_level_fallback_uses_neighbor_expansion(monkeypatch) -> None:
+    """End-to-end: when search returns page 13, fallback fetches pages
+    12-14 (the neighbor window), not just page 13."""
+    pvi = _make_pvi()
+
+    fake_resp = MagicMock()
+    fake_resp.choices = [MagicMock()]
+    fake_resp.choices[0].message.content = "answer with 9% stake."
+    mock_client = MagicMock()
+    mock_client.chat.completions.create = MagicMock(return_value=fake_resp)
+
+    fetched_ranges: list[tuple[int, int]] = []
+
+    def tracking_provider(s: int, e: int) -> str:
+        fetched_ranges.append((s, e))
+        return f"[pages {s}-{e}]\nbody"
+
+    retriever = AgenticTreeRetriever(
+        tree=_minimal_tree(),
+        page_provider=tracking_provider,
+        model_client=mock_client,
+        model_name="test-model",
+        system_prompt="test prompt",
+        page_vector_index=pvi,
+    )
+    # Force search to return page 2 (synthetic): with window=1 should
+    # fetch range (1, 3)
+    retriever._chunk_level_fallback("Apple")
+    # 3-page synthetic PVI returns all 3 pages [2, 1, 3] for top_k=3.
+    # Neighbor expansion window=1: {1,2,3} ∪ {1,2} ∪ {2,3,4} = {1,2,3,4}
+    # → contiguous range (1, 4).
+    assert (1, 4) in fetched_ranges, f"expected (1,4), got {fetched_ranges}"
+
+
 def test_chunk_level_fallback_returns_empty_on_llm_error() -> None:
     """When LLM call raises, fallback must swallow the error and return
     empty string. Don't crash the user query just because fallback failed."""
