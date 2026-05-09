@@ -67,6 +67,10 @@ def kmeans_cluster(
     return km.fit_predict(embeddings)
 
 
+def _partial_path(out_path: Path) -> Path:
+    return out_path.parent / (out_path.name + ".partial")
+
+
 def write_atomic(out_path: Path, payload: dict) -> None:
     """Write JSON atomically: temp file in same dir, fsync, rename."""
     out_path = Path(out_path)
@@ -77,7 +81,12 @@ def write_atomic(out_path: Path, payload: dict) -> None:
         dir=str(out_path.parent),
     )
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except Exception:
+            os.close(fd)
+            raise
+        with f:
             json.dump(payload, f, indent=2, sort_keys=True)
             f.flush()
             os.fsync(f.fileno())
@@ -88,14 +97,8 @@ def write_atomic(out_path: Path, payload: dict) -> None:
         except FileNotFoundError:
             pass
         raise
-    # Clean up any stale partial
-    partial = out_path.parent / (out_path.name + ".partial")
-    if partial.exists():
-        partial.unlink()
-
-
-def _partial_path(out_path: Path) -> Path:
-    return out_path.parent / (out_path.name + ".partial")
+    # Clean up any stale partial via the centralized helper
+    _partial_path(out_path).unlink(missing_ok=True)
 
 
 def journal_partial(out_path: Path, clusters_so_far: list[dict]) -> None:
@@ -108,7 +111,12 @@ def journal_partial(out_path: Path, clusters_so_far: list[dict]) -> None:
         prefix=pp.name + ".", suffix=".tmp", dir=str(pp.parent),
     )
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except Exception:
+            os.close(fd)
+            raise
+        with f:
             json.dump(payload, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
@@ -127,6 +135,17 @@ def load_partial(out_path: Path) -> list[dict]:
     if not pp.exists():
         return []
     try:
-        return json.loads(pp.read_text(encoding="utf-8")).get("clusters_completed", [])
-    except Exception:
+        data = json.loads(pp.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        # Corrupt journal — log but don't crash. Build restarts from
+        # scratch on next run.
+        import logging
+        logging.warning(
+            f"load_partial: ignoring corrupt journal at {pp}: "
+            f"{type(e).__name__}: {e}"
+        )
         return []
+    if not isinstance(data, dict):
+        return []
+    completed = data.get("clusters_completed", [])
+    return completed if isinstance(completed, list) else []
