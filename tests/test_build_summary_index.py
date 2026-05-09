@@ -93,3 +93,36 @@ def test_resume_flow_cleans_partial_on_commit(tmp_path: Path) -> None:
     assert out.exists()
     assert not _partial_path(out).exists(), \
         "write_atomic must clean .partial after committing the final artifact"
+
+
+def test_summarize_cluster_returns_required_fields() -> None:
+    from build_summary_index import summarize_cluster
+
+    member_summaries = [
+        "Buffett discusses Coca-Cola, American Express ownership.",
+        "Berkshire holds 27.8% of Occidental Petroleum.",
+    ]
+
+    class FakeClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    class M:
+                        content = json.dumps({
+                            "title": "Non-controlled investments",
+                            "summary": ("Discusses Coca-Cola, American Express, "
+                                        "and 27.8% Occidental Petroleum stakes."),
+                            "tags": ["Coca-Cola", "American Express",
+                                     "Occidental", "27.8%"],
+                        })
+                    class C:
+                        message = M()
+                    class R:
+                        choices = [C()]
+                    return R()
+
+    out = summarize_cluster(FakeClient(), "test-model", member_summaries)
+    assert out["title"]
+    assert len(out["summary"]) >= 30
+    assert len(out["tags"]) >= 3

@@ -149,3 +149,53 @@ def load_partial(out_path: Path) -> list[dict]:
         return []
     completed = data.get("clusters_completed", [])
     return completed if isinstance(completed, list) else []
+
+
+_CLUSTER_SUMMARIZE_SYSTEM = """You receive 2-10 document section summaries
+that share a thematic cluster. Generate a SINGLE cluster meta-summary that
+preserves verbatim entities + quoted phrases from the inputs.
+
+OUTPUT: strict JSON with exactly these keys:
+  {
+    "title":   "<3-8 word cluster theme — distinctive phrase from inputs>",
+    "summary": "<100-180 word prose summary covering ALL member sections.
+                 PRESERVE: every named entity verbatim (Coca-Cola, Itochu,
+                 BNSF), every distinctive quoted phrase ('not-so-secret
+                 weapon', 'patience pays'), every numeric fact with units
+                 ($364.5 billion, 27.8%). Do NOT paraphrase distinctive
+                 vocabulary>",
+    "tags":    ["<15-30 lookup tokens — entities, aliases, numeric anchors,
+                 quoted phrases>"]
+  }
+
+Output ONLY this JSON. No prose preamble."""
+
+
+def summarize_cluster(client, model: str,
+                      member_summaries: list[str]) -> dict:
+    """One LLM call → cluster {title, summary, tags}.
+
+    Defensive: returns empty-fields dict on JSON parse failure or
+    LLM error. Caller decides whether to retry or use fallback."""
+    user = "\n\n---\n\n".join(member_summaries)
+    try:
+        r = client.chat.completions.create(
+            model=model, temperature=0.0, max_tokens=500,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": _CLUSTER_SUMMARIZE_SYSTEM},
+                {"role": "user", "content": user},
+            ],
+        )
+        raw = (r.choices[0].message.content or "{}").strip()
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            return {"title": "", "summary": "", "tags": []}
+        for k in ("title", "summary"):
+            if not isinstance(parsed.get(k), str):
+                parsed[k] = ""
+        if not isinstance(parsed.get("tags"), list):
+            parsed["tags"] = []
+        return parsed
+    except Exception:
+        return {"title": "", "summary": "", "tags": []}
