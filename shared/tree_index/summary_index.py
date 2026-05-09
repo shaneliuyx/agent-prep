@@ -31,6 +31,13 @@ class SummaryIndex:
         FileNotFoundError: if index_path does not exist.
         RuntimeError:      if tree_hash mismatches (index is stale).
         ValueError:        if index_path is malformed JSON or missing fields.
+
+    Note:
+        cluster_embeddings validation is deferred to set_embedder(),
+        not __init__, to allow loading the index in read-only / metadata
+        contexts (e.g., listing cluster titles without doing any cosine
+        search). Callers that need search must call set_embedder() and
+        will surface the missing-embeddings ValueError there.
     """
 
     def __init__(self, index_path: Path, tree_path: Path) -> None:
@@ -67,10 +74,22 @@ class SummaryIndex:
             raise ValueError("summary_index has no clusters")
         self.clusters: list[dict[str, Any]] = clusters
         self.build_meta: dict[str, Any] = meta
+        # Lazy-initialized via set_embedder() before find_cluster_for_query
+        # is callable. Centralizing the attr declaration here makes instance
+        # state discoverable without relying on hasattr() guards.
+        self._embedder: Optional[Callable[[str], "np.ndarray"]] = None
+        self._cluster_emb: Optional["np.ndarray"] = None
 
     def set_embedder(self, fn: Callable[[str], "np.ndarray"]) -> None:
         """Inject the query-time embedder. Default: caller wires BGE-M3.
         Tests inject deterministic mocks."""
+        if self._embedder is not None:
+            raise RuntimeError(
+                "set_embedder() already called; create a new SummaryIndex "
+                "instance to swap embedders. Re-calling would silently "
+                "re-normalize already-normalized centroids if the source "
+                "data ever drifts."
+            )
         self._embedder = fn
         self._cluster_emb = np.array(
             self.build_meta.get("cluster_embeddings", []), dtype=np.float32
@@ -91,7 +110,7 @@ class SummaryIndex:
 
         Returns: {cluster: dict, confidence: float} or None.
         """
-        if not hasattr(self, "_embedder"):
+        if self._embedder is None:
             raise RuntimeError(
                 "set_embedder() must be called before find_cluster_for_query"
             )

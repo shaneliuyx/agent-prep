@@ -145,3 +145,40 @@ def test_find_cluster_returns_none_below_threshold(
     si.set_embedder(lambda text: np.array([0.0, 1.0]))   # orthogonal
     hit = si.find_cluster_for_query("anything", threshold=0.5)
     assert hit is None
+
+
+def test_find_cluster_raises_if_embedder_not_set(tmp_path: Path) -> None:
+    """RuntimeError if find_cluster_for_query called before set_embedder."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash(tree),
+            "cluster_embeddings": [[1.0, 0.0]],
+        },
+        "clusters": [{"cluster_id": "C1", "title": "X", "summary": "",
+                      "tags": [], "member_node_ids": ["0001"],
+                      "primary_pages": [[1, 2]]}],
+    }))
+    si = SummaryIndex(idx, tree)
+    with pytest.raises(RuntimeError, match="set_embedder"):
+        si.find_cluster_for_query("anything")
+
+
+def test_set_embedder_raises_on_missing_cluster_embeddings(
+    tmp_path: Path,
+) -> None:
+    """set_embedder raises ValueError when build_meta lacks cluster_embeddings."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {"tree_hash": tree_hash(tree)},   # NO cluster_embeddings
+        "clusters": [{"cluster_id": "C1", "title": "X", "summary": "",
+                      "tags": [], "member_node_ids": ["0001"],
+                      "primary_pages": [[1, 2]]}],
+    }))
+    si = SummaryIndex(idx, tree)
+    with pytest.raises(ValueError, match="cluster_embeddings"):
+        si.set_embedder(lambda text: np.array([1.0, 0.0]))
