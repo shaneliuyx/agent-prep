@@ -766,12 +766,13 @@ sequenceDiagram
   participant E as BGE-M3 embedder
   participant S as cosine scores
   participant R as ranked desc
-  participant O as out
+  participant O as output filter
+  participant C as caller
   Q->>E: encode and L2 normalize
   E->>S: dot product centroids by q_emb
   S->>R: sort desc by score
-  R->>O: walk top_k; keep s geq threshold AND best minus s leq delta
-  O-->>O: return list of cluster confidence pairs
+  R->>O: walk top_k cap at threshold and delta band
+  O->>C: list of cluster confidence pairs
 ```
 
 ```python
