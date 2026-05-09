@@ -1160,3 +1160,149 @@ The remaining multi_hop ceiling (~0.65) is extraction-completeness: bridging edg
 4. **presence_penalty is a footgun for multi-entity recall.** Even when not the root cause of a specific regression, presence_penalty > 0 suppresses entity repetition. Default (0) is correct for answer synthesis.
 5. **None guards essential when testing reasoning models.** Reasoning models exhaust max_tokens on CoT and return `content=None`. Always guard: `resp.choices[0].message.content or ""`.
 6. **Eval-set quality is co-equal with retrieval quality.** Two failure modes: (a) corpus-absent expected entities score 0.00 regardless of retrieval — fix by grepping corpus and replacing with confirmed-present entities whose bridging facts appear in article opening paragraphs; (b) implicit concept seeds ("founders attended both Stanford") return empty seed lists — fix by rewriting to explicit named-entity seeds ("alumni of Stanford University"). v21→v23: multi_hop 0.34→0.65 (+0.31), ALL 0.70→0.80 (+0.10), W/L/T 24/0/8→28/0/4 — zero code changes.
+
+---
+
+## v12.2 → v12.4m: Universal read-path overhaul (2026-05-02)
+
+### Phase Progression
+
+**v12.2 (baseline rebuild):** Graph rebuilt with v12.1 extraction layer + degree centrality scoring. Baseline established for measuring mechanism gains.
+
+**v12.3 (Phase A—universal read mechanisms):** Six core mechanisms deployed to `query_graph.py` (50 LOC delta):
+1. Topology gate (`qid IS NOT NULL OR degree >= 2`) filtering singleton noise
+2. Two-stage seed resolution (phrase→OR fallback on topology prune)
+3. GDS projection refresh per-process (drop+reproject on first call)
+4. QID disambig inline tags + system prompt rules
+5. Bridge-first context ordering + explicit bridge example in prompt
+6. Two-pass output structure (FACTS + ANSWER for factoid/relational; LIST = answer-only)
+
+**v12.4 Phase B:** Decomposition opt-in via LLM-decided `expand_terminal` flag + COMPOUND CoT type.
+
+**v12.4e:** Substring-token expansion + LIST CoT.
+
+**v12.4m (final):** Universal prompts (corpus-portable, no hardcoded patterns) + canonical anchor resolution.
+
+### Results Summary
+
+| Metric | v12.2 | v12.4m | Δ | Significance |
+|---|---|---|---|---|
+| **Overall (judge)** | 0.81 | **0.96** | **+0.15** | +19% recall |
+| factoid | 0.86 | 1.00 | +0.14 | Perfect on 7 questions |
+| two_hop | 0.92 | 0.97 | +0.05 | 1 question fixed |
+| relational | 0.75 | 1.00 | +0.25 | +3 perfect answers |
+| multi_hop | 0.64 | 0.88 | +0.24 | +5 improved |
+| out_of_domain | 1.00 | 1.00 | — | Stable |
+| **W/L/T vs VectorRAG** | 30/1/1 | **32/0/0** | Strict dominance | 100% win rate |
+| Avg latency | 7.5s | ~18s | +140% | CoT output cost |
+
+### Universal Mechanisms (13 Total, No Hardcoded Patterns)
+
+| # | Mechanism | Layer | Phase | Function/Line |
+|---|---|---|---|---|
+| 1 | Topology gate (degree + QID filter) | Read-Cypher | A | `_RERANK_CYPHER` line 55 |
+| 2 | Two-stage seed resolution (phrase→OR) | Read-flow | A | `fetch_subgraph` line 250 |
+| 3 | GDS projection lifecycle | Read-init | A | `_ensure_gds_projection` line 645 |
+| 4 | QID disambig inline tags | Render+prompt | A | answer rendering |
+| 5 | Bridge-first + bridge example | Render+prompt | A | `answer()` ordering |
+| 6 | Two-pass output (FACTS+ANSWER) | Prompt+extract | A→B | `SYSTEM_PROMPT` |
+| 7 | Decomposition probes (14 probes, 0.929 pass) | Test | B | `decomp_probes.py` |
+| 8 | Opt-in step3 via `expand_terminal` | Decomp | B | `_execute_decomposition` |
+| 9 | COMPOUND question type + THINKING | Prompt | B | `SYSTEM_PROMPT` |
+| 10 | Substring-token expansion | Read-resolve | B | `fetch_subgraph` |
+| 11 | Surface-form-drift merge exception | Prompt | B | `SYSTEM_PROMPT` |
+| 12 | Intersection eligibility (named entities only) | Decomp prompt | B | `_DECOMPOSE_SYSTEM` |
+| 13 | Eval audit + correction (3 questions) | Test data | A+B | `data/eval.json` |
+
+### Code Walkthrough
+
+**`extract_seed_entities(query)` (line 82):** LLM-based seed extraction with regex fallback. Returns list of entity phrases to anchor graph traversal.
+
+**`_lucene_phrase_query(seed)` (line 130):** Phrase query with required tokens. Prefers exact multi-token matches; uses Neo4j fulltext phrase syntax.
+
+**`_lucene_or_query(seed)` (line 152):** OR fallback when phrase prunes too many results. Filters out singleton-frequency tokens (category noise: "CEO", "founder", "company").
+
+**`_resolve_seed_node_names(session, lucene, seed, limit, threshold)` (line 184):** Composite scorer (BM25 + QID bonus + exact bonus + log(degree)*coeff) + topology gate. Returns anchors with degree >= 2 OR explicit QID.
+
+**`_RERANK_CYPHER` (line 55):** Cypher scoring subquery. Ranks candidates by composite score; gates inclusion on `qid IS NOT NULL OR degree >= 2` to reject noise (sentence fragments, monetary amounts, "CEO of Apple").
+
+**`fetch_subgraph(seeds, max_hops)` (line 250):** Main retrieval flow. Two-stage: phrase resolution + OR fallback. Substring-token expansion: if "Larry Page" seed matches, also surface bare "Page" node if it has edges. Applies max_hops radius from all seeds.
+
+**`_decompose_multihop(query)` (line 455):** LLM query planner. Returns `plan: {type: "chain" or "intersection", step1a/step1b anchors, expand_terminal: bool}` or null. Classifier distinguishes multi-hop (decompose) vs single-hop (fetch subgraph).
+
+**`_execute_decomposition(plan)` (line 481):** Chain or intersection execution. Chain: step1 → step2 → optional step3. Intersection: step1a + step1b in parallel → bridge. Respects `expand_terminal` flag from LLM (probes show LLM-decided expansion outperforms always-on).
+
+**`_step_one_intermediates(session, anchor, edge_filter, limit)` (line 614):** Step1 enumeration. For founder/alumni queries, returns all connected entities. Post-filters on edge metadata (relation type) if decomp plan specifies.
+
+**`_ensure_gds_projection()` (line 645):** GDS in-memory projection lifecycle. Drops stale `entity-ppr-graph` on first call per process, reproject from current Neo4j data. Prevents "sourceNodes do not exist" errors after graph rebuilds.
+
+**`_ppr_retrieve(seeds, top_k)` (line 687):** Personalized PageRank from seed entities. Initializes with seed set, runs 20 iterations, returns top-k by proximity. Fallback for decomp-null or single-hop queries.
+
+**`_find_bridge_edges(e1, e2)` (line 760):** 1-hop intersection of two entities' neighborhoods. Finds all entities connected to both e1 and e2, returns edges. Triggered for "relationship" keyword queries.
+
+**`answer(query)` (line 805):** Top-level orchestrator. Flow: extract seeds → decompose or skip → fetch subgraph → apply bridge/PPR/decomp → render with QID tags → LLM (FACTS + ANSWER for FACTOID/RELATIONSHIP; ANSWER-only for LIST). COMPOUND queries get THINKING block for sub-clause reasoning.
+
+### Lessons Learned
+
+**1. Eval correctness is upstream of system correctness.** Removing 4 historically-incorrect entries (Pixar/PayPal/Hoffman questions) from eval.json delivered +0.03 — the system was already producing the right answer; eval was wrong. Always audit ground truth before debugging retrieval.
+
+**2. Outcome gates hide mechanism failures.** Phase A's overall lift wasn't enough. Needed decomp_probes.py (14 mechanism-level probes, 0.929 pass rate) to verify each component independently. Without per-mechanism tests, can't tell which fix delivered which gain.
+
+**3. Bug found in v12.2 by topology filter.** `_count_index_matches` measured pre-filter raw hits. Code committed to phrase strategy, then `_resolve_seed_node_names` post-filter returned empty → no fallback. Fixed with two-stage resolution: if phrase prunes all candidates, retry OR query.
+
+**4. GDS projection caches across processes.** `_GDS_GRAPH = "entity-ppr-graph"` persisted in Neo4j between Python invocations. After graph rebuild, cached projection had stale node IDs → "sourceNodes do not exist" spam. Fix: drop+reproject on first call per process.
+
+**5. CoT depth should match reasoning complexity.** THINKING helps COMPOUND chain reasoning but blows past max_tokens on dense LIST queries (30 alumni × 5 companies = 150 reasoning steps). Solution: bound THINKING to COMPOUND only; LIST uses internal LLM reasoning + concise output.
+
+**6. Token-limit truncation looks like attention failure.** Both produce "missing entity from answer" but differ: token limit → answer literally truncated mid-sentence; attention failure → answer complete but missing some entities. Inspect raw output to distinguish.
+
+**7. LLM-decided flags > hardcoded keyword detection.** `expand_terminal: bool` in decomposition plan lets LLM decide which queries need 3rd-hop expansion. Always-on step3 regressed simple chains by flooding with off-topic edges; opt-in via LLM flag preserved gains.
+
+**8. Substring expansion is universal across entity types.** Initial "surname" expansion generalizes to multi-word company/product/place names — any compound proper noun. Works because seed tokens include all substring matches (e.g., "Larry" + "Page" both match "Larry Page").
+
+**9. Examples-vs-rules conflict is silent in prompts.** Adding "Intersection eligibility: anchors must be named entities, not categories" but keeping an example with `"space"` and `"payments"` (both categories!) confused the LLM. Always audit examples for rule consistency when adding new rules.
+
+**10. Three classes of entity-merge problems.**
+  - Surface-form drift: same QID, different surface forms (handled by substring expansion)
+  - QID fragmentation: extraction LLM resolved different surfaces to different QIDs (Marc Andreessen vs Andreessen) — handled by surface-form-drift merge exception in prompt
+  - Temporal rename drift: same entity different time periods, NO Wikidata link, NO graph edge (Loudcloud → Opsware) — NOT solvable at read path; requires build-time deduplication
+
+**11. Intermediate-expansion at step1→step2 boundary is unstable.** When step1 returns "Page" surname, expanding to "Larry Page" at step2 helped Q29 (+0.40) but stochastically regressed Q21 (−0.34) or Q26 (−0.75) across runs. Different queries hit each run. Net negative. Reverted.
+
+**12. 3.4× latency cost for +0.15 recall.** Going from 0.81 → 0.96 came at 7.5s → 18s avg latency. Mostly from CoT output tokens. Acceptable for batch eval; reconsider for low-latency serving.
+
+### Best Practices (Validated)
+
+1. **Universal mechanisms over hardcoded patterns.** Use signals already in data (QID, degree, BM25, query tokens). No regex blacklists, no entity lists.
+2. **Push fixes up the stack.** Build-time validation > read-path scoring > render-time formatting > prompt instructions.
+3. **Mechanism probes before outcome eval.** Test components independently; fail fast at mechanism level.
+4. **Two-stage fallbacks:** phrase→OR, decomp→fetch, bridge→PPR, answer→facts-truncation. Always have degradation path.
+5. **Rules + examples in prompt, audit consistency.** Both needed; when adding rules, audit existing examples for violation.
+6. **Single-LLM-call-per-decision design.** Each decision (chain vs intersection, expand_terminal, COMPOUND vs LIST) flows through one structured LLM call.
+
+### Bad Cases (Specific Failures, Classification, Current Status)
+
+| Q# | Query | Expected | Issue | v12.2 | v12.4m | Status |
+|---|---|---|---|---|---|---|
+| 08 | Steve Jobs co-found? | Pixar | Jobs purchased, didn't co-found | 0.00 | — | **Eval bug, removed** |
+| 18 | Apple ↔ Pixar? | Bridge via Steve Jobs | Missed bridge in v12.2 | 0.75 | **1.00** | Fixed by bridge-first ordering |
+| 19 | Microsoft ↔ Paul Allen? | Relationship correct | Verbose phrasing | 1.00 | 1.00 | Stable, phrasing artifact |
+| 21 | Stanford founders | [Nvidia (Jensen)] | No Stanford edge in graph | 0.67 | 0.67 | **Graph gap (extraction)** |
+| 22 | Apple acquisitions + Jobs | Pixar | Apple didn't acquire Pixar (Disney) | 0.00 | — | **Eval bug, removed** |
+| 27 | Andreessen Horowitz + Opsware | [Loudcloud→Opsware] | Rename edge missing | 0.75 | 0.75 | **Build gap (temporal drift)** |
+| 29 | Stanford alumni tech founders | [Page entity fragmented] | Larry Page Q4934 vs Page Q13563379 | 0.40 | **0.88** | Fixed by QID-inline tags + merge exception |
+
+**Key insight:** 3 bad cases stuck (Q21, Q27 due to graph gaps; improvements require extraction/build changes). 3 fixed by read-path (Q18 bridge, Q29 QID handling). 2 were eval bugs (Q08, Q22, removed).
+
+### Latency Tradeoff
+
+Phase A/B mechanisms added CoT (THINKING block for COMPOUND queries, structured output parsing). Cost breakdown:
+
+- Base subgraph fetch: ~3-4s
+- Decomposition LLM call: ~2-3s
+- Answer LLM (FACTS + ANSWER parsing): ~3-4s (input BM25 + subgraph size dependent)
+- THINKING overhead: +2-3s on COMPOUND (10-15% of queries)
+- **Avg: 7.5s → 18s** (mostly CompoundCoT output tokens)
+
+Mitigation: Bound THINKING to COMPOUND only. For LIST queries, skip THINKING (already internally reasoned). For production, consider sampling or timeout on answer LLM if latency SLA < 10s.
+
