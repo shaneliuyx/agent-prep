@@ -44,7 +44,13 @@ class SummaryIndex:
         except json.JSONDecodeError as e:
             raise ValueError(f"summary_index malformed JSON: {e}") from e
 
-        meta = data.get("build_meta", {})
+        if "build_meta" not in data:
+            raise ValueError(
+                "summary_index missing required 'build_meta' field. "
+                "File is malformed; rebuild via "
+                "'python lab-02-7-pageindex/src/build_summary_index.py'."
+            )
+        meta = data["build_meta"]
         stored_hash = meta.get("tree_hash", "")
         actual_hash = tree_hash(self.tree_path)
         if stored_hash != actual_hash:

@@ -78,3 +78,14 @@ def test_summary_index_missing_file_raises_with_helpful_message(
     tree.write_text('{"node_id":"0001"}')
     with pytest.raises(FileNotFoundError, match="build_summary_index"):
         SummaryIndex(tmp_path / "missing.json", tree)
+
+
+def test_summary_index_raises_on_missing_build_meta(tmp_path: Path) -> None:
+    """build_meta absent → ValueError, not a misleading 'stale' RuntimeError."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    # No build_meta field — corrupt index
+    idx.write_text(json.dumps({"clusters": [{"cluster_id": "C1"}]}))
+    with pytest.raises(ValueError, match="build_meta"):
+        SummaryIndex(idx, tree)
