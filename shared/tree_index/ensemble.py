@@ -78,6 +78,7 @@ class EnsembleTreeRetriever:
         model_name: str,
         tree_index,                   # required
         entity_index,                 # required
+        summary_index=None,           # Optional[SummaryIndex] — wired into v2 only
         synthesis_model: str | None = None,  # default = model_name (single-model setup)
         max_iterations: int = 6,
         max_range_chars: int = 8000,
@@ -103,7 +104,7 @@ class EnsembleTreeRetriever:
             debug_log_path=debug_log_path,
         )
 
-        # Path B — v2 with entity-graph + auto-merge
+        # Path B — v2 with entity-graph + auto-merge + cluster pre-fetch
         self.v2 = AgenticTreeRetriever(
             tree=tree, page_provider=page_provider,
             model_client=model_client, model_name=model_name,
@@ -113,6 +114,7 @@ class EnsembleTreeRetriever:
             debug_log_path=debug_log_path,
             tree_index=tree_index,
             entity_index=entity_index,
+            summary_index=summary_index,
         )
 
     def answer(self, query: str) -> dict[str, Any]:

@@ -38,6 +38,7 @@ from tree_index import (                                # noqa: E402
     EntityIndex,
     TreeIndex,
 )
+from tree_index.summary_index import SummaryIndex      # noqa: E402
 
 # Phoenix tracing — auto-instruments OpenAI calls. Lazy/optional: skip silently
 # if not installed or server not reachable. View at http://127.0.0.1:6006.
@@ -101,6 +102,30 @@ def main():
     print(f"[{variant}] eval set: {len(full)} questions", flush=True)
 
     page_provider, raw_provider = _make_pp(pdf_path)
+
+    def _load_summary_index():
+        """Best-effort SummaryIndex load. Returns None if missing/stale.
+
+        Embedder is BGE-M3 on MPS (reused from prompt_dev / lab-02-3 baseline).
+        """
+        try:
+            si = SummaryIndex(
+                index_path=_LAB_ROOT / "data" / "summary_index.json",
+                tree_path=_LAB_ROOT / "data" / "tree.json",
+            )
+            from sentence_transformers import SentenceTransformer
+            _bge = SentenceTransformer("BAAI/bge-m3", device="mps")
+            si.set_embedder(
+                lambda t: _bge.encode([t], normalize_embeddings=True)[0]
+            )
+            print(f"[{variant}] SummaryIndex loaded: {len(si.clusters)} clusters",
+                  flush=True)
+            return si
+        except (FileNotFoundError, RuntimeError, ValueError) as e:
+            print(f"[{variant}] SummaryIndex unavailable: {type(e).__name__}: {e}",
+                  flush=True)
+            return None
+
     if variant == "v1":
         retriever = AgenticTreeRetriever(
             tree=tree, page_provider=page_provider,
@@ -110,20 +135,24 @@ def main():
     elif variant == "v2":
         ti = TreeIndex(tree)
         ei = EntityIndex(ti, page_provider=raw_provider)
+        si = _load_summary_index()
         retriever = AgenticTreeRetriever(
             tree=tree, page_provider=page_provider,
             model_client=omlx, model_name=model,
             system_prompt=AGENTIC_SYSTEM_TEMPLATE_V2,
             tree_index=ti, entity_index=ei,
+            summary_index=si,
         )
     else:  # ensemble (best-of-both v1 + v2 with synthesis-time LLM picker)
         ti = TreeIndex(tree)
         ei = EntityIndex(ti, page_provider=raw_provider)
+        si = _load_summary_index()
         retriever = EnsembleTreeRetriever(
             tree=tree, page_provider=page_provider,
             model_client=omlx, model_name=model,
             synthesis_model=synthesis_model,
             tree_index=ti, entity_index=ei,
+            summary_index=si,
         )
 
     # Health check the model. Retry up to 3 times on connection error
