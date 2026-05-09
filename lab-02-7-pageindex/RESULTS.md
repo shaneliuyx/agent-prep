@@ -687,50 +687,50 @@ Today's architecture extends v2 (entity-graph + multi-query + multi-pass) with a
 flowchart TB
     Q3["Query"] --> CLS{Synthesis<br/>question?}
 
-    subgraph BUILD3["BUILD-TIME — Level 1 + Level 2 (offline, ~12 min)"]
+    subgraph BUILD3["BUILD-TIME Level 1 + Level 2 (offline, ~12 min)"]
         direction TB
         PDF3[PDF] --> P1B[Pass 1+2 multi-pass<br/>tree summaries + tags]
         P1B --> TREE3[tree.json<br/>Level 1: ~45 leaves]
         TREE3 --> EI3[EntityIndex<br/>regex over body+tags]
         TREE3 --> EMB3[BGE-M3 embed<br/>each leaf summary]
         EMB3 --> KM3[K-means k=8<br/>random_state=42]
-        KM3 --> SUM3[Per-cluster Gemma summarize<br/>title+summary+tags<br/>+ retry helper for 503s]
-        SUM3 --> SI3[summary_index.json<br/>Level 2: 8 clusters<br/>+ tree_hash binding]
+        KM3 --> SUM3[Per-cluster Gemma summarize<br/>title+summary+tags<br/>retry helper for 503s]
+        SUM3 --> SI3[summary_index.json<br/>Level 2: 8 clusters<br/>tree_hash binding]
     end
 
-    CLS -->|yes| CL1[find_clusters_for_query<br/>top_k=2, δ=0.07]
+    CLS -->|yes| CL1["find_clusters_for_query<br/>top_k=2, delta=0.07"]
     CLS -->|no, has entity| EP3[Entity-prefetch path<br/>v2 unchanged]
     CLS -->|no, neither| R3
 
     SI3 -.cluster centroids.-> CL1
 
     CL1 --> CLOUT{candidates}
-    CLOUT -->|1 hit| SINGLE[CLUSTER hint:<br/>cluster_id + member_node_ids<br/>+ primary_pages + tags]
-    CLOUT -->|2 hits gap≤δ| AMBIG[AMBIGUOUS hint:<br/>2 candidates + tags<br/>'tiebreak by tags/members<br/>do NOT default to highest score']
+    CLOUT -->|1 hit| SINGLE["CLUSTER hint:<br/>cluster_id + member_node_ids<br/>primary_pages + tags"]
+    CLOUT -->|"2 hits gap leq delta"| AMBIG["AMBIGUOUS hint:<br/>2 candidates + tags<br/>tiebreak by tags/members<br/>do NOT default to highest"]
     CLOUT -->|0 hits| EP3
     SINGLE --> R3
     AMBIG --> R3
     EP3 --> R3
 
     TREE3 -.TOC.-> R3
-    EI3 -.entity → nodes.-> R3
+    EI3 -.entity to nodes.-> R3
 
-    R3[AgenticTreeRetriever<br/>system: AGENTIC_SYSTEM_TEMPLATE_V2<br/>+ Rule -1 cluster-first]
+    R3["AgenticTreeRetriever<br/>system: AGENTIC_SYSTEM_TEMPLATE_V2<br/>Rule -1 cluster-first"]
 
     subgraph LOOP3["AGENT LOOP (max_iterations=6, 4 tools, 9B-GLM)"]
         direction TB
         LLM3[LLM call<br/>5 routing rules]
         LLM3 --> DEC3{Tool?}
-        DEC3 -->|Rule -1: cluster-first| T3D[find_cluster_for_synthesis]
-        DEC3 -->|Rule 0: title-literal| T3A[get_page_content]
-        DEC3 -->|Rule 1: entity match| T3B[find_nodes_mentioning<br/>+ multi-query expansion]
-        DEC3 -->|Rule 2: subtree synth| T3C[get_subtree_text]
+        DEC3 -->|"Rule -1: cluster-first"| T3D[find_cluster_for_synthesis]
+        DEC3 -->|"Rule 0: title-literal"| T3A[get_page_content]
+        DEC3 -->|"Rule 1: entity match"| T3B[find_nodes_mentioning<br/>multi-query expansion]
+        DEC3 -->|"Rule 2: subtree synth"| T3C[get_subtree_text]
         DEC3 -->|content text| FINAL3[Final answer]
         T3A --> OBS3[Observation]
         T3B --> OBS3
         T3C --> OBS3
         T3D --> OBS3
-        OBS3 --> SG3{Synthesis +<br/><2 fetches?}
+        OBS3 --> SG3{"Synthesis +<br/>fewer than 2 fetches?"}
         SG3 -->|yes| INJ3[Inject 'fetch second range']
         SG3 -->|no| LLM3
         INJ3 --> LLM3
@@ -764,14 +764,14 @@ flowchart TB
 sequenceDiagram
   participant Q as query
   participant E as BGE-M3 embedder
-  participant S as scores = centroids @ q_emb
+  participant S as cosine scores
   participant R as ranked desc
   participant O as out
-  Q->>E: encode + L2 normalize
-  E->>S: dot product (cosine, since normalized)
+  Q->>E: encode and L2 normalize
+  E->>S: dot product centroids by q_emb
   S->>R: sort desc by score
-  R->>O: walk top_k; keep s≥threshold AND (best-s)≤delta
-  O-->>caller: list[{cluster, confidence}]
+  R->>O: walk top_k; keep s geq threshold AND best minus s leq delta
+  O-->>O: return list of cluster confidence pairs
 ```
 
 ```python
