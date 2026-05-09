@@ -1,5 +1,4 @@
 import json
-import pytest
 from pathlib import Path
 from tree_index._hashing import tree_hash
 

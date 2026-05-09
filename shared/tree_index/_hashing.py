@@ -7,8 +7,11 @@ import json
 from pathlib import Path
 
 
-def tree_hash(tree_path: Path) -> str:
+def tree_hash(tree_path: Path | str) -> str:
     """Compute sha256 of canonicalized tree.json.
+
+    Accepts either a ``pathlib.Path`` or a string path; the input is
+    coerced to ``Path`` internally.
 
     Canonical form: sort keys + minimal separators. Independent of
     insertion order, whitespace, indentation. Used to bind
