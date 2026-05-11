@@ -57,6 +57,11 @@ def embed(text: str) -> list[float]:
 
 
 def extract_memories(user_msg: str, assistant_msg: str) -> dict:
+    """Return {'semantic': [...], 'episodic': [...]} regardless of what
+    the LLM emits. `response_format=json_object` is best-effort on local
+    models — gpt-oss-20b sometimes emits a top-level array or scalar
+    instead of the requested object schema.
+    """
     resp = omlx.chat.completions.create(
         model=HAIKU,   # extraction is cheap; run on haiku
         messages=[
@@ -66,10 +71,31 @@ def extract_memories(user_msg: str, assistant_msg: str) -> dict:
         temperature=0.0, max_tokens=400,
         response_format={"type": "json_object"},
     )
+    raw = (resp.choices[0].message.content or "").strip()
     try:
-        return json.loads(resp.choices[0].message.content)
+        parsed = json.loads(raw)
     except json.JSONDecodeError:
         return {"semantic": [], "episodic": []}
+
+    # Coerce any shape into the expected {semantic, episodic} dict.
+    # Local models sometimes emit a top-level array of {key,value}
+    # objects (interpreted here as all-semantic) or list[str]
+    # (interpreted as all-episodic). Anything else falls back to empty.
+    if isinstance(parsed, list):
+        if all(isinstance(x, dict) and "key" in x and "value" in x for x in parsed):
+            return {"semantic": parsed, "episodic": []}
+        if all(isinstance(x, str) for x in parsed):
+            return {"semantic": [], "episodic": parsed}
+        return {"semantic": [], "episodic": []}
+    if not isinstance(parsed, dict):
+        return {"semantic": [], "episodic": []}
+
+    sem = parsed.get("semantic", [])
+    epi = parsed.get("episodic", [])
+    return {
+        "semantic": sem if isinstance(sem, list) else [],
+        "episodic": epi if isinstance(epi, list) else [],
+    }
 
 
 # ── Write path ───────────────────────────────────────────────────────────────
