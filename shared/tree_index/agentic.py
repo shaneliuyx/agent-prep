@@ -325,7 +325,11 @@ class AgenticTreeRetriever:
                         (TOC-trap guard + explained refusal + synthesis-from-
                         fragments). Pass a different prompt only when the
                         corpus has a structurally different shape.
-        max_iterations: bounded loop ceiling (default 6).
+        max_iterations: bounded loop ceiling (default 4).
+                        Reduced from 6 (2026-05-09) — Phase 7+ cluster
+                        pre-fetch front-loads routing context that
+                        previously took 2-3 iters; no measured query
+                        on the 16-Q eval hits the new ceiling.
         max_range_chars: per-fetch char cap on returned text (default 25000).
                          Bumped from 8000 (2026-05-09) — 8000 truncated mid-
                          Chairman's-Letter on Q9-class queries, hiding the
