@@ -22,6 +22,15 @@ HAIKU  = os.getenv("MODEL_HAIKU")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3-mlx-fp16")
 COLLECTION = "user_memories"
 
+# Enable WAL journal mode so readers don't block writers (and vice versa).
+# Default journal mode (DELETE) serializes all access — under test loads
+# that issue 3 writes per test × 15 tests × interleaved reads, it produces
+# 'database is locked' even at the default 5s connection timeout.
+_init = sqlite3.connect(SQLITE, timeout=30)
+_init.execute("PRAGMA journal_mode=WAL")
+_init.execute("PRAGMA synchronous=NORMAL")
+_init.close()
+
 # Embedding fallback path: if oMLX doesn't serve the embedding model,
 # fall back to in-process sentence-transformers. Set USE_LOCAL_EMBED=1
 # in .env to force the fallback (e.g. for offline iteration).
@@ -113,31 +122,34 @@ def extract_memories(user_msg: str, assistant_msg: str) -> dict:
 # ── Write path ───────────────────────────────────────────────────────────────
 
 def write_semantic_fact(user_id: str, key: str, value: str) -> Literal["new", "updated", "unchanged"]:
-    conn = sqlite3.connect(SQLITE)
-    row = conn.execute(
-        "SELECT id, value FROM user_facts WHERE user_id=? AND key=? AND archived=0",
-        (user_id, key),
-    ).fetchone()
+    conn = sqlite3.connect(SQLITE, timeout=30)
+    try:
+        row = conn.execute(
+            "SELECT id, value FROM user_facts WHERE user_id=? AND key=? AND archived=0",
+            (user_id, key),
+        ).fetchone()
 
-    if row is None:
-        conn.execute(
-            "INSERT INTO user_facts (user_id, key, value) VALUES (?, ?, ?)",
-            (user_id, key, value),
-        )
-        result = "new"
-    elif row[1] == value:
-        result = "unchanged"
-    else:
-        # Archive old, insert new — preserves audit trail
-        conn.execute("UPDATE user_facts SET archived=1 WHERE id=?", (row[0],))
-        conn.execute(
-            "INSERT INTO user_facts (user_id, key, value) VALUES (?, ?, ?)",
-            (user_id, key, value),
-        )
-        result = "updated"
+        if row is None:
+            conn.execute(
+                "INSERT INTO user_facts (user_id, key, value) VALUES (?, ?, ?)",
+                (user_id, key, value),
+            )
+            result = "new"
+        elif row[1] == value:
+            result = "unchanged"
+        else:
+            # Archive old, insert new — preserves audit trail
+            conn.execute("UPDATE user_facts SET archived=1 WHERE id=?", (row[0],))
+            conn.execute(
+                "INSERT INTO user_facts (user_id, key, value) VALUES (?, ?, ?)",
+                (user_id, key, value),
+            )
+            result = "updated"
 
-    conn.commit(); conn.close()
-    return result
+        conn.commit()
+        return result
+    finally:
+        conn.close()
 
 
 def write_episodic(user_id: str, session_id: str, text: str) -> None:
@@ -167,7 +179,7 @@ def remember_turn(user_id: str, session_id: str, user_msg: str, assistant_msg: s
 
 def recall(user_id: str, query: str, k: int = 5) -> dict:
     # Semantic: all live facts
-    conn = sqlite3.connect(SQLITE)
+    conn = sqlite3.connect(SQLITE, timeout=30)
     facts = conn.execute(
         "SELECT key, value FROM user_facts WHERE user_id=? AND archived=0",
         (user_id,),
