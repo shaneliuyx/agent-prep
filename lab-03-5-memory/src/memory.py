@@ -11,7 +11,6 @@ from typing import Literal
 from openai import OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,12 +19,17 @@ qdrant = QdrantClient(url=os.getenv("QDRANT_URL"))
 SQLITE = os.getenv("SQLITE_PATH")
 MODEL  = os.getenv("MODEL_SONNET")
 HAIKU  = os.getenv("MODEL_HAIKU")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3-mlx-fp16")
 COLLECTION = "user_memories"
 
-# In-process BGE-M3 dense embedder. oMLX doesn't serve embedding
-# models by default (only chat models), so we load BGE-M3 directly
-# via sentence-transformers. MPS device on Apple Silicon for speed.
-_embedder = SentenceTransformer("BAAI/bge-m3", device="mps")
+# Embedding fallback path: if oMLX doesn't serve the embedding model,
+# fall back to in-process sentence-transformers. Set USE_LOCAL_EMBED=1
+# in .env to force the fallback (e.g. for offline iteration).
+_USE_LOCAL = os.getenv("USE_LOCAL_EMBED", "0") == "1"
+_local_embedder = None
+if _USE_LOCAL:
+    from sentence_transformers import SentenceTransformer
+    _local_embedder = SentenceTransformer("BAAI/bge-m3", device="mps")
 
 # Bootstrap Qdrant collection (idempotent)
 if not qdrant.collection_exists(COLLECTION):
@@ -52,8 +56,16 @@ Skip trivia. Do not invent facts. If nothing memorable, return empty lists."""
 
 
 def embed(text: str) -> list[float]:
-    vec = _embedder.encode([text], normalize_embeddings=True)[0]
-    return vec.tolist()
+    """Dense embedding via oMLX (default) or in-process sentence-transformers
+    (when USE_LOCAL_EMBED=1). Both paths produce a 1024-dim L2-normalized
+    BGE-M3 vector. oMLX path is cheaper at runtime (no resident model in
+    Python heap); local path is offline-capable.
+    """
+    if _local_embedder is not None:
+        vec = _local_embedder.encode([text], normalize_embeddings=True)[0]
+        return vec.tolist()
+    r = omlx.embeddings.create(model=EMBED_MODEL, input=text)
+    return r.data[0].embedding
 
 
 def extract_memories(user_msg: str, assistant_msg: str) -> dict:
