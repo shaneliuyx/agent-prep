@@ -52,7 +52,7 @@ A candidate covering 1+3+4 looks like a 2024 LLM engineer. Covering 1+2+3+4+5+6 
 
 ## Stack
 
-- **Local-first inference**: oMLX serving Qwen3.6-35B-A3B / gemma-4-26B-heretic / gpt-oss-20b on `:8000` (Anthropic + OpenAI API surface). vMLX as a second backend on `:8003`. Cloud APIs only used in Weeks 7–8 for benchmarking comparisons (~$8 total budget across all 12 weeks).
+- **Local-first inference**: oMLX serving Qwen3.6-35B-A3B / gemma-4-26B-heretic / gpt-oss-20b on `:8000` (Anthropic + OpenAI API surface). vMLX as a second backend on `:8003`. Cloud APIs scoped to: **W7–8** (frontier-model reliability comparisons, ~$8), **W7.3** (cross-provider gateway routing, ~$3), **W9.5** (optional cloud GPU for SFT+GRPO run, $0–30). **Total program cloud cap: ~$13** (with $20 diagnostic threshold — if you exceed $20, audit which lab is leaking, usually a missed `max_tokens` cap or a forgotten cache breakpoint).
 - **Vector DB**: Qdrant via OrbStack (Docker) on `:6333`.
 - **Memory infra (Weeks 3.5.5 / 3.5.8 / 3.5.9)**: `mathomhaus/guild` (Go MCP, single binary, embedded SQLite) for operational tier; EverMind-AI's EverCore (Python + Postgres via Docker compose, port 1995) for semantic tier; HyperMem (Docker compose, port 1996) for relational L3 tier. Benchmarked via LongMemEval `oracle` subset anchored to EverCore's published 83%.
 - **Observability**: Phoenix on `:6006`.
