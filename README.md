@@ -23,11 +23,27 @@ Each `lab-NN-*/` subdirectory is a self-contained week. Every lab follows the sa
 | 5 | `lab-05-pattern-zoo` — ReAct vs Plan-and-Solve vs Reflexion vs Orchestrator-Worker | pending |
 | 6 | `lab-06-claude-code-map` — Claude Code source-dive subsystem study sheets | pending |
 | 7 | `lab-07-tool-harness` — generic ToolHarness with 20-scenario bad-case suite | pending |
+| 7.3 | `lab-07-3-prod-infra` — LiteLLM gateway routing Claude + GPT + local oMLX through one endpoint; Anthropic + OpenAI prompt caching + GPTCache semantic cache + LangSmith cost-attribution metadata + circuit-breaker provider fallback + end-to-end re-run of W3 RAG eval through gateway; fills Akshay 6-area rubric areas 2+5 (inference + production infra); chapter shipped | pending |
 | 8 | `lab-08-schema-bench` — 5-strategy × 5-model schema reliability matrix | pending |
 | 9 | `lab-09-faithfulness-checker` — claim split + NLI + SelfCheckGPT-lite + abstention | pending |
 | 10 | `lab-10-framework-shootout` — same task in LangGraph / LlamaIndex / OpenAI Agents SDK | pending |
 
 Companion narrative + interview-prep chapters live in [`shaneliuyx/agent-development-curriculum`](https://github.com/shaneliuyx/agent-development-curriculum) (Obsidian vault). The capstone (Week 12) lives in a separate repo for portfolio framing.
+
+### Akshay 6-area hiring-rubric coverage (2026)
+
+The curriculum maps onto Akshay Pachaar's 6-area AI-engineer rubric — verified by 12 May 2026 audit of the teach_fireworks 11-section reading list:
+
+| # | Area | Anchor week(s) |
+|---|---|---|
+| 1 | Harness engineering (loop / tool registry / budget / scratchpad) | W4, W5, W7 |
+| 2 | Inference serving (KV cache, paged attention, spec decoding, quantization) | W0, W2.7 BCJ #23, W9.5 |
+| 3 | Structured output reliability (FSM-guided decoding, schema-first, post-validation) | W8 |
+| 4 | Evals + observability (LLM-as-judge bias, RAGAS, Phoenix, OpenTelemetry GenAI) | W3, W2.7, W3.5 |
+| 5 | Production LLM infrastructure (gateway, prompt + semantic caching, cost attribution, provider fallback) | W7.3 |
+| 6 | Fine-tune vs in-context decision-making | W9, W9.5 |
+
+A candidate covering 1+3+4 looks like a 2024 LLM engineer. Covering 1+2+3+4+5+6 looks like a 2026 staff-track AI engineer. W7.3 is the bridge — converts areas 2/5 from theory citations into measured lab artifacts.
 
 ## Shared libraries
 
