@@ -1,0 +1,99 @@
+{
+  "_doc": "Ground-truth answers extracted from Berkshire 2023 Annual Report PDF for ALL 16 eval questions. Used by score_against_ground_truth() as the primary judge, replacing the entity-recall (bag-of-keywords) judge. The 'pass_criteria' field captures what makes a candidate answer correct in substance, not just whether specific tokens appear.",
+  "Q1": {
+    "q": "What were Berkshire's total revenues in 2023?",
+    "gt_pages": [96],
+    "gt_answer": "Berkshire's total revenues for the year ended December 31, 2023 were $364,482 million ($364.5 billion). Per the Consolidated Statements of Earnings (page 96): Insurance and Other contributed $263,067M; Railroad, Utilities and Energy contributed $101,415M.",
+    "pass_criteria": "Must state the total revenues figure: $364,482 million OR $364.5 billion OR ~$364 billion all acceptable. Hard fail if no number OR a wildly wrong number is given (e.g. $300B or $400B+ off by >5%). Bonus credit for citing page 96 or breaking down by segment."
+  },
+  "Q2": {
+    "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+    "gt_pages": [96],
+    "gt_answer": "Berkshire's net earnings attributable to Berkshire Hathaway shareholders for 2023 were approximately $96 billion (specifically $96,223 million). This appears on the Consolidated Statements of Earnings (page 96), reflecting the rebound from 2022's net loss driven primarily by investment gains on equity securities.",
+    "pass_criteria": "Must state the net earnings figure: $96 billion / $96,223 million / ~$96B all acceptable. Hard fail if no number OR wrong figure off by >10%. Bonus credit for distinguishing this from operating earnings ($37B), citing page 96, or noting the year-over-year swing from 2022's loss."
+  },
+  "Q3": {
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+    "gt_pages": [9],
+    "gt_answer": "Berkshire's not-so-secret weapon is its ability to immediately respond to market seizures with both huge sums and certainty of performance. When markets occasionally panic — as they did for four months in 1914, a few days in 2001, and September 2008 — and stocks of large fundamentally good businesses become strikingly mispriced, Berkshire's huge liquid resources let it act decisively when others cannot. The investment rule that anchors this is: never risk permanent loss of capital.",
+    "pass_criteria": "Answer must capture the core idea: Berkshire's ability to deploy large sums of capital quickly during market panics or seizures. Bonus credit for mentioning the specific historical panics (1914, 2001, 2008) or the 'never risk permanent loss of capital' rule. Does NOT require mentioning Charlie Munger, patient capital, or long-term shareholders — those entities appear in OTHER sections of the Chairman's Letter and are not the answer to this specific question."
+  },
+  "Q4": {
+    "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+    "gt_pages": [10, 11, 12, 13, 14, 15, 16, 17],
+    "gt_answer": "Buffett describes long-duration partial-ownership positions in non-controlled businesses that leave Berkshire comfortable, primarily Coca-Cola and American Express (each accounting for 4-5% of Berkshire's market value). He emphasizes Berkshire's commitment to these businesses for the long term. Apple is also mentioned as a major equity holding. Occidental Petroleum (27.8% ownership) is highlighted, with admiration for CEO Vicki Hollub. The five Japanese trading houses (Itochu, Marubeni, Mitsubishi, Mitsui, Sumitomo, ~9% each) are also discussed in this section.",
+    "pass_criteria": "Must mention at least 2 of the named non-controlled positions: Coca-Cola, American Express, Apple, Occidental Petroleum, or the Japanese trading companies. Bonus credit for the 'long-term' framing, the 4-5% allocation figures, Vicki Hollub mention, or the 9% Japanese stake. Generic 'Berkshire owns stocks' fails."
+  },
+  "Q5": {
+    "q": "Which section of the annual report covers BNSF Railway operating results?",
+    "gt_pages": [30, 31, 32, 33, 34],
+    "gt_answer": "BNSF Railway operating results are covered under Item 1 (Business Description), specifically in the 'Railroad Business — Burlington Northern Santa Fe' subsection starting at page 30. Operating financial details for BNSF also appear in Item 7 (Management's Discussion and Analysis) under the 'Railroad' segment, with BNSF reporting $5,087M in operating earnings for 2023 (per the Scorecard on page 13).",
+    "pass_criteria": "Must identify the section as Item 1 (Business Description) Railroad Business OR cite page 30 area as the BNSF coverage. Mentioning Item 7 MD&A is also acceptable. Bonus credit for the 'Burlington Northern Santa Fe' full name. Hard fail if it points to wrong Item or wrong page (e.g. Item 8 Financial Statements without explanation)."
+  },
+  "Q6": {
+    "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+    "gt_pages": [52],
+    "gt_answer": "Cybersecurity governance is disclosed in Item 1C of Form 10-K (page 52). This SEC-mandated section, new for 2023, covers Berkshire's cybersecurity risk management, strategy, and governance — including how the board and management oversee cybersecurity threats.",
+    "pass_criteria": "Must identify the section as Item 1C OR cite page 52 as the cybersecurity coverage. Bonus credit for noting it's the new SEC-mandated section for 2023 OR for mentioning the board oversight angle. Hard fail if it points to a wrong Item (e.g. Item 1A Risk Factors)."
+  },
+  "Q7": {
+    "q": "What is Berkshire Hathaway's stock price today?",
+    "gt_pages": [],
+    "gt_answer": "This question is out-of-scope for the 2023 Annual Report. The document is a historical filing covering fiscal year 2023, not a real-time price feed. The correct response is to refuse with explanation: identify the document as the Berkshire Hathaway 2023 Annual Report and state that real-time stock prices are not contained within it.",
+    "pass_criteria": "Must refuse to answer with the literal phrase 'insufficient context' OR an equivalent refusal that explicitly identifies the document as Berkshire's 2023 Annual Report and explains why a real-time stock price is not in scope. Hard fail if a stock price (any number) is fabricated."
+  },
+  "Q8": {
+    "q": "Who is the CEO of Microsoft?",
+    "gt_pages": [],
+    "gt_answer": "This question is out-of-scope for the Berkshire Hathaway 2023 Annual Report. Microsoft's CEO is not discussed in this document. The correct response is to refuse: identify the document as Berkshire's 2023 Annual Report and explain that information about other companies' executives is not contained within it.",
+    "pass_criteria": "Must refuse with 'insufficient context' OR equivalent refusal that identifies the document as Berkshire's 2023 Annual Report. Hard fail if a name (Satya Nadella or otherwise) is offered as the answer — even if factually correct, the document doesn't contain it."
+  },
+  "Q9": {
+    "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+    "gt_pages": [13],
+    "gt_answer": "Berkshire's 2023 operating earnings per the Scorecard (page 13) was $37,350 million ($37.35 billion), broken down as: Insurance-underwriting $5,428M, Insurance-investment income $9,567M, Railroad $5,087M, Utilities and energy $2,331M, Other businesses and miscellaneous items $14,937M.",
+    "pass_criteria": "Must state the total operating earnings figure: $37,350 million OR $37.35 billion OR ~$37 billion all acceptable. Should cite page 13 or the Scorecard section. Bonus credit for any of the segment breakdowns. Hard fail if no number OR a wildly wrong number (e.g. confusing operating earnings with net earnings or total revenues)."
+  },
+  "Q10": {
+    "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+    "gt_pages": [11],
+    "gt_answer": "Berkshire owned 27.8% of Occidental Petroleum's common shares at year-end 2023 (per the Chairman's Letter, page 11). Berkshire also owns warrants that, for more than five years, give it the option to materially increase ownership at a fixed price.",
+    "pass_criteria": "Must state the ownership percentage: 27.8% OR ~28% OR 'about 27%' acceptable. Bonus credit for mentioning the warrants OR the 'option to materially increase' clause. Hard fail if a wildly wrong number is given (e.g. 9% — which is the Japanese stake, not Occidental)."
+  },
+  "Q11": {
+    "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+    "gt_pages": [12, 13],
+    "gt_answer": "Berkshire holds passive long-term interests in five large Japanese companies (Itochu, Marubeni, Mitsubishi, Mitsui, Sumitomo), each operating in a highly diversified manner similar to Berkshire itself. Berkshire owns about 9% of each, with a pledge not to exceed 9.9%. Cost was ¥1.6 trillion; year-end market value was ¥2.9 trillion, with an unrealized gain of $8 billion (61%) in dollar terms. Most positions are financed via ¥1.3 trillion of yen-denominated bonds. The five companies retain about 2/3 of their earnings, are reluctant to issue shares, and pay less aggressive executive compensation than typical U.S. peers. Investment may enable future global partnerships.",
+    "pass_criteria": "Must mention the ~9% ownership stake. Bonus credit for naming any of the 5 companies (Itochu, Marubeni, Mitsubishi, Mitsui, Sumitomo), the yen-bond financing, the $8B unrealized gain, or the partnership/global-collaboration angle. Generic 'Berkshire owns Japanese stocks' without specifics fails."
+  },
+  "Q12": {
+    "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+    "gt_pages": [9],
+    "gt_answer": "Buffett describes Wall Street as caring about 'feverish activity' (which drives its commissions/revenue) and being willing to vigorously market 'whatever foolishness can be marketed'. The figurative Wall Street wants its customers to make money but is animated by activity itself. Berkshire's approach is contrasted as patient and long-term, anchored by a single unchanging rule: 'never risk permanent loss of capital'. The implication is that Berkshire treats shareholders as long-term partners rather than as sources of transactional churn.",
+    "pass_criteria": "Must contrast Berkshire's long-term/partner orientation with Wall Street's transactional/activity-driven approach. Should mention 'feverish activity', 'never risk permanent loss of capital', or 'patient' as the Berkshire counterweight. A generic answer about 'long-term shareholders' WITHOUT articulating the Wall Street contrast does not pass — the question is specifically about the comparison."
+  },
+  "Q13": {
+    "q": "Which Item of Form 10-K covers Risk Factors?",
+    "gt_pages": [49, 50, 51],
+    "gt_answer": "Item 1A of Form 10-K covers Risk Factors. In Berkshire's 2023 filing this appears at pages 49-51. The standard SEC Form 10-K structure places Risk Factors as Item 1A immediately after Item 1 (Business Description).",
+    "pass_criteria": "Must identify the section as Item 1A. Citing page 49 or 'pages 49-51' is bonus. Hard fail if it points to wrong Item (e.g. Item 1, Item 1B, Item 7A)."
+  },
+  "Q14": {
+    "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+    "gt_pages": [99, 100, 101, 141],
+    "gt_answer": "The Notes to Consolidated Financial Statements are located within Item 8 (Financial Statements and Supplementary Data) at pages 99-141 (or page numbers within Item 8 that span this range). They follow the four primary financial statements (Balance Sheets, Statements of Earnings, Statements of Comprehensive Income, Statements of Cash Flows) and detail accounting policies + line-item disclosures.",
+    "pass_criteria": "Must identify location as Item 8 Financial Statements OR cite a page in the 99-141 range. Bonus credit for noting 'pages 99-147' or specific subset, OR for mentioning the four primary statements that precede the Notes. Hard fail if pointed to wrong section (e.g. MD&A Item 7)."
+  },
+  "Q15": {
+    "q": "What is Apple Inc.'s 2024 revenue?",
+    "gt_pages": [],
+    "gt_answer": "This question is out-of-scope for the Berkshire Hathaway 2023 Annual Report. The document covers fiscal year 2023 for Berkshire only — it does not report Apple's 2024 financials. Berkshire DOES report its Apple equity stake's market value at year-end 2023, but not Apple's standalone revenue. The correct response is to refuse with explanation.",
+    "pass_criteria": "Must refuse with 'insufficient context' OR equivalent refusal that identifies the document as Berkshire's 2023 Annual Report and explains why Apple's 2024 revenue is out of scope (wrong company entity AND wrong fiscal year). Hard fail if an Apple revenue figure is fabricated."
+  },
+  "Q16": {
+    "q": "Who is the current chairman of the Federal Reserve?",
+    "gt_pages": [],
+    "gt_answer": "This question is out-of-scope for the Berkshire Hathaway 2023 Annual Report. The Federal Reserve chairman is not discussed in this document. The correct response is to refuse: identify the document as Berkshire's 2023 Annual Report and explain that information about Federal Reserve leadership is not contained within it.",
+    "pass_criteria": "Must refuse with 'insufficient context' OR equivalent refusal that identifies the document as Berkshire's 2023 Annual Report. Hard fail if a name (Jerome Powell or otherwise) is offered as the answer — even if factually correct, the document doesn't contain it."
+  }
+}

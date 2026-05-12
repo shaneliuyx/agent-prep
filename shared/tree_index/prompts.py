@@ -203,6 +203,15 @@ ADDITIONAL TOOLS (when applicable — use to augment, not replace, get_page_cont
 
 ROUTING HEURISTIC for v2 tools (apply IN ORDER, stop at first match):
 
+  -1. **CLUSTER-FIRST FOR SYNTHESIS** (highest priority): For "what did
+      X say/write about Y" or "how does X describe Y" questions where
+      the topic likely spans multiple sub-sections, your FIRST
+      (or zeroth) tool call MUST be find_cluster_for_synthesis. The
+      cluster's member_node_ids + primary_pages tell you EXACTLY which
+      pages to fetch. Call get_page_content on the FULL page range
+      covering all member nodes (one batched fetch). Then synthesize.
+      Skip this rule only when no cluster matches above threshold (the
+      tool will tell you).
   0. **TITLE-LITERAL MATCH** — Scan the document tree first. If any node's
      title literally contains the question's distinctive phrase (e.g.,
      "Our Not-So-Secret Weapon" matches a query about "not-so-secret

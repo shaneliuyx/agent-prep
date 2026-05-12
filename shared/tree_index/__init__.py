@@ -29,11 +29,15 @@ from .prompts import (
     FACT_RICH_SUMMARIZE_SYSTEM,
     SPLIT_SYSTEM,
 )
+from .page_vector_index import PageVectorIndex
+from .summary_index import SummaryIndex
 
 __all__ = [
     "AgenticTreeRetriever",
     "EnsembleTreeRetriever",
     "PageProvider",
+    "PageVectorIndex",
+    "SummaryIndex",
     "TreeIndex",
     "EntityIndex",
     "extract_entities",

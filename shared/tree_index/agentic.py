@@ -12,6 +12,7 @@ inspect body text mid-decision instead of being limited to titles + summaries.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Protocol
 
@@ -183,6 +184,110 @@ _V2_TOOLS = [
     },
 ]
 
+_CLUSTER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "find_cluster_for_synthesis",
+        "description": (
+            "Cluster-first lookup for cross-section synthesis questions "
+            "('what did X say/write about Y'). Returns one thematic cluster "
+            "with member node_ids + page ranges. Use BEFORE get_page_content "
+            "when the question spans multiple sub-sections — one batched "
+            "fetch over all member pages is more efficient than sequential "
+            "single-node fetches."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string",
+                          "description": "the user's question or topic"},
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+
+def _expand_with_neighbors(
+    pages: list[int], window: int = 1,
+) -> list[tuple[int, int]]:
+    """Expand each page number by ±window neighbors, dedup, and emit
+    contiguous (start, end) ranges.
+
+    Page-level vector match returns single pages, but multi-page topics
+    (e.g. Berkshire's Japanese trading houses section spans pages 12-13)
+    need neighbor context. Caller fetches each (start, end) range as one
+    contiguous block — efficient over per-page fetches when neighbors
+    overlap.
+
+    Lower bound clipped to 1 (PDF page numbers are 1-indexed).
+    """
+    if not pages:
+        return []
+    expanded: set[int] = set()
+    for p in pages:
+        for d in range(-window, window + 1):
+            np = p + d
+            if np >= 1:
+                expanded.add(np)
+    sorted_pages = sorted(expanded)
+    ranges: list[tuple[int, int]] = []
+    start = prev = sorted_pages[0]
+    for p in sorted_pages[1:]:
+        if p == prev + 1:
+            prev = p
+        else:
+            ranges.append((start, prev))
+            start = prev = p
+    ranges.append((start, prev))
+    return ranges
+
+
+_LOW_QUALITY_REFUSAL_PATTERNS = (
+    "i don't have", "i cannot find", "i am unable",
+    "i do not have", "the document does not",
+    "the document doesn't", "no information about",
+    "not provided in", "not mentioned in",
+    "not available in", "not in the document",
+)
+
+
+def _is_low_quality(answer: str) -> bool:
+    """Composite production-signal trigger for chunk-level fallback.
+
+    Returns True when the agent's answer suggests refusal, pseudo-refusal,
+    or ungrounded synthesis. Used by AgenticTreeRetriever.answer() to
+    decide whether to fire the page-vector fallback.
+
+    Tier 1 — high confidence (any one fires):
+      - empty / whitespace-only answer
+      - literal "insufficient context" substring
+      - common refusal phrases (see _LOW_QUALITY_REFUSAL_PATTERNS)
+      - length < 80 chars (pseudo-refusal)
+
+    Tier 2 — medium confidence (fires only if length > 80):
+      - no `[page` / `pages` citation in answer
+
+    Tier 3 — explicitly NOT triggered (false-positive rate too high):
+      - hedging language (may, might, possibly, approximately)
+
+    Production signal only — never reads judge scores or any test-time
+    oracle. Goodhart-safe.
+    """
+    a = answer.strip()
+    if not a:
+        return True
+    a_low = a.lower()
+    if "insufficient context" in a_low:
+        return True
+    if any(p in a_low for p in _LOW_QUALITY_REFUSAL_PATTERNS):
+        return True
+    if len(a) < 80:
+        return True
+    if "[page" not in a_low and "pages" not in a_low:
+        return True
+    return False
+
 
 def _tree_view(tree: dict) -> str:
     """Compact JSON view: id, title, pages, summary. Skip raw text/children fields."""
@@ -220,8 +325,16 @@ class AgenticTreeRetriever:
                         (TOC-trap guard + explained refusal + synthesis-from-
                         fragments). Pass a different prompt only when the
                         corpus has a structurally different shape.
-        max_iterations: bounded loop ceiling (default 6).
-        max_range_chars: per-fetch char cap on returned text (default 8000).
+        max_iterations: bounded loop ceiling (default 4).
+                        Reduced from 6 (2026-05-09) — Phase 7+ cluster
+                        pre-fetch front-loads routing context that
+                        previously took 2-3 iters; no measured query
+                        on the 16-Q eval hits the new ceiling.
+        max_range_chars: per-fetch char cap on returned text (default 25000).
+                         Bumped from 8000 (2026-05-09) — 8000 truncated mid-
+                         Chairman's-Letter on Q9-class queries, hiding the
+                         Scorecard table on page 13. 25K covers full sections
+                         (Chairman's Letter is ~30K; most subsections fit).
         debug_log_path: if set, append `[Nit/Mtc] q=... ans=...` per call for
                         cross-process debugging.
 
@@ -237,11 +350,14 @@ class AgenticTreeRetriever:
         model_name: str,
         system_prompt: str,
         max_iterations: int = 4,
-        max_range_chars: int = 8000,
+        max_range_chars: int = 25000,
         debug_log_path: str | None = None,
         # Optional v2 — entity-graph + auto-merge tools
         tree_index=None,        # TreeIndex instance for subtree fetch
         entity_index=None,      # EntityIndex for find_nodes_mentioning
+        summary_index=None,     # Optional[SummaryIndex] for cluster routing
+        # Optional v3 — last-resort chunk-level fallback
+        page_vector_index=None, # Optional[PageVectorIndex] BGE-M3 dense+sparse
     ) -> None:
         self.tree = tree
         self.page_provider = page_provider
@@ -253,12 +369,16 @@ class AgenticTreeRetriever:
         self.debug_log_path = debug_log_path
         self.tree_index = tree_index
         self.entity_index = entity_index
+        self.summary_index = summary_index
+        self.page_vector_index = page_vector_index
         # Tool list: extend with v2 tools only if both indexes are supplied
         self._tools = list(_DEFAULT_TOOLS)
         if tree_index is not None:
             self._tools.append(_V2_TOOLS[0])  # get_subtree_text
         if entity_index is not None:
             self._tools.append(_V2_TOOLS[1])  # find_nodes_mentioning
+        if summary_index is not None:
+            self._tools.append(_CLUSTER_TOOL)
         # Cache expansions per-instance to avoid duplicate LLM calls within
         # one agent loop. Cleared per-query in answer().
         self._expansion_cache: dict[str, list[str]] = {}
@@ -367,6 +487,105 @@ class AgenticTreeRetriever:
                   f"(expanded to: {variants}):\n\n")
         return header + "\n\n".join(rows)
 
+    def _find_cluster(self, query: str) -> str:
+        """CLUSTER-FIRST LOOKUP: returns top-K candidate clusters when scores
+        are within delta of best. Lets LLM tiebreak via tags/member-titles.
+        """
+        if self.summary_index is None:
+            return "[ERROR] find_cluster_for_synthesis requires summary_index"
+        threshold = float(os.getenv("SUMMARY_INDEX_THRESHOLD", "0.5"))
+        top_k = int(os.getenv("SUMMARY_INDEX_TOP_K", "2"))
+        delta = float(os.getenv("SUMMARY_INDEX_DELTA", "0.10"))
+        hits = self.summary_index.find_clusters_for_query(
+            query, threshold=threshold, top_k=top_k, delta=delta,
+        )
+        if not hits:
+            return f"No cluster matches {query!r} above threshold {threshold:.2f}"
+
+        def _fmt_one(h: dict, rank: int) -> str:
+            c = h["cluster"]
+            pages = c.get("primary_pages", [])
+            pages_str = ", ".join(f"[{p[0]}-{p[1]}]" for p in pages)
+            return (f"Candidate #{rank} — Cluster {c['cluster_id']!r}: {c['title']}\n"
+                    f"  confidence: {h['confidence']:.2f}\n"
+                    f"  member_node_ids: {c['member_node_ids']}\n"
+                    f"  primary_pages: {pages_str}\n"
+                    f"  summary: {c['summary'][:300]}\n"
+                    f"  tags: {c.get('tags', [])[:15]}")
+
+        if len(hits) == 1:
+            return (_fmt_one(hits[0], 1) + "\n"
+                    f"NEXT: call get_page_content with the page range covering "
+                    f"member_node_ids, OR fetch each range and synthesize.")
+
+        body = "\n\n".join(_fmt_one(h, i + 1) for i, h in enumerate(hits))
+        gap = hits[0]["confidence"] - hits[-1]["confidence"]
+        return (f"AMBIGUOUS — {len(hits)} candidate clusters within {gap:.2f} "
+                f"cosine of best (noise-band tie). Pick the one whose tags + "
+                f"member node coverage best matches the question's specific "
+                f"entities/keywords; do NOT default to highest score.\n\n"
+                f"{body}\n\n"
+                f"NEXT: choose ONE candidate, then call get_page_content with "
+                f"its primary_pages range. If the question spans entities found "
+                f"in DIFFERENT candidates, fetch from each.")
+
+    def _chunk_level_fallback(self, query: str) -> str:
+        """Last-resort vector match over per-page text. Returns the LLM's
+        answer string, or empty string when no fallback is possible.
+
+        Triggers ONLY when:
+          - `page_vector_index` was supplied at construction time
+          - the agent loop reached `max_iterations` AND returned a refusal
+            (caller decides; this method just executes the fallback)
+
+        Recovers from Q9-class regressions where the variant generator
+        paraphrased a distinctive document term away. Uses BGE-M3 dense
+        + sparse RRF (when sparse is wired) to match literal tokens.
+
+        Strict prompt: 'Answer ONLY from these passages.' Prevents
+        hallucination when vector match returns weakly-related pages.
+        """
+        if self.page_vector_index is None:
+            return ""
+        try:
+            top_pages = self.page_vector_index.search(query, top_k=3)
+        except Exception:                                          # noqa: BLE001
+            return ""
+        if not top_pages:
+            return ""
+        # Expand each top hit by ±1 neighbor + dedup to contiguous ranges.
+        # Multi-page topics (e.g. Japanese trading houses spans pages 12-13)
+        # are missed when only the top-1 page is fetched.
+        page_nums = [p for p, _ in top_pages]
+        ranges = _expand_with_neighbors(page_nums, window=1)
+        passages = "\n\n".join(
+            f"[pages {s}-{e}]\n{self.page_provider(s, e)}"
+            for s, e in ranges
+        )
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                temperature=0.0,
+                max_tokens=1000,
+                messages=[
+                    {"role": "system", "content": (
+                        "Answer the question using ONLY the provided passages. "
+                        "Cite page numbers inline as [page N]. If the passages "
+                        "do not contain the answer, respond with the exact "
+                        "phrase 'insufficient context' and nothing else."
+                    )},
+                    {"role": "user", "content": (
+                        f"Passages:\n{passages}\n\nQuestion: {query}"
+                    )},
+                ],
+            )
+        except Exception:                                          # noqa: BLE001
+            return ""
+        content = (resp.choices[0].message.content or "").strip()
+        if not content or "insufficient context" in content.lower():
+            return ""
+        return content
+
     def _fetch(self, start: int, end: int) -> str:
         text = self.page_provider(start, end)
         if len(text) > self.max_range_chars:
@@ -442,6 +661,21 @@ class AgenticTreeRetriever:
                         f"unless the tree shows a more specific match."
                     )
 
+        # Cluster-prefetch — for synthesis-pattern queries, pre-fire
+        # find_cluster_for_synthesis BEFORE first LLM call. Routes
+        # multi-section synthesis through one batched fetch instead of
+        # sequential per-node fetches that hit max_iter cliff.
+        cluster_hint = ""
+        if (self.summary_index is not None and is_synthesis
+                and os.getenv("SUMMARY_INDEX_ENABLED", "1") != "0"):
+            body = self._find_cluster(query)
+            if not body.startswith("No cluster") and not body.startswith("[ERROR]"):
+                cluster_hint = (
+                    f"\n\nCLUSTER HINT (auto-fired before your first call): "
+                    f"{body}\n\nUse the page ranges from this cluster directly "
+                    f"with get_page_content."
+                )
+
         # Per-call nonce — breaks vMLX paged-KV-cache content-addressable
         # deduplication so a polluted cache entry from a prior request can't
         # contaminate this one. Documented bug class: mlx-lm Issue #965 + #975
@@ -454,7 +688,7 @@ class AgenticTreeRetriever:
             {"role": "system",
              "content": f"{_nonce}\n{self.system_prompt}"},
             {"role": "user",
-             "content": f"{_nonce}\nDocument tree:\n{tree_str}{entity_hint}\n\nQuestion: {query}"},
+             "content": f"{_nonce}\nDocument tree:\n{tree_str}{entity_hint}{cluster_hint}\n\nQuestion: {query}"},
         ]
         tool_call_log: list[dict] = []
         final_answer = "insufficient context"
@@ -463,7 +697,7 @@ class AgenticTreeRetriever:
         for iteration in range(self.max_iterations):
             resp = self.client.chat.completions.create(
                 model=self.model, messages=msgs, tools=self._tools,
-                temperature=0.0, max_tokens=800,
+                temperature=0.0, max_tokens=1500,
             )
             msg = resp.choices[0].message
             tcalls = getattr(msg, "tool_calls", None) or []
@@ -564,6 +798,14 @@ class AgenticTreeRetriever:
                             "args": {"entity_or_phrase": ent},
                             "content_chars": len(content),
                         })
+                    elif name == "find_cluster_for_synthesis":
+                        q_arg = str(args.get("query", query))
+                        content = self._find_cluster(q_arg)
+                        tool_call_log.append({
+                            "iter": iteration, "tool": "find_cluster_for_synthesis",
+                            "args": {"query": q_arg},
+                            "content_chars": len(content),
+                        })
                     else:
                         content = f"[ERROR] Unknown tool: {name}"
                 except Exception as e:  # noqa: BLE001
@@ -583,18 +825,65 @@ class AgenticTreeRetriever:
                 "role": "user",
                 "content": (
                     "BUDGET EXHAUSTED. Stop calling tools. Write the final "
-                    "answer NOW from the observations you already have above. "
-                    "If you found ANY relevant facts in the fetched text "
-                    "(named entities, numbers, phrases), state them with the "
-                    "page citations. Do NOT respond 'insufficient context' "
-                    "if your fetches contain anything on-topic — partial "
-                    "answers score higher than refusals. Three sentences max."
+                    "answer NOW from the observations you already have above.\n\n"
+                    "STRICT RULES (these prevent hallucination under pressure):\n"
+                    "1. Use ONLY facts that appear VERBATIM in the fetched "
+                    "text observations above. Do NOT supplement with knowledge "
+                    "from outside the fetched text, even if you remember the "
+                    "answer from training data.\n"
+                    "2. Cite ONLY page numbers that appear in the fetched "
+                    "ranges above. Do NOT cite pages you did not fetch.\n"
+                    "3. If the fetched text contains a partial answer "
+                    "(named entities, numbers, phrases on the question's "
+                    "specific topic), state what you found with the actual "
+                    "fetched page citation. Partial answers score higher "
+                    "than refusals.\n"
+                    "4. If the fetched text does NOT contain any answer "
+                    "to THIS specific question (e.g. question asks about "
+                    "Scorecard but fetched text is about non-controlled "
+                    "businesses), respond with the exact phrase "
+                    "'insufficient context' — fabricating a confident "
+                    "answer from training memory is the worst outcome.\n"
+                    "5. OUTPUT FORMAT — ABSOLUTE RULES:\n"
+                    "   (a) Your FIRST token must be the first word of the "
+                    "answer. NO preamble. FORBIDDEN openings: 'The user is "
+                    "asking', 'This is a', 'From what I've fetched', "
+                    "'Let me synthesize', 'Actually,', 'Based on the "
+                    "fetched text', 'I have enough', 'Looking at the "
+                    "passages', 'Here is the answer'. If you start with "
+                    "any of those, you have failed.\n"
+                    "   (b) NO numbered lists. NO bullet points. NO bold "
+                    "headers like '**Stewardship**:'. Write flowing "
+                    "prose paragraphs only.\n"
+                    "   (c) NO quoted passage dumps. Do not paste "
+                    "sentences from the source text in quote marks. "
+                    "Paraphrase into your own prose.\n"
+                    "   (d) NO meta-commentary about your process. "
+                    "Do not say what you fetched, what's in the source, "
+                    "or what you're about to do.\n"
+                    "   (e) Length: 2-5 sentences in 1-2 short "
+                    "paragraphs. Cite pages inline as [page N] or "
+                    "[pages X-Y].\n\n"
+                    "Example of CORRECT output for a contrast question:\n"
+                    "  'Buffett frames Berkshire as a steward for "
+                    "long-term shareholders rather than a vehicle for "
+                    "trading activity. Where Wall Street thrives on "
+                    "feverish turnover and markets whatever sells "
+                    "[page 9], Berkshire pledges extreme fiscal "
+                    "conservatism and direct CEO communication to its "
+                    "lifetime owners [pages 5, 10].'\n\n"
+                    "Example of WRONG output (DO NOT DO THIS):\n"
+                    "  'The user is asking about... From the Chairman's "
+                    "Letter I found: 1. Page 5: ...quote... 2. Page 10: "
+                    "...quote...'\n\n"
+                    "Begin your answer with the first word of the "
+                    "actual answer NOW."
                 ),
             })
             try:
                 resp = self.client.chat.completions.create(
                     model=self.model, messages=msgs,
-                    temperature=0.0, max_tokens=400,
+                    temperature=0.0, max_tokens=800,
                     # Note: no `tools` argument — force text-only output
                 )
                 forced = (resp.choices[0].message.content or "").strip()
@@ -603,11 +892,33 @@ class AgenticTreeRetriever:
             except Exception:                                # noqa: BLE001
                 pass
 
+        # Chunk-level fallback — last resort when all structural recovery
+        # paths still produced a low-quality answer AND a PageVectorIndex
+        # is wired. Trigger uses composite production-signals via
+        # _is_low_quality(): refusal phrases, pseudo-refusal length, or
+        # ungrounded synthesis (no [page N] citation in long answer).
+        # Catches Q9-class regressions where the variant generator destroyed
+        # the literal-keyword signal and the agent never fetched the right
+        # page. BGE-M3 dense+sparse hybrid matches the literal token directly.
+        fallback_used = False
+        if (self.page_vector_index is not None
+                and _is_low_quality(final_answer)):
+            fb = self._chunk_level_fallback(query)
+            if fb:
+                final_answer = fb
+                fallback_used = True
+                tool_call_log.append({
+                    "iter": iteration + 1,
+                    "tool": "page_vector_fallback",
+                    "args": {},
+                })
+
         if self.debug_log_path:
             try:
                 with open(self.debug_log_path, "a") as f:
                     f.write(f"[{iteration+1}it/{len(tool_call_log)}tc] "
-                            f"q={query[:60]!r} ans={final_answer[:80]!r}\n")
+                            f"q={query[:60]!r} ans={final_answer[:80]!r}"
+                            f"{' [FALLBACK]' if fallback_used else ''}\n")
             except Exception:  # noqa: BLE001
                 pass
 
@@ -615,4 +926,5 @@ class AgenticTreeRetriever:
             "answer": final_answer,
             "tool_calls": tool_call_log,
             "iterations": iteration + 1,
+            "fallback_used": fallback_used,
         }

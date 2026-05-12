@@ -1,0 +1,184 @@
+import json
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from tree_index._hashing import tree_hash
+from tree_index.summary_index import SummaryIndex
+
+
+def test_tree_hash_stable_across_whitespace(tmp_path: Path) -> None:
+    """Same content + different formatting -> same hash."""
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    a.write_text('{"node_id":"0001","title":"X"}')
+    b.write_text('{\n  "node_id": "0001",\n  "title": "X"\n}')
+    assert tree_hash(a) == tree_hash(b)
+
+
+def test_tree_hash_changes_on_content_change(tmp_path: Path) -> None:
+    """Different content -> different hash."""
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    a.write_text('{"node_id":"0001","title":"X"}')
+    b.write_text('{"node_id":"0001","title":"Y"}')
+    assert tree_hash(a) != tree_hash(b)
+
+
+def test_tree_hash_independent_of_key_order(tmp_path: Path) -> None:
+    """Same content + different key order -> same hash."""
+    a = tmp_path / "a.json"
+    b = tmp_path / "b.json"
+    a.write_text('{"node_id":"0001","title":"X"}')
+    b.write_text('{"title":"X","node_id":"0001"}')
+    assert tree_hash(a) == tree_hash(b)
+
+
+def _write_fixture(tmp_path: Path, tree_hash_value: str) -> tuple[Path, Path]:
+    """Create a tree.json + summary_index.json pair for testing."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001","title":"X"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash_value,
+            "k": 2, "embedding_model": "BGE-M3",
+            "created": "2026-05-09T01:00:00Z",
+        },
+        "clusters": [
+            {"cluster_id": "C1", "title": "T1", "summary": "S1",
+             "tags": ["a", "b"], "member_node_ids": ["0001"],
+             "primary_pages": [[1, 2]]},
+        ],
+    }))
+    return tree, idx
+
+
+def test_summary_index_loads_when_hash_matches(tmp_path: Path) -> None:
+    # Write tree first with placeholder, compute its hash, then rewrite
+    # the index with the correct hash so the binding validates.
+    tree, idx = _write_fixture(tmp_path, "placeholder")
+    correct_hash = tree_hash(tree)
+    tree, idx = _write_fixture(tmp_path, correct_hash)
+    si = SummaryIndex(idx, tree)
+    assert len(si.clusters) == 1
+    assert si.clusters[0]["cluster_id"] == "C1"
+
+
+def test_summary_index_raises_on_stale_hash(tmp_path: Path) -> None:
+    tree, idx = _write_fixture(tmp_path, "abc123_wrong")
+    with pytest.raises(RuntimeError, match="stale"):
+        SummaryIndex(idx, tree)
+
+
+def test_summary_index_missing_file_raises_with_helpful_message(
+    tmp_path: Path,
+) -> None:
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    with pytest.raises(FileNotFoundError, match="build_summary_index"):
+        SummaryIndex(tmp_path / "missing.json", tree)
+
+
+def test_summary_index_raises_on_missing_build_meta(tmp_path: Path) -> None:
+    """build_meta absent → ValueError, not a misleading 'stale' RuntimeError."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    # No build_meta field — corrupt index
+    idx.write_text(json.dumps({"clusters": [{"cluster_id": "C1"}]}))
+    with pytest.raises(ValueError, match="build_meta"):
+        SummaryIndex(idx, tree)
+
+
+def test_find_cluster_for_query_returns_top_cluster(
+    tmp_path: Path,
+) -> None:
+    """Mock embedder returns deterministic vectors; verify cosine pick."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash(tree),
+            "k": 2, "embedding_model": "BGE-M3",
+            "cluster_embeddings": [
+                [1.0, 0.0, 0.0],   # C1 — aligned with 'investments'
+                [0.0, 1.0, 0.0],   # C2 — aligned with 'cybersecurity'
+            ],
+        },
+        "clusters": [
+            {"cluster_id": "C1", "title": "Investments", "summary": "...",
+             "tags": [], "member_node_ids": ["0001"],
+             "primary_pages": [[1, 2]]},
+            {"cluster_id": "C2", "title": "Cybersecurity", "summary": "...",
+             "tags": [], "member_node_ids": ["0001"],
+             "primary_pages": [[3, 4]]},
+        ],
+    }))
+    si = SummaryIndex(idx, tree)
+    # Inject a fake embedder that maps "investments" → C1 vec
+    si.set_embedder(lambda text: np.array([1.0, 0.0, 0.0]))
+    hit = si.find_cluster_for_query("Buffett's investments")
+    assert hit is not None
+    assert hit["cluster"]["cluster_id"] == "C1"
+    assert hit["confidence"] >= 0.9
+
+
+def test_find_cluster_returns_none_below_threshold(
+    tmp_path: Path,
+) -> None:
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash(tree),
+            "cluster_embeddings": [[1.0, 0.0]],
+        },
+        "clusters": [{"cluster_id": "C1", "title": "X", "summary": "",
+                      "tags": [], "member_node_ids": ["0001"],
+                      "primary_pages": [[1, 2]]}],
+    }))
+    si = SummaryIndex(idx, tree)
+    si.set_embedder(lambda text: np.array([0.0, 1.0]))   # orthogonal
+    hit = si.find_cluster_for_query("anything", threshold=0.5)
+    assert hit is None
+
+
+def test_find_cluster_raises_if_embedder_not_set(tmp_path: Path) -> None:
+    """RuntimeError if find_cluster_for_query called before set_embedder."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {
+            "tree_hash": tree_hash(tree),
+            "cluster_embeddings": [[1.0, 0.0]],
+        },
+        "clusters": [{"cluster_id": "C1", "title": "X", "summary": "",
+                      "tags": [], "member_node_ids": ["0001"],
+                      "primary_pages": [[1, 2]]}],
+    }))
+    si = SummaryIndex(idx, tree)
+    with pytest.raises(RuntimeError, match="set_embedder"):
+        si.find_cluster_for_query("anything")
+
+
+def test_set_embedder_raises_on_missing_cluster_embeddings(
+    tmp_path: Path,
+) -> None:
+    """set_embedder raises ValueError when build_meta lacks cluster_embeddings."""
+    tree = tmp_path / "tree.json"
+    tree.write_text('{"node_id":"0001"}')
+    idx = tmp_path / "summary_index.json"
+    idx.write_text(json.dumps({
+        "build_meta": {"tree_hash": tree_hash(tree)},   # NO cluster_embeddings
+        "clusters": [{"cluster_id": "C1", "title": "X", "summary": "",
+                      "tags": [], "member_node_ids": ["0001"],
+                      "primary_pages": [[1, 2]]}],
+    }))
+    si = SummaryIndex(idx, tree)
+    with pytest.raises(ValueError, match="cluster_embeddings"):
+        si.set_embedder(lambda text: np.array([1.0, 0.0]))
