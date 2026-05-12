@@ -6,6 +6,13 @@ recall() with a question that requires one or more of those facts.
 
 Target: 12 of 15 passing. Failing cases go into the Bad-Case Journal.
 
+Run via pytest from the project root:
+    .venv/bin/python -m pytest tests/test_recall.py -v
+
+Or directly (the sys.path bootstrap below makes `python tests/test_recall.py`
+also work, in case someone hits this from outside pytest):
+    .venv/bin/python tests/test_recall.py
+
 Caveats:
 - Tests depend on LLM extraction quality (gpt-oss-20b for MODEL_HAIKU).
   Some tests will be flaky on extraction edge cases; that's expected
@@ -13,6 +20,16 @@ Caveats:
 - Tests share Qdrant + SQLite state; isolated via unique user_ids per
   test (`make_user()` generates random suffixes).
 """
+import sys
+from pathlib import Path
+
+# Bootstrap: add project root to sys.path so `from src.memory import ...`
+# works whether this file is run via pytest (cwd=project root) or
+# directly (cwd=tests/). Idempotent — re-running adds nothing duplicate.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 import sqlite3
 import uuid
 
