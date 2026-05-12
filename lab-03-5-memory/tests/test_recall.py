@@ -126,13 +126,38 @@ def test_06_multi_fact_composition() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 def test_07_cross_session_recall() -> None:
+    """Cross-session recall is the architectural DEFAULT: semantic facts
+    in SQLite have no session_id column; episodic memories in Qdrant
+    store session_id in payload but recall() filters only on user_id.
+
+    Test strategy: write in one session (s1), recall without passing
+    any session context, verify BOTH stores' contents surface.
+    The semantic store proves the fact persists; the episodic store
+    proves recall ignores session_id (the load-bearing cross-session
+    property — without it, episodic memories would be session-scoped).
+    """
     u = make_user()
-    s1, s2 = new_session(), new_session()
+    s1 = new_session()
     remember_turn(u, s1, "I'm allergic to peanuts.", "Got it.")
-    # Different session, same user — facts must persist
+
+    # Recall takes (user_id, query) — no session_id. By design, the
+    # facts written under s1 should appear in any subsequent recall
+    # for the same user, regardless of which session does the query.
     mem = recall(u, "any food I should avoid?")
+
+    # (a) Semantic store: the fact persists across session close.
     assert any(
         "peanut" in f["value"].lower() for f in mem["semantic_facts"]
+    ), "semantic fact written in s1 should be recallable cross-session"
+
+    # (b) Episodic store: the s1 episode surfaces too. Episodes carry
+    # session_id in their Qdrant payload — if recall accidentally
+    # filtered on session, this assertion would fail (no episode for
+    # the "current session" since recall didn't receive one).
+    episodic_text = " ".join(mem["relevant_episodes"]).lower()
+    assert "peanut" in episodic_text or "allerg" in episodic_text, (
+        "episodic memory from s1 should surface; if it doesn't, "
+        "recall is implicitly session-scoping (cross-session is broken)"
     )
 
 
