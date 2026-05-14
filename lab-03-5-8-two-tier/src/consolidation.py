@@ -53,6 +53,10 @@ class ConsolidationResult:
     scrolls_imprinted: int
     scrolls_skipped: int
     errors: list[str]
+    # Quality-gate counter — incremented only when promotion_threshold is set
+    # and the summary scored below it. Kept separate from scrolls_skipped so
+    # operators can distinguish summarizer-SKIP from quality-gate-DEMOTE.
+    scrolls_demoted: int = 0
 
 
 def _ensure_dedup_table(db_path: Path = DEDUP_DB) -> sqlite3.Connection:
@@ -96,6 +100,7 @@ async def consolidate(
     tm: TieredMemory,
     max_batch: int = 50,
     campaign: str | None = None,
+    promotion_threshold: float | None = None,
 ) -> ConsolidationResult:
     """One batch run. Pulls closed quests from guild, imprints into EverCore.
 
@@ -105,7 +110,14 @@ async def consolidate(
 
     Ordering: quests processed in QUEST-ID order (server-assigned monotonic
     integers); the latest imprint reflects the most recent state.
+
+    Promotion gate (§3.3): when `promotion_threshold` is a float in [0.0, 1.0],
+    each summarized scroll is scored via `quality_gate.quality_score()` and
+    only imprinted if `score >= promotion_threshold`. Demoted scrolls land
+    in `result.scrolls_demoted`. When `promotion_threshold is None`, the
+    gate is bypassed and every non-SKIP summary imprints (legacy behavior).
     """
+    from src.quality_gate import quality_score  # local import avoids circular ref
     # 1. List closed quests via quest_list(status='done')
     list_text = await tm.list_closed_quests(campaign=campaign)
     # Numerical sort by the integer suffix of QUEST-N. Plain `sorted()` is
@@ -142,14 +154,24 @@ async def consolidate(
             if summary is None:
                 result.scrolls_skipped += 1
                 continue
-            tm.imprint(
-                content=summary,
-                metadata={
-                    "quest_id": quest_id,
-                    "agent_id": tm.agent_id,
-                    "source": "guild_consolidation",
-                },
-            )
+
+            # §3.3 quality-gate check before imprint (active iff threshold set).
+            score: float | None = None
+            if promotion_threshold is not None:
+                score = quality_score(summary, tm=tm)
+                if score < promotion_threshold:
+                    result.scrolls_demoted += 1
+                    continue
+
+            metadata: dict[str, object] = {
+                "quest_id": quest_id,
+                "agent_id": tm.agent_id,
+                "source": "guild_consolidation",
+            }
+            if score is not None:
+                metadata["quality_score"] = round(score, 3)
+
+            tm.imprint(content=summary, metadata=metadata)
             dedup.execute(
                 "INSERT OR IGNORE INTO imprinted (quest_id) VALUES (?)",
                 (quest_id,),
