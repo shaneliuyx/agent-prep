@@ -4,12 +4,25 @@ Agents call this class; they never talk to either backend directly.
 This is the seam that makes swapping backends cheap — change the
 backend client, keep the orchestrator API stable.
 
-Identity model: one TieredMemory instance = one agent stream
-(guild's MCP session is anonymous; the agent_id is a Python-side
-label propagated into EverCore imprint metadata only).
+Identity model — two-layer (load-bearing for the chapter's thesis):
+  - `agent_id`  — Python-side persona label, per-instance. Lives in
+    guild's session-scoped (anonymous) connection AND in EverCore
+    imprint metadata. Used for attribution + audit, NOT for isolation.
+  - `user_id`   — EverCore tenant identity, shared across all agents
+    in the same project. Defaults to env `LAB358_USER_ID` or "shared".
+    All agents on the same project MUST share the same user_id so
+    EverCore's per-user index makes their consolidated knowledge
+    visible across agent boundaries — exactly the cross-agent recall
+    behavior this lab is built to demonstrate.
+
+The pedagogical lesson: in EverCore's model, "user" = tenant, not
+persona. If each agent gets its own user_id, the two-tier architecture
+silently degrades into N isolated per-agent stores — and the
+Phase 4 cross-agent recall demo returns 0 memories.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,9 +49,13 @@ class TieredMemory:
     def __init__(
         self,
         agent_id: str,
+        user_id: str | None = None,
         config: TieredMemoryConfig | None = None,
     ) -> None:
         self.agent_id = agent_id
+        # Tenant-scoped user_id is intentionally SHARED across agents in the
+        # same lab so cross-agent recall via EverCore works. See module docstring.
+        self.user_id = user_id or os.getenv("LAB358_USER_ID", "shared")
         self.config = config or TieredMemoryConfig()
         self._guild = GuildClient(agent_id=agent_id)
         self._http = httpx.Client(
@@ -108,16 +125,19 @@ class TieredMemory:
     def query_context(self, query: str, k: int = 5) -> list[dict[str, Any]]:
         """Semantic recall — what do we know about <query>?
 
-        Returns episode dicts from EverCore's hybrid search; each dict has
-        at minimum `summary` / `episode` / `score` (per OpenAPI schema).
-        Caller can read `m['summary']` or `m['episode']` for content.
+        Filter is `user_id=self.user_id` (the SHARED tenant identity, not
+        per-agent), so this agent sees memories imprinted by ANY agent in
+        the same lab. Returns episode dicts from EverCore's hybrid search;
+        each dict has at minimum `summary` / `episode` / `score` (per
+        OpenAPI schema). Caller can read `m['summary']` or `m['episode']`
+        for content.
         """
         r = self._http.post(
             "/api/v1/memories/search",
             json={
                 "query": query,
                 "top_k": k,
-                "filters": {"user_id": self.agent_id},
+                "filters": {"user_id": self.user_id},
             },
         )
         r.raise_for_status()
@@ -131,23 +151,53 @@ class TieredMemory:
     def imprint(self, content: str, metadata: dict[str, Any] | None = None) -> str:
         """Write a consolidated fact into long-term memory.
 
-        EverCore's POST /api/v1/memories shape: store the fact as one
-        assistant-role message. Returns the request-scoped session_id we
-        used (EverCore's own memory_id is assigned server-side and surfaced
-        on subsequent search; we don't see it directly in the add response).
+        EverCore's POST /api/v1/memories pipeline is conversation-shaped:
+        accumulates messages, runs LLM boundary detection, only extracts a
+        memcell when the LLM judges an episode boundary has occurred. Single
+        isolated messages are stored as `accumulated` and never become
+        searchable. To make consolidated facts visible to search:
+
+          1. Wrap each fact as a 2-turn synthetic conversation
+             (user "what about <subject>?" + assistant "<fact>") so the
+             session has both a query side and an answer side.
+          2. POST to /api/v1/memories with a unique session_id per fact.
+          3. Immediately POST /api/v1/memories/flush with the SAME session_id
+             — flush bypasses LLM boundary detection and forces memcell
+             creation (`flush=True` short-circuits `_detect_boundaries`
+             in EverCore's conv_memcell_extractor).
+
+        Returns the session_id used (becomes the memcell anchor; one
+        memcell per imprint call).
         """
-        session_id = (metadata or {}).get("quest_id") or "consolidation"
+        # Session_id uniqueness drives 1-imprint = 1-episode; using the
+        # quest_id keeps it auditable. Fallback for non-quest imprints.
+        session_id = (metadata or {}).get("quest_id") or f"imp-{self._now_ms()}"
+        subject = (metadata or {}).get("subject") or "this topic"
+        now_ms = self._now_ms()
         body = {
-            "user_id": self.agent_id,
+            "user_id": self.user_id,
             "session_id": session_id,
             "messages": [
                 {
+                    "role": "user",
+                    "timestamp": now_ms,
+                    "content": f"What do we know about {subject}?",
+                },
+                {
                     "role": "assistant",
-                    "timestamp": self._now_ms(),
+                    "timestamp": now_ms + 1,
                     "content": content,
-                }
+                },
             ],
         }
         r = self._http.post("/api/v1/memories", json=body)
         r.raise_for_status()
+        # Force boundary close so the memcell extracts immediately
+        # rather than waiting for LLM-judged conversational boundary
+        # (which may never fire for single-fact imprints).
+        rf = self._http.post(
+            "/api/v1/memories/flush",
+            json={"user_id": self.user_id, "session_id": session_id},
+        )
+        rf.raise_for_status()
         return session_id

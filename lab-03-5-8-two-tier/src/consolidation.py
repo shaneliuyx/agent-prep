@@ -163,10 +163,14 @@ async def consolidate(
                     result.scrolls_demoted += 1
                     continue
 
+            # Derive a short subject from the scroll text (first 80 chars)
+            # for the synthetic user-question turn in EverCore imprint.
+            subject = scroll_text.split("\n", 1)[0][:80].strip() or quest_id
             metadata: dict[str, object] = {
                 "quest_id": quest_id,
                 "agent_id": tm.agent_id,
                 "source": "guild_consolidation",
+                "subject": subject,
             }
             if score is not None:
                 metadata["quality_score"] = round(score, 3)
