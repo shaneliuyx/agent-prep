@@ -113,11 +113,14 @@ class ConsolidationResult:
     # Atomisation counter — total atomic facts imprinted across all scrolls.
     # facts_imprinted >= scrolls_imprinted because one scroll yields N facts.
     facts_imprinted: int = 0
-    # Online-dedup counters (Batchelor-Manning form #1) — only populated
-    # when use_dedup=True. Each atom takes exactly one dedup action.
-    facts_deduplicated: int = 0  # action="no-op" — fact already known
-    facts_updated: int = 0       # action="update" — refined existing fact
-    facts_deleted: int = 0       # action="delete" — contradicted existing fact
+    # Online-dedup counters (Batchelor-Manning form #1 + Phase 9.5
+    # bitemporal extension) — only populated when use_dedup=True.
+    # Each atom takes exactly one primary action.
+    facts_deduplicated: int = 0   # action="no-op" — fact already known
+    facts_updated: int = 0        # action="update" — same world-state correction
+    facts_deleted: int = 0        # action="delete" — old fact was false
+    facts_superseded: int = 0     # action="supersede" — state evolved (old kept, marked)
+    facts_coexisted: int = 0      # action="coexist" — scoped variant; both true
 
 
 def _ensure_dedup_table(db_path: Path = DEDUP_DB) -> sqlite3.Connection:
@@ -351,6 +354,8 @@ async def consolidate(
                         result.facts_updated += counts["updated"]
                         result.facts_deleted += counts["deleted"]
                         result.facts_deduplicated += counts["noop"]
+                        result.facts_superseded += counts.get("superseded", 0)
+                        result.facts_coexisted += counts.get("coexisted", 0)
                         # `fact_count` tracks any non-noop action so the scroll
                         # itself still counts as "imprinted" downstream.
                         if action.action != "no-op":

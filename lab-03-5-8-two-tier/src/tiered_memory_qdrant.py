@@ -27,6 +27,7 @@ from __future__ import annotations
 import os
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -135,6 +136,12 @@ class TieredMemory:
 
         No conversation shape, no boundary detection, no flush dance.
         Returns the Qdrant point ID for audit/dedup.
+
+        Write-time bitemporal signal (W3.5.8 Phase 9.5 / Batchelor-Manning
+        form #7): every imprint stamps `timestamp` (ISO 8601 UTC) into the
+        payload so downstream dedup can distinguish factual correction
+        (short gap) from state evolution (large gap). Caller-supplied
+        metadata can override (e.g. backfill from logs).
         """
         point_id = str(uuid.uuid4())
         vector = self._embed(content)
@@ -142,6 +149,7 @@ class TieredMemory:
             "user_id": self.user_id,
             "agent_id": self.agent_id,
             "content": content,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         if metadata:
             payload.update(metadata)

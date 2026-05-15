@@ -54,8 +54,19 @@ def test_decide_action_classifies_real_duplicate_correctly():
 
 
 def test_decide_action_handles_contradiction():
-    """Contradicting fact → LLM picks delete or update. Both resolve the
-    contradiction; we don't assert a specific choice."""
+    """Contradicting fact → LLM picks any non-silencing action. Auth-token-
+    expiry change reads like config rotation (state evolution) so the
+    6-action classifier (Phase 9.6) MAY pick `supersede` over `delete` /
+    `update`. All four are acceptable — each resolves the contradiction
+    without losing the new fact; we don't assert a specific choice.
+
+    Hard invariant: classifier MUST NOT pick `no-op` or `add` — both
+    silence the contradiction. no-op retains the now-false 30-minute
+    fact alongside the new 1-hour fact; add accumulates both as
+    independent memories (W3.5.8 §9.6 contract).
+
+    See W3.5.8 BCJ Entry 15 for the 4→6 action assertion-set widening.
+    """
     candidates = [
         {
             "id": "existing-1",
@@ -65,14 +76,54 @@ def test_decide_action_handles_contradiction():
     ]
     new_fact = "Auth tokens expire after 1 hour."
     action = decide_action(new_fact, candidates)
-    assert action.action in ("delete", "update", "add"), (
-        f"unexpected action: {action.action}"
+    assert action.action in ("delete", "update", "supersede"), (
+        f"unexpected action: {action.action} — see W3.5.8 §9.6 contract"
     )
-    # Reasonable expectation: LLM doesn't pick no-op (which would silence the contradiction)
-    assert action.action != "no-op", (
-        "LLM picked no-op on a contradiction — store would silently retain "
-        "the now-false 30-minute fact alongside the new 1-hour fact"
+    # If supersede, the classifier should bind the target and supply a reason
+    # (config category is the canonical 'state evolution' bucket here).
+    if action.action == "supersede":
+        assert action.target_id == "existing-1"
+        assert action.supersede_reason
+
+
+def test_decide_action_emits_supersede_on_temporal_state_change():
+    """Phase 9.5 — state evolution classification.
+
+    Old fact + new fact that contradicts BUT reads as state change
+    (linguistic cue "switched", large time gap in timestamps) should
+    classify as supersede (preferred) — or update / delete as
+    acceptable fallbacks. no-op or add would be wrong: both silence
+    the temporal state-change signal the chapter Phase 9.5 is built
+    to demonstrate.
+
+    Validates BOTH Step 1 (5-action prompt) and Step 2 (timestamp
+    injection in _format_candidates) together — without ts in the
+    candidate, the LLM has no temporal cue and is far more likely
+    to pick `update` (correction) over `supersede` (state change).
+    """
+    candidates = [
+        {
+            "id": "existing-react",
+            "content": "User prefers React for frontend work.",
+            "timestamp": "2024-01-15T10:00:00+00:00",
+            "score": 0.82,
+        }
+    ]
+    new_fact = "User has now switched to Vue for all new frontend projects."
+    action = decide_action(new_fact, candidates)
+    assert action.action in ("supersede", "update", "delete"), (
+        f"expected state-change classification, got {action.action}. "
+        "no-op/add silence the temporal signal — Phase 9.5 contract violated."
     )
+    if action.action == "supersede":
+        assert action.target_id == "existing-react", (
+            "supersede must reference the contradicted candidate's id "
+            "so downstream payload-patch (Step 3) can mark the chain"
+        )
+        assert action.supersede_reason, (
+            "supersede must explain WHY it's state-change not correction — "
+            "field is the audit hook for bitemporal queries"
+        )
 
 
 @pytest.mark.asyncio
