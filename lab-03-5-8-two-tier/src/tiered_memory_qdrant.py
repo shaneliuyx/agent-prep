@@ -152,31 +152,56 @@ class TieredMemory:
         r.raise_for_status()
         return point_id
 
-    def query_context(self, query: str, k: int = 5) -> list[dict[str, Any]]:
+    def query_context(
+        self,
+        query: str,
+        k: int = 5,
+        min_confidence: float = 0.0,
+        type_filter: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Cosine-nearest top-k filtered by SHARED user_id.
 
-        Returns list of dicts with keys `content`, `score`, plus all
-        payload fields (quest_id, agent_id, subject, quality_score, ...).
+        Read-time application of write-time confidence + type signals
+        (Batchelor-Manning 2026 forms #5 + #6). `min_confidence` filters
+        out memories whose `quality_score` is below threshold;
+        `type_filter` restricts to a subset of payload `type` values
+        (e.g. ["fact", "skill"] to exclude "observation"). Over-fetches
+        3× k before filtering so confidence-filtered results still
+        return up to k hits when low-quality entries are scattered.
+
+        Returns dicts with keys `content`, `score`, plus all payload
+        fields (quest_id, agent_id, subject, quality_score, type, ...).
         """
         vector = self._embed(query)
+        # Build qdrant payload filter
+        must: list[dict[str, Any]] = [
+            {"key": "user_id", "match": {"value": self.user_id}}
+        ]
+        if type_filter:
+            must.append({"key": "type", "match": {"any": type_filter}})
+
         r = self._http.post(
             f"/collections/{COLLECTION}/points/search",
             json={
                 "vector": vector,
-                "limit": k,
-                "filter": {
-                    "must": [{"key": "user_id", "match": {"value": self.user_id}}]
-                },
+                "limit": k * 3 if min_confidence > 0 else k,
+                "filter": {"must": must},
                 "with_payload": True,
             },
         )
         r.raise_for_status()
         hits = r.json().get("result", []) or []
-        return [
-            {
-                "content": hit["payload"]["content"],
+        out = []
+        for hit in hits:
+            payload = hit["payload"]
+            score = float(payload.get("quality_score") or 1.0)
+            if score < min_confidence:
+                continue
+            out.append({
+                "content": payload["content"],
                 "score": hit["score"],
-                **hit["payload"],
-            }
-            for hit in hits
-        ]
+                **payload,
+            })
+            if len(out) >= k:
+                break
+        return out

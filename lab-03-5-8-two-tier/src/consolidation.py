@@ -47,6 +47,35 @@ Skip scrolls that don't encode reusable knowledge (in-progress notes,
 failed attempts, debug traces) — output exactly: SKIP."""
 
 
+# Atomisation prompt (Batchelor-Manning 2026 form #2). Returns a JSON list
+# of typed atomic facts. Each fact is ONE self-contained proposition.
+ATOMIZE_PROMPT = """Extract ALL distinct atomic facts from this task scroll.
+
+Output a JSON array. Each element:
+  {"fact": str, "type": str, "confidence": number}
+
+Rules:
+- `fact`: one self-contained proposition (≤ 25 words, present tense, no anaphora)
+- `type`: one of "fact" | "observation" | "tool_result" | "skill"
+    - "fact": durable knowledge ("Production deploys use Terraform")
+    - "observation": time/context-bound ("Today's run took 5 min")
+    - "tool_result": output of a tool execution ("terraform apply returned 200")
+    - "skill": reusable procedure ("To rotate auth tokens: stop service, run keycloak-rotation, restart")
+- `confidence`: 0.0-1.0, your judgment of fact reliability + reusability
+
+Output exactly `[]` (empty array) if the scroll encodes no reusable knowledge.
+
+Example:
+  Scroll: "deployed via terraform; ran apply got 200; verified VPC peering with data-lake; first-deploy budget 5 minutes"
+  Output: [
+    {"fact": "Production deployments use Terraform IaC with VPC peering to the data-lake account.", "type": "fact", "confidence": 0.95},
+    {"fact": "First-deploy wall-clock budget is 5 minutes.", "type": "fact", "confidence": 0.9},
+    {"fact": "terraform apply returned HTTP 200 on this run.", "type": "tool_result", "confidence": 0.85}
+  ]
+
+Return ONLY the JSON array. No prose, no markdown fence, no explanation."""
+
+
 @dataclass
 class ConsolidationResult:
     scrolls_seen: int
@@ -57,6 +86,9 @@ class ConsolidationResult:
     # and the summary scored below it. Kept separate from scrolls_skipped so
     # operators can distinguish summarizer-SKIP from quality-gate-DEMOTE.
     scrolls_demoted: int = 0
+    # Atomisation counter — total atomic facts imprinted across all scrolls.
+    # facts_imprinted >= scrolls_imprinted because one scroll yields N facts.
+    facts_imprinted: int = 0
 
 
 def _ensure_dedup_table(db_path: Path = DEDUP_DB) -> sqlite3.Connection:
@@ -68,14 +100,10 @@ def _ensure_dedup_table(db_path: Path = DEDUP_DB) -> sqlite3.Connection:
 
 
 def summarize_scroll(scroll_text: str) -> str | None:
-    """LLM-summarize a scroll into one semantic-fact sentence.
-    Returns None if scroll should be skipped (no reusable knowledge).
+    """[Legacy] Single-summary version. Returns one ~25-word summary.
 
-    max_tokens=400 leaves room for reasoning models (e.g. gpt-oss-20b) whose
-    chain-of-thought lands in `reasoning_content` BEFORE the final `content`
-    is emitted. A budget of 80 (final-answer-only) gets eaten by CoT and
-    leaves `content=None` + `finish_reason='length'`. The 25-word output
-    cap is enforced by the system prompt, not by the token ceiling.
+    Use extract_atomic_facts() instead for the form-#2 (atomisation)
+    pipeline. Kept for backward-compat with §3.2 tests until they migrate.
     """
     client = OpenAI(
         base_url=os.getenv("OMLX_BASE_URL"),
@@ -96,11 +124,107 @@ def summarize_scroll(scroll_text: str) -> str | None:
     return summary
 
 
+def _strip_scroll_wrapper(scroll_text: str) -> str:
+    """Strip guild's metadata wrapper from a scroll, keeping only the
+    substantive content (journal entries + completion report).
+
+    guild's quest_scroll() output looks like:
+        📜 QUEST-N [P2 · done]  <subject>
+          owner: agent
+          notes: K
+            · [spec] subject: X; priority: ...
+            · [checkpoint] accepted by agent — starting fresh
+            · [completed] <the actual report text we want>
+            · [journal] <agent-written progress notes>
+
+    The LLM is confused by the metadata header and emits 0 facts on the
+    wrapped form. Pull only the lines tagged [completed] or [journal] —
+    those are the substantive content. Falls back to the full text if
+    no tagged lines are found (defensive).
+    """
+    keep = []
+    for line in scroll_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("· [completed]"):
+            keep.append(stripped[len("· [completed]"):].strip())
+        elif stripped.startswith("· [journal]"):
+            keep.append(stripped[len("· [journal]"):].strip())
+    return " ".join(keep) if keep else scroll_text
+
+
+def extract_atomic_facts(scroll_text: str) -> list[dict]:
+    """LLM-extract N typed atomic facts from a scroll.
+
+    Returns list of dicts {fact, type, confidence}. Empty list if scroll
+    encodes no reusable knowledge (replaces old SKIP sentinel).
+
+    max_tokens=800 gives reasoning models room for chain-of-thought AND
+    JSON output (~3-5 facts × ~50 tokens each + JSON overhead).
+
+    Resilient to malformed JSON: if parsing fails OR a fence is wrapped
+    around the array, strip and retry; on second failure, fall back to
+    one-fact list using the raw text as the summary (so the pipeline
+    degrades gracefully instead of hard-failing on LLM output drift).
+    """
+    import json
+
+    # Strip guild's metadata wrapper — the LLM extracts 0 facts on the
+    # wrapped form because the header looks like noise. Substantive
+    # content lives in [completed] + [journal] tagged lines only.
+    content = _strip_scroll_wrapper(scroll_text)
+
+    client = OpenAI(
+        base_url=os.getenv("OMLX_BASE_URL"),
+        api_key=os.getenv("OMLX_API_KEY"),
+    )
+    resp = client.chat.completions.create(
+        model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+        messages=[
+            {"role": "system", "content": ATOMIZE_PROMPT},
+            {"role": "user", "content": content},
+        ],
+        temperature=0.0,
+        max_tokens=800,
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    if not raw or raw == "[]":
+        return []
+
+    # Strip optional ```json ... ``` fence
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+
+    try:
+        facts = json.loads(raw)
+    except json.JSONDecodeError:
+        # Graceful fallback: treat raw as one fact, default type+confidence.
+        return [{"fact": raw[:200], "type": "fact", "confidence": 0.5}]
+
+    if not isinstance(facts, list):
+        return []
+
+    # Validate + coerce each entry
+    out = []
+    for f in facts:
+        if not isinstance(f, dict) or "fact" not in f:
+            continue
+        out.append({
+            "fact": str(f["fact"])[:300],
+            "type": str(f.get("type", "fact")),
+            "confidence": float(f.get("confidence", 0.5)),
+        })
+    return out
+
+
 async def consolidate(
     tm: TieredMemory,
     max_batch: int = 50,
     campaign: str | None = None,
     promotion_threshold: float | None = None,
+    use_atomisation: bool = False,
 ) -> ConsolidationResult:
     """One batch run. Pulls closed quests from guild, imprints into EverCore.
 
@@ -116,6 +240,13 @@ async def consolidate(
     only imprinted if `score >= promotion_threshold`. Demoted scrolls land
     in `result.scrolls_demoted`. When `promotion_threshold is None`, the
     gate is bypassed and every non-SKIP summary imprints (legacy behavior).
+
+    Atomisation (Batchelor-Manning 2026 form #2): when `use_atomisation=True`,
+    extract N typed atomic facts per scroll via `extract_atomic_facts()` and
+    imprint each as a separate memory with its own type + confidence in
+    metadata. `result.facts_imprinted` counts the per-fact imprints (always
+    >= scrolls_imprinted). When False (default), uses the legacy single-
+    summary path via `summarize_scroll()` — keeps §3.2 tests passing.
     """
     from src.quality_gate import quality_score  # local import avoids circular ref
     # 1. List closed quests via quest_list(status='done')
@@ -144,12 +275,54 @@ async def consolidate(
         errors=[],
     )
 
-    # 3. Per-quest: fetch scroll, summarize, imprint, record dedup row
+    # 3. Per-quest: fetch scroll, summarize (or atomise), imprint, record dedup row
     for quest_id in quest_ids:
         if quest_id in imprinted_before:
             continue
         try:
             scroll_text = await tm.get_scroll(quest_id)
+
+            # Derive subject once — used by both atomisation + legacy paths.
+            subject = scroll_text.split("\n", 1)[0][:80].strip() or quest_id
+
+            if use_atomisation:
+                # Form #2 (atomisation): N typed facts per scroll.
+                atoms = extract_atomic_facts(scroll_text)
+                if not atoms:
+                    result.scrolls_skipped += 1
+                    continue
+                # Imprint each atomic fact as a separate memory.
+                fact_count = 0
+                for atom in atoms:
+                    fact_content = atom["fact"]
+                    atom_type = atom["type"]
+                    atom_conf = atom["confidence"]
+                    # Quality gate applies per-atom on its self-reported confidence.
+                    if promotion_threshold is not None and atom_conf < promotion_threshold:
+                        continue
+                    atom_meta: dict[str, object] = {
+                        "quest_id": quest_id,
+                        "agent_id": tm.agent_id,
+                        "source": "guild_consolidation",
+                        "subject": subject,
+                        "type": atom_type,
+                        "quality_score": round(atom_conf, 3),
+                    }
+                    tm.imprint(content=fact_content, metadata=atom_meta)
+                    fact_count += 1
+                if fact_count == 0:
+                    result.scrolls_demoted += 1
+                    continue
+                result.facts_imprinted += fact_count
+                dedup.execute(
+                    "INSERT OR IGNORE INTO imprinted (quest_id) VALUES (?)",
+                    (quest_id,),
+                )
+                dedup.commit()
+                result.scrolls_imprinted += 1
+                continue
+
+            # Legacy single-summary path (default for backwards compat with §3.2 tests).
             summary = summarize_scroll(scroll_text)
             if summary is None:
                 result.scrolls_skipped += 1
@@ -163,19 +336,18 @@ async def consolidate(
                     result.scrolls_demoted += 1
                     continue
 
-            # Derive a short subject from the scroll text (first 80 chars)
-            # for the synthetic user-question turn in EverCore imprint.
-            subject = scroll_text.split("\n", 1)[0][:80].strip() or quest_id
             metadata: dict[str, object] = {
                 "quest_id": quest_id,
                 "agent_id": tm.agent_id,
                 "source": "guild_consolidation",
                 "subject": subject,
+                "type": "fact",
             }
             if score is not None:
                 metadata["quality_score"] = round(score, 3)
 
             tm.imprint(content=summary, metadata=metadata)
+            result.facts_imprinted += 1
             dedup.execute(
                 "INSERT OR IGNORE INTO imprinted (quest_id) VALUES (?)",
                 (quest_id,),

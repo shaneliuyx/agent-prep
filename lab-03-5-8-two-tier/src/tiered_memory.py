@@ -122,31 +122,54 @@ class TieredMemory:
         import time
         return int(time.time() * 1000)
 
-    def query_context(self, query: str, k: int = 5) -> list[dict[str, Any]]:
+    def query_context(
+        self,
+        query: str,
+        k: int = 5,
+        min_confidence: float = 0.0,
+        type_filter: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Semantic recall — what do we know about <query>?
 
-        Filter is `user_id=self.user_id` (the SHARED tenant identity, not
-        per-agent), so this agent sees memories imprinted by ANY agent in
-        the same lab. Returns episode dicts from EverCore's hybrid search;
-        each dict has at minimum `summary` / `episode` / `score` (per
-        OpenAPI schema). Caller can read `m['summary']` or `m['episode']`
-        for content.
+        Read-time application of write-time confidence + type signals
+        (Batchelor-Manning 2026 forms #5 + #6). `min_confidence` filters
+        out memories whose `quality_score` is below threshold;
+        `type_filter` restricts to a subset of `type` values in the
+        episode/memcell metadata. Over-fetches 3× k before filtering so
+        results still return up to k hits when low-quality entries are
+        scattered.
+
+        Filter is `user_id=self.user_id` (SHARED tenant identity) so this
+        agent sees memories imprinted by ANY agent on the same lab.
+        Returns episode dicts; each carries `summary` / `episode` / `score`
+        plus normalised `content` per OpenAPI schema.
         """
         r = self._http.post(
             "/api/v1/memories/search",
             json={
                 "query": query,
-                "top_k": k,
+                "top_k": k * 3 if min_confidence > 0 or type_filter else k,
                 "filters": {"user_id": self.user_id},
             },
         )
         r.raise_for_status()
         data = r.json().get("data", {})
         episodes = data.get("episodes", []) or []
-        # Normalize: expose `content` field for chapter-level call sites.
         for e in episodes:
             e.setdefault("content", e.get("summary") or e.get("episode") or "")
-        return episodes
+        # Read-time filters on write-time signals
+        out = []
+        for e in episodes:
+            score = float(e.get("quality_score") or 1.0)
+            if score < min_confidence:
+                continue
+            etype = e.get("type")
+            if type_filter and etype and etype not in type_filter:
+                continue
+            out.append(e)
+            if len(out) >= k:
+                break
+        return out
 
     def imprint(self, content: str, metadata: dict[str, Any] | None = None) -> str:
         """Write a consolidated fact into long-term memory.
