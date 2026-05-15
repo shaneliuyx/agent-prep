@@ -24,7 +24,31 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from src.tiered_memory import TieredMemory
+from typing import Any, Protocol
+
+
+class TieredMemoryLike(Protocol):
+    """Structural type covering both EverCore (src.tiered_memory.TieredMemory)
+    and Qdrant (src.tiered_memory_qdrant.TieredMemory) variants.
+
+    Pyright otherwise sees them as distinct classes; this Protocol asserts
+    they share the contract `consolidate()` actually depends on. Shape
+    matches src.dedup_synthesis.TieredMemoryLike (which adds `_http` for
+    the Qdrant-specific dedup-delete codepath).
+    """
+    agent_id: str
+    _http: Any
+
+    async def list_closed_quests(self, campaign: str | None = None) -> str: ...
+    async def get_scroll(self, quest_id: str) -> str: ...
+    def imprint(self, content: str, metadata: dict[str, Any] | None = ...) -> str: ...
+    def query_context(
+        self,
+        query: str,
+        k: int = ...,
+        min_confidence: float = ...,
+        type_filter: list[str] | None = ...,
+    ) -> list[dict[str, Any]]: ...
 
 
 QUEST_ID_RE = re.compile(r"QUEST-\d+")
@@ -89,6 +113,11 @@ class ConsolidationResult:
     # Atomisation counter — total atomic facts imprinted across all scrolls.
     # facts_imprinted >= scrolls_imprinted because one scroll yields N facts.
     facts_imprinted: int = 0
+    # Online-dedup counters (Batchelor-Manning form #1) — only populated
+    # when use_dedup=True. Each atom takes exactly one dedup action.
+    facts_deduplicated: int = 0  # action="no-op" — fact already known
+    facts_updated: int = 0       # action="update" — refined existing fact
+    facts_deleted: int = 0       # action="delete" — contradicted existing fact
 
 
 def _ensure_dedup_table(db_path: Path = DEDUP_DB) -> sqlite3.Connection:
@@ -220,11 +249,12 @@ def extract_atomic_facts(scroll_text: str) -> list[dict]:
 
 
 async def consolidate(
-    tm: TieredMemory,
+    tm: TieredMemoryLike,
     max_batch: int = 50,
     campaign: str | None = None,
     promotion_threshold: float | None = None,
     use_atomisation: bool = False,
+    use_dedup: bool = False,
 ) -> ConsolidationResult:
     """One batch run. Pulls closed quests from guild, imprints into EverCore.
 
@@ -308,12 +338,30 @@ async def consolidate(
                         "type": atom_type,
                         "quality_score": round(atom_conf, 3),
                     }
-                    tm.imprint(content=fact_content, metadata=atom_meta)
-                    fact_count += 1
+                    if use_dedup:
+                        # Form #1 (online dedup-and-synthesis): query top-k,
+                        # LLM decides add/update/delete/no-op, execute.
+                        from src.dedup_synthesis import decide_action, execute_action
+                        candidates = tm.query_context(fact_content, k=5)
+                        action = decide_action(fact_content, candidates)
+                        counts = execute_action(
+                            tm, action, fact_content, metadata=atom_meta
+                        )
+                        result.facts_imprinted += counts["imprinted"]
+                        result.facts_updated += counts["updated"]
+                        result.facts_deleted += counts["deleted"]
+                        result.facts_deduplicated += counts["noop"]
+                        # `fact_count` tracks any non-noop action so the scroll
+                        # itself still counts as "imprinted" downstream.
+                        if action.action != "no-op":
+                            fact_count += 1
+                    else:
+                        tm.imprint(content=fact_content, metadata=atom_meta)
+                        result.facts_imprinted += 1
+                        fact_count += 1
                 if fact_count == 0:
                     result.scrolls_demoted += 1
                     continue
-                result.facts_imprinted += fact_count
                 dedup.execute(
                     "INSERT OR IGNORE INTO imprinted (quest_id) VALUES (?)",
                     (quest_id,),

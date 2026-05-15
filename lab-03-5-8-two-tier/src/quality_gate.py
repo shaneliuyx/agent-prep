@@ -21,10 +21,7 @@ at threshold ∈ {0.3, 0.5, 0.7}. Tune per domain.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from src.tiered_memory import TieredMemory
+from typing import Any
 
 
 SPECIFICITY_HINTS = re.compile(
@@ -61,7 +58,7 @@ def _specificity_score(summary: str) -> float:
 
 def _novelty_score(
     summary: str,
-    tm: "TieredMemory | None",
+    tm: "Any | None",
     top_k: int = 5,
 ) -> float:
     """Novelty = 1.0 - max(similarity) over top-k nearest existing memories.
@@ -87,7 +84,7 @@ def _novelty_score(
 
 def quality_score(
     summary: str,
-    tm: "TieredMemory | None" = None,
+    tm: "Any | None" = None,
     weights: dict[str, float] | None = None,
 ) -> float:
     """Combined quality score in [0.0, 1.0]. Weighted average of three signals.
@@ -107,7 +104,7 @@ def quality_score(
 def should_promote(
     summary: str,
     threshold: float = DEFAULT_THRESHOLD,
-    tm: "TieredMemory | None" = None,
+    tm: "Any | None" = None,
     weights: dict[str, float] | None = None,
 ) -> bool:
     """Promotion gate. Default threshold tuned on the 20-scroll probe.
