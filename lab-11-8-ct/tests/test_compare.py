@@ -1,5 +1,5 @@
 """Offline tests for eval-gate comparator."""
-from src.eval_gate import compare
+from src.compare import compare
 
 
 def test_pass_when_candidate_better():
