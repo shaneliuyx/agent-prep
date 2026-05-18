@@ -1,0 +1,22 @@
+[project]
+name = "lab-07-7-quantization"
+version = "0.1.0"
+description = "Quantization + inference optimization lab — measures FP16/Q8/Q4/MXFP4 trade-offs on local MLX fleet (W7.7)"
+requires-python = ">=3.12"
+dependencies = [
+    "mlx-lm>=0.20.0",
+    "transformers>=4.45.0",
+    "tiktoken>=0.8.0",
+    "pandas>=2.2.0",
+    "matplotlib>=3.9.0",
+    "psutil>=6.0.0",
+    "numpy>=2.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

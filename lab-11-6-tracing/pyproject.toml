@@ -1,0 +1,25 @@
+[project]
+name = "lab-11-6-tracing"
+version = "0.1.0"
+description = "Production tracing + cost telemetry — OpenTelemetry instrumentation + Langfuse + DuckDB rollups (W11.6)"
+requires-python = ">=3.12"
+dependencies = [
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "openai>=2.36.0",
+    "httpx>=0.28.1",
+    "duckdb>=1.1.0",
+    "pandas>=2.2.0",
+    "pyarrow>=18.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

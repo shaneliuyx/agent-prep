@@ -1,0 +1,20 @@
+[project]
+name = "lab-11-8-ct"
+version = "0.1.0"
+description = "Continuous Training + MLOps — PSI drift detector + eval-gated CI + shadow ramp (W11.8)"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0.0",
+    "pandas>=2.2.0",
+    "pyarrow>=18.0.0",
+    "duckdb>=1.1.0",
+    "scipy>=1.14.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

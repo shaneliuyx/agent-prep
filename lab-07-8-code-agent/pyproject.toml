@@ -1,0 +1,21 @@
+[project]
+name = "lab-07-8-code-agent"
+version = "0.1.0"
+description = "Code-agent patterns — AST + LSP + branch coverage + mock-injection (W7.8)"
+requires-python = ">=3.12"
+dependencies = [
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python>=0.23.0",
+    "multilspy>=0.0.10",
+    "coverage>=7.6.0",
+    "openai>=2.36.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "hypothesis>=6.115.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,22 @@
+[project]
+name = "lab-08-7-genmedia"
+version = "0.1.0"
+description = "Generative media + fine-tuning — LoRA on SDXL + ControlNet + IP-Adapter for brand-consistent generation (W8.7)"
+requires-python = ">=3.12"
+dependencies = [
+    "diffusers>=0.30.0",
+    "transformers>=4.45.0",
+    "accelerate>=0.34.0",
+    "peft>=0.13.0",
+    "datasets>=3.0.0",
+    "torch>=2.4.0",
+    "pillow>=10.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
