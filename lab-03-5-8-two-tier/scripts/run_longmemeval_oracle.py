@@ -130,7 +130,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
     else:
         ctx = "\\n".join(f"- {c['content']}" for c in candidates)
         resp = llm.chat.completions.create(
-            model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
+            model=os.getenv("MODEL_HAIKU", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"),
             messages=[
                 {"role": "system", "content": COMPOSE_SYSTEM},
                 {"role": "user",
@@ -208,7 +208,7 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
     questions = json.loads(data_path.read_text())[:limit]
 
     llm = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
-    judge_model = os.getenv("MODEL_JUDGE", "gemma-4-26B-A4B-it-heretic-4bit")
+    judge_model = os.getenv("MODEL_JUDGE", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
 
     async with TieredMemory(agent_id=f"longmemeval-{campaign}") as tm:
         results = []
