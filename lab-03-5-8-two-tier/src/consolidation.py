@@ -24,7 +24,9 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
+
+from src.audit import AuditEntry, record_audit
 
 
 class TieredMemoryLike(Protocol):
@@ -123,7 +125,13 @@ class ConsolidationResult:
     facts_coexisted: int = 0      # action="coexist" — scoped variant; both true
 
 
-def _ensure_dedup_table(db_path: Path = DEDUP_DB) -> sqlite3.Connection:
+def _ensure_dedup_table(db_path: Path | None = None) -> sqlite3.Connection:
+    # Resolve default at CALL time so tests can monkeypatch
+    # `src.consolidation.DEDUP_DB` and have it reach this function. Default-arg
+    # binding evaluates DEDUP_DB at module-load time, which silently ignores
+    # the patch — a real testability bug we hit on §3.4 audit-extension tests.
+    if db_path is None:
+        db_path = DEDUP_DB
     conn = sqlite3.connect(db_path)
     conn.execute(
         "CREATE TABLE IF NOT EXISTS imprinted (quest_id TEXT PRIMARY KEY)"
@@ -251,6 +259,42 @@ def extract_atomic_facts(scroll_text: str) -> list[dict]:
     return out
 
 
+# ── Helper: emit one quality-gate audit (§3.4 optional extension) ───────
+# Centralised so atomisation + legacy paths share identical audit shape.
+# Pre-write semantics: target_id=None because the fact hasn't been
+# imprinted yet. On `promote`, new_id is filled by the caller AFTER the
+# downstream imprint returns the UUID (best-effort — None is acceptable
+# when use_dedup=True since execute_action returns counts not UUIDs).
+def _audit_gate(
+    *,
+    decision: Literal["promote", "demote"],
+    actor_agent_id: str,
+    user_id: str,
+    score: float,
+    threshold: float,
+    fact_preview: str,
+    quest_id: str,
+    fact_type: str = "fact",
+    new_id: str | None = None,
+) -> None:
+    record_audit(AuditEntry(
+        operation=decision,
+        actor_agent_id=actor_agent_id,
+        user_id=user_id,
+        target_id=None,
+        new_id=new_id,
+        payload_summary=fact_preview[:120],
+        metadata={
+            "quest_id": quest_id,
+            "quality_score": round(score, 3),
+            "threshold": round(threshold, 3),
+            "delta": round(score - threshold, 3),
+            "fact_type": fact_type,
+            "phase": "pre_write_gate",
+        },
+    ))
+
+
 async def consolidate(
     tm: TieredMemoryLike,
     max_batch: int = 50,
@@ -307,6 +351,10 @@ async def consolidate(
         scrolls_skipped=0,
         errors=[],
     )
+    # Audit-emitter context — captured once per batch (cheap).
+    # getattr() falls back gracefully if a future backend omits user_id.
+    actor_id = tm.agent_id
+    user_id = getattr(tm, "user_id", "")
 
     # 3. Per-quest: fetch scroll, summarize (or atomise), imprint, record dedup row
     for quest_id in quest_ids:
@@ -331,8 +379,23 @@ async def consolidate(
                     atom_type = atom["type"]
                     atom_conf = atom["confidence"]
                     # Quality gate applies per-atom on its self-reported confidence.
-                    if promotion_threshold is not None and atom_conf < promotion_threshold:
-                        continue
+                    # §3.4 audit extension: emit demote (skip) or track promote
+                    # (deferred until after imprint so new_id can be chained).
+                    gate_passed_score: float | None = None
+                    if promotion_threshold is not None:
+                        if atom_conf < promotion_threshold:
+                            _audit_gate(
+                                decision="demote",
+                                actor_agent_id=actor_id,
+                                user_id=user_id,
+                                score=atom_conf,
+                                threshold=promotion_threshold,
+                                fact_preview=fact_content,
+                                quest_id=quest_id,
+                                fact_type=atom_type,
+                            )
+                            continue
+                        gate_passed_score = atom_conf
                     atom_meta: dict[str, object] = {
                         "quest_id": quest_id,
                         "agent_id": tm.agent_id,
@@ -341,6 +404,7 @@ async def consolidate(
                         "type": atom_type,
                         "quality_score": round(atom_conf, 3),
                     }
+                    new_point_id: str | None = None
                     if use_dedup:
                         # Form #1 (online dedup-and-synthesis): query top-k,
                         # LLM decides add/update/delete/no-op, execute.
@@ -360,10 +424,26 @@ async def consolidate(
                         # itself still counts as "imprinted" downstream.
                         if action.action != "no-op":
                             fact_count += 1
+                        # new_point_id stays None — execute_action returns
+                        # counts, not UUIDs. Chain via metadata.quest_id.
                     else:
-                        tm.imprint(content=fact_content, metadata=atom_meta)
+                        new_point_id = tm.imprint(content=fact_content, metadata=atom_meta)
                         result.facts_imprinted += 1
                         fact_count += 1
+                    # §3.4 audit extension: emit promote AFTER imprint so
+                    # new_id can chain to the gate decision.
+                    if gate_passed_score is not None:
+                        _audit_gate(
+                            decision="promote",
+                            actor_agent_id=actor_id,
+                            user_id=user_id,
+                            score=gate_passed_score,
+                            threshold=promotion_threshold,  # type: ignore[arg-type]
+                            fact_preview=fact_content,
+                            quest_id=quest_id,
+                            fact_type=atom_type,
+                            new_id=new_point_id,  # None if use_dedup=True
+                        )
                 if fact_count == 0:
                     result.scrolls_demoted += 1
                     continue
@@ -382,10 +462,22 @@ async def consolidate(
                 continue
 
             # §3.3 quality-gate check before imprint (active iff threshold set).
+            # §3.4 audit extension: emit demote (skip) OR defer promote until
+            # after imprint so new_id can chain.
             score: float | None = None
             if promotion_threshold is not None:
                 score = quality_score(summary, tm=tm)
                 if score < promotion_threshold:
+                    _audit_gate(
+                        decision="demote",
+                        actor_agent_id=actor_id,
+                        user_id=user_id,
+                        score=score,
+                        threshold=promotion_threshold,
+                        fact_preview=summary,
+                        quest_id=quest_id,
+                        fact_type="fact",
+                    )
                     result.scrolls_demoted += 1
                     continue
 
@@ -399,8 +491,21 @@ async def consolidate(
             if score is not None:
                 metadata["quality_score"] = round(score, 3)
 
-            tm.imprint(content=summary, metadata=metadata)
+            new_summary_point_id = tm.imprint(content=summary, metadata=metadata)
             result.facts_imprinted += 1
+            # §3.4 audit extension: promote AFTER imprint with new_id chained.
+            if score is not None:
+                _audit_gate(
+                    decision="promote",
+                    actor_agent_id=actor_id,
+                    user_id=user_id,
+                    score=score,
+                    threshold=promotion_threshold,  # type: ignore[arg-type]
+                    fact_preview=summary,
+                    quest_id=quest_id,
+                    fact_type="fact",
+                    new_id=new_summary_point_id,
+                )
             dedup.execute(
                 "INSERT OR IGNORE INTO imprinted (quest_id) VALUES (?)",
                 (quest_id,),
