@@ -206,6 +206,7 @@ class TieredMemory:
             if score < min_confidence:
                 continue
             out.append({
+                "id": hit["id"],          # Qdrant point UUID — top-level on hit, NOT in payload
                 "content": payload["content"],
                 "score": hit["score"],
                 **payload,

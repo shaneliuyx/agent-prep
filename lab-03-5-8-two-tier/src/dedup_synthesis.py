@@ -2,26 +2,21 @@
 
 Implements the "pay at write time" pattern: when a new fact arrives, query
 the existing store for top-k semantically nearest candidates, then issue
-ONE LLM call to decide an action. Execute.
+ONE LLM call to decide an action. Execute + emit AuditEntry per action.
 
-Six actions (Phase 9.5 — bitemporal extension):
+Six actions (Phase 9.6 — bitemporal extension):
   - add       : novel fact, no overlap
   - update    : new fact refines/corrects one candidate (same world-state)
   - supersede : new fact contradicts one candidate, BOTH WERE TRUE AT
-                THEIR OWN TIMES (state evolution — preference shift,
-                config rotation, scope change). Old marked superseded_by.
+                THEIR OWN TIMES (state evolution). Old marked superseded_by.
   - coexist   : new fact appears to contradict one candidate but applies
                 to a DIFFERENT scope. Both true under different conditions.
   - delete    : old fact was factually false (hallucination); scrub it
   - no-op     : true duplicate, skip
 
-The supersede / coexist split (vs flat overwrite) is the contribution.
-Most flat-write systems collapse all contradictions to "overwrite" and
-lose audit trail. Splitting lets bitemporal queries answer "what did the
-agent believe at t₀?" instead of just "what does it believe now?".
-
-Article's claim from the 19-system corpus: this is the HIGHEST-ROI
-write-time form — compounds across every subsequent read.
+Audit emission (Phase 3.4 + agentmemory pattern):
+Every state-mutating branch emits one AuditEntry to data/audit.jsonl.
+Downstream consumers: replay / CT pipeline / cross-backend export.
 
 Scoped to the Qdrant TieredMemory variant for clean composition (EverCore
 has its own internal extraction pipeline that doesn't expose delete/update
@@ -42,10 +37,16 @@ from typing import Any, Literal, Protocol
 
 from openai import OpenAI
 
+from src.audit import AuditEntry, record_audit
+
 
 class TieredMemoryLike(Protocol):
     """Both EverCore and Qdrant variants — same surface; Pyright sees them
-    as distinct classes without this Protocol shim."""
+    as distinct classes without this Protocol shim. The audit code reads
+    `agent_id` + `user_id` via getattr() defensive — they're instance
+    attrs not class-level annotations, so we DON'T declare them in the
+    Protocol (would force Pyright to require them as class attrs and
+    miss runtime-only instance attrs)."""
     _http: Any
 
     def imprint(self, content: str, metadata: dict[str, Any] | None = ...) -> str: ...
@@ -101,6 +102,8 @@ Actions:
             ambiguous.
 
 - "no-op": new fact is a true DUPLICATE of one candidate. No imprint.
+            MUST include `target_id` of the duplicated candidate so
+            downstream audit / replay can trace the duplicate chain.
 
 Output JSON (no markdown fence, no prose):
 {{"action": "add" | "update" | "supersede" | "coexist" | "delete" | "no-op",
@@ -130,20 +133,9 @@ class DedupAction:
 
 
 def _format_candidates(candidates: list[dict]) -> str:
-    """Render top-k candidates as numbered list for the LLM prompt.
-
-    Surfaces a `timestamp` field per candidate so the classifier can
-    distinguish:
-      - short gap (sec/min)   -> likely factual correction (update)
-      - large gap (hours+)    -> likely state evolution (supersede)
-
-    Keys probed in order:
-      - "timestamp"      (Qdrant payload, Step 2 default)
-      - "created_at"     (EverCore episode response)
-      - "imprinted_at"   (legacy callers)
-    Falls back to "?" if none present — classifier degrades gracefully
-    (loses temporal signal, still has semantic + linguistic cues).
-    """
+    """Surfaces a `timestamp` field per candidate so the classifier can
+    distinguish factual correction (short gap) from state evolution
+    (large gap). Keys probed: timestamp, created_at, imprinted_at."""
     if not candidates:
         return "(none)"
     lines = []
@@ -165,15 +157,11 @@ def _format_candidates(candidates: list[dict]) -> str:
 
 
 def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
-    """LLM-mediated decision: add / update / delete / no-op.
-
-    Graceful failure modes:
-    - LLM returns malformed JSON → default to "add" (safe fallback;
-      no data loss, may accumulate near-duplicates which is acceptable
-      vs the alternative of silently dropping the fact)
-    - LLM returns unknown action → "add" with warning logged via target_id
-    - Empty candidates → return add immediately (no LLM call needed)
-    """
+    """LLM-mediated decision: one of 6 actions.
+    Graceful fallbacks:
+    - empty candidates -> add (no LLM call)
+    - malformed JSON   -> add (safe default; loss mode = duplication)
+    - unknown action   -> add (same)"""
     if not candidates:
         return DedupAction(action="add")
 
@@ -197,7 +185,7 @@ def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
 
     # Strip optional markdown fence
     if raw.startswith("```"):
-        raw = raw.strip("`")
+        raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
         raw = raw.strip()
@@ -211,9 +199,16 @@ def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
     if action not in _VALID_ACTIONS:
         return DedupAction(action="add")
 
+    # Defensive: classifier may emit no-op without target_id (prompt
+    # requires it but LLM compliance drifts). Default to the highest-
+    # similarity candidate so audit log isn't lossy on duplicate chains.
+    target_id = parsed.get("target_id")
+    if action == "no-op" and not target_id and candidates:
+        target_id = candidates[0].get("id") or candidates[0].get("point_id")
+
     return DedupAction(
         action=action,
-        target_id=parsed.get("target_id"),
+        target_id=target_id,
         merged_content=parsed.get("merged_content"),
         supersede_reason=parsed.get("supersede_reason"),
         supersede_category=parsed.get("supersede_category"),
@@ -223,77 +218,102 @@ def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
 
 def execute_action(tm: TieredMemoryLike, action: DedupAction, new_fact: str,
                    metadata: dict | None = None) -> dict:
-    """Apply a DedupAction against a Qdrant TieredMemory.
+    """Apply a DedupAction against a Qdrant TieredMemory; emit AuditEntry
+    per operation. Returns counters for caller aggregation.
 
-    Returns a dict with counters for the caller to aggregate:
-      {"imprinted", "updated", "deleted", "noop", "superseded", "coexisted"}
+    Counter dict shape:
+      {imprinted, updated, deleted, noop, superseded, coexisted}
 
-    Each call increments exactly one *primary* counter (the action's
-    classification). `imprinted` is a secondary counter that ALSO
-    increments whenever a new fact is written (add / update-via-imprint
-    / supersede / coexist / delete-then-add). Callers aggregating
+    Each call increments exactly one PRIMARY counter (matches action).
+    `imprinted` is SECONDARY — increments on any write (add / update /
+    supersede / coexist / delete-then-add). Callers aggregating
     "total writes" should sum `imprinted` alone.
     """
     counts = {
         "imprinted": 0, "updated": 0, "deleted": 0, "noop": 0,
         "superseded": 0, "coexisted": 0,
     }
+    md = metadata or {}
+    payload_summary = new_fact[:120]
+    actor = getattr(tm, "agent_id", "")
+    user = getattr(tm, "user_id", "")
+
+    def _audit(operation, *, target_id=None, new_id=None, summary=payload_summary, **meta):
+        record_audit(AuditEntry(
+            operation=operation,
+            actor_agent_id=actor, user_id=user,
+            target_id=target_id, new_id=new_id,
+            payload_summary=summary,
+            metadata=meta,
+        ))
 
     if action.action == "no-op":
         counts["noop"] += 1
+        _audit("noop_duplicate", target_id=action.target_id,
+               reason="true_duplicate_per_classifier")
         return counts
 
     if action.action == "delete" and action.target_id:
         _qdrant_delete(tm, [action.target_id])
-        # Per spec: delete is followed by add (the new fact is the replacement)
-        tm.imprint(content=new_fact, metadata=metadata or {})
+        # Per Phase 9 spec: delete is followed by add (new fact replaces old)
+        new_id = tm.imprint(content=new_fact, metadata=md)
         counts["deleted"] += 1
         counts["imprinted"] += 1
+        _audit("delete", target_id=action.target_id, new_id=new_id,
+               reason="factually_false_per_classifier")
         return counts
 
     if action.action == "update" and action.target_id:
         _qdrant_delete(tm, [action.target_id])
         merged = action.merged_content or new_fact
-        tm.imprint(content=merged, metadata=metadata or {})
+        new_id = tm.imprint(content=merged, metadata=md)
         counts["updated"] += 1
         counts["imprinted"] += 1
+        _audit("update", target_id=action.target_id, new_id=new_id,
+               summary=merged[:120],
+               reason="factual_correction_same_world_state", merged=True)
         return counts
 
     if action.action == "supersede" and action.target_id:
-        # NOTE (Phase 9.5 — Step 3 deferred): the soft-delete payload-patch
-        # path (`_qdrant_supersede`) is not yet wired. Until it lands the
-        # old fact's content is hard-deleted. Classification IS preserved
-        # via the new fact's `supersedes` pointer, so downstream chain
-        # traversal can still walk forward — just can't recover old text.
-        # Step 3 swaps `_qdrant_delete` -> payload-patch with zero
-        # contract change at this layer.
+        # NOTE (Step 3 deferred): the soft-delete payload-patch path
+        # `_qdrant_supersede` is not yet wired. Until then, hard-delete
+        # old + new fact with `supersedes` pointer + supersede_reason
+        # metadata. Classification IS preserved via the new fact's
+        # supersedes pointer — chain traversal walks forward. Step 3
+        # swaps _qdrant_delete -> payload-patch with zero contract
+        # change at this layer.
         _qdrant_delete(tm, [action.target_id])
-        supersede_meta = {
-            **(metadata or {}),
+        new_id = tm.imprint(content=new_fact, metadata={
+            **md,
             "supersedes": action.target_id,
             "supersede_reason": action.supersede_reason,
             "supersede_category": action.supersede_category,
             "fact_kind": "state_evolution",
-        }
-        tm.imprint(content=new_fact, metadata=supersede_meta)
+        })
         counts["superseded"] += 1
         counts["imprinted"] += 1
+        _audit("supersede", target_id=action.target_id, new_id=new_id,
+               supersede_category=action.supersede_category,
+               supersede_reason=action.supersede_reason,
+               fact_kind="state_evolution")
         return counts
 
     if action.action == "coexist" and (action.relates_to or action.target_id):
-        coexist_meta = {
-            **(metadata or {}),
-            "relates_to": action.relates_to or action.target_id,
-            "fact_kind": "scoped_variant",
-        }
-        tm.imprint(content=new_fact, metadata=coexist_meta)
+        related = action.relates_to or action.target_id
+        new_id = tm.imprint(content=new_fact, metadata={
+            **md, "relates_to": related, "fact_kind": "scoped_variant",
+        })
         counts["coexisted"] += 1
         counts["imprinted"] += 1
+        _audit("coexist", target_id=related, new_id=new_id,
+               relates_to=related, fact_kind="scoped_variant")
         return counts
 
-    # Default: add
-    tm.imprint(content=new_fact, metadata=metadata or {})
+    # Default: add (no candidates OR LLM picked add OR malformed-output fallback)
+    new_id = tm.imprint(content=new_fact, metadata=md)
     counts["imprinted"] += 1
+    _audit("imprint", new_id=new_id,
+           reason="novel_per_classifier_or_empty_candidates")
     return counts
 
 
