@@ -40,6 +40,7 @@ FIXTURES = [
         ],
         "question": "What was the first issue I had with my new car after its first service?",
         "gold": "GPS system not functioning correctly",
+        "expected_verdict": "CORRECT",
     },
     {
         "label": "MEDIUM — multi-hop ordering",
@@ -50,25 +51,36 @@ FIXTURES = [
         ],
         "question": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
         "gold": "'Data Analysis using Python' webinar",
+        "expected_verdict": "CORRECT",
     },
     {
-        "label": "HARD — empty / off-topic context (should abstain)",
+        # Tests TWO things at once:
+        #   1. Agent must abstain → expected_agent_answer = NO_ANSWER_IN_CONTEXT
+        #   2. Judge must mark abstention-vs-concrete-gold as INCORRECT
+        #      (eval rule: abstaining when answerable = wrong).
+        # Both ✅ means the fixture passed as designed.
+        "label": "HARD — empty / off-topic context (agent abstains, judge rejects)",
         "context": [
             "User deployed a new version of the API to production.",
             "User configured Terraform with VPC peering to the data-lake account.",
         ],
         "question": "Which vehicle did I take care of first in February, the bike or the car?",
-        "gold": "bike",  # gold says bike but context has zero vehicle info → agent should abstain
+        "gold": "bike",
+        "expected_agent_answer": "NO_ANSWER_IN_CONTEXT",
+        "expected_verdict": "INCORRECT",
     },
 ]
 
 
 def extract_answer(raw: str) -> str:
-    """Same parser the runner uses. Extract from <answer>...</answer>
-    tags; fall back to last non-empty line."""
-    m = re.search(r"<answer>(.*?)</answer>", raw, re.DOTALL | re.IGNORECASE)
-    if m:
-        return m.group(1).strip()
+    """Same parser the runner uses. Take LAST <answer> match (not first)
+    to skip CoT prompt-template echo. Reject sentinel `...` and empty
+    content. Fall back to last non-empty line."""
+    matches = re.findall(r"<answer>(.*?)</answer>", raw, re.DOTALL | re.IGNORECASE)
+    for cand in reversed(matches):
+        cand = cand.strip()
+        if cand and cand != "...":
+            return cand
     lines = [l.strip() for l in raw.split("\n") if l.strip()]
     return lines[-1] if lines else raw
 
@@ -85,7 +97,7 @@ def parse_verdict(judge_raw: str) -> str:
     return "UNKNOWN"
 
 
-def run_one_fixture(fix: dict, llm: OpenAI, model: str, judge_model: str) -> None:
+def run_one_fixture(fix: dict, llm: OpenAI, model: str, judge_model: str) -> bool:
     print(f"\n{'='*70}")
     print(f"{fix['label']}")
     print(f"{'='*70}")
@@ -137,6 +149,29 @@ def run_one_fixture(fix: dict, llm: OpenAI, model: str, judge_model: str) -> Non
     print(f"RAW (first 400 chars):\n{judge_raw[:400]}")
     print(f"\nVERDICT: {verdict}")
 
+    # ─── Pass/fail vs expected ───
+    expected_verdict = fix.get("expected_verdict")
+    expected_agent = fix.get("expected_agent_answer")
+    checks = []
+    if expected_agent is not None:
+        agent_ok = agent_answer.strip().upper() == expected_agent.strip().upper()
+        checks.append(("agent_answer", expected_agent, agent_answer, agent_ok))
+    if expected_verdict is not None:
+        verdict_ok = verdict == expected_verdict
+        checks.append(("verdict", expected_verdict, verdict, verdict_ok))
+
+    if not checks:
+        print("\n[no expected_* fields → not asserted]")
+        return True
+
+    all_ok = all(ok for _, _, _, ok in checks)
+    print(f"\n--- EXPECTATION CHECK ---")
+    for name, want, got, ok in checks:
+        flag = "PASS" if ok else "FAIL"
+        print(f"  [{flag}] {name}: want={want!r} got={got!r}")
+    print(f"\nFIXTURE: {'PASS' if all_ok else 'FAIL'}")
+    return all_ok
+
 
 def main() -> None:
     llm = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
@@ -147,11 +182,25 @@ def main() -> None:
     print(f"Judge model:   {judge_model}")
     print(f"OMLX_BASE_URL: {os.getenv('OMLX_BASE_URL')}")
 
+    passed = 0
+    failed = 0
+    errors = 0
     for fix in FIXTURES:
         try:
-            run_one_fixture(fix, llm, model, judge_model)
+            ok = run_one_fixture(fix, llm, model, judge_model)
+            if ok:
+                passed += 1
+            else:
+                failed += 1
         except Exception as e:                                       # noqa: BLE001
             print(f"\nERROR on {fix['label']}: {type(e).__name__}: {e}")
+            errors += 1
+
+    total = passed + failed + errors
+    print(f"\n{'='*70}")
+    print(f"SMOKE RESULT: {passed}/{total} passed ({failed} failed, {errors} errors)")
+    print(f"{'='*70}")
+    sys.exit(0 if failed == 0 and errors == 0 else 1)
 
 
 if __name__ == "__main__":

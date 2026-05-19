@@ -1,0 +1,57 @@
+{
+  "campaign": "longmemeval-smoke-27b-20260519",
+  "timestamp": "2026-05-19T21:42:43",
+  "total_questions": 3,
+  "correct": 0,
+  "errors": 0,
+  "accuracy": 0.0,
+  "evercore_published": 0.83,
+  "delta_vs_evercore": -0.83,
+  "per_question": [
+    {
+      "question_id": "gpt4_2655b836",
+      "question": "What was the first issue I had with my new car after its first service?",
+      "gold": "GPS system not functioning correctly",
+      "agent_answer": "NO_ANSWER_IN_CONTEXT",
+      "verdict": "INCORRECT",
+      "judge_raw": "INCORRECT",
+      "correct": false,
+      "facts_imprinted": 10,
+      "scrolls_demoted": 0,
+      "candidates_returned": 8,
+      "ingest_s": 0.03,
+      "consolidate_s": 64.36,
+      "answer_s": 0.92
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "question": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
+      "gold": "'Data Analysis using Python' webinar",
+      "agent_answer": "NO_ANSWER_IN_CONTEXT",
+      "verdict": "INCORRECT",
+      "judge_raw": "INCORRECT (The agent provided an abstention/error code instead of the substantive answer provided in the gold answer.)",
+      "correct": false,
+      "facts_imprinted": 6,
+      "scrolls_demoted": 0,
+      "candidates_returned": 6,
+      "ingest_s": 0.04,
+      "consolidate_s": 29.85,
+      "answer_s": 0.86
+    },
+    {
+      "question_id": "gpt4_76048e76",
+      "question": "Which vehicle did I take care of first in February, the bike or the car?",
+      "gold": "bike",
+      "agent_answer": "NO_ANSWER_IN_CONTEXT",
+      "verdict": "INCORRECT",
+      "judge_raw": "INCORRECT",
+      "correct": false,
+      "facts_imprinted": 4,
+      "scrolls_demoted": 0,
+      "candidates_returned": 4,
+      "ingest_s": 0.05,
+      "consolidate_s": 17.6,
+      "answer_s": 0.85
+    }
+  ]
+}

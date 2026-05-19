@@ -1,0 +1,57 @@
+{
+  "campaign": "longmemeval-direct-imprint-20260519",
+  "timestamp": "2026-05-19T21:46:32",
+  "total_questions": 3,
+  "correct": 3,
+  "errors": 0,
+  "accuracy": 1.0,
+  "evercore_published": 0.83,
+  "delta_vs_evercore": 0.17,
+  "per_question": [
+    {
+      "question_id": "gpt4_2655b836",
+      "question": "What was the first issue I had with my new car after its first service?",
+      "gold": "GPS system not functioning correctly",
+      "agent_answer": "The first issue mentioned after the car's first service was a problem with the GPS system on 3/22.",
+      "verdict": "CORRECT",
+      "judge_raw": "CORRECT",
+      "correct": true,
+      "facts_imprinted": 3,
+      "scrolls_demoted": 0,
+      "candidates_returned": 3,
+      "ingest_s": 7.03,
+      "consolidate_s": 0.0,
+      "answer_s": 4.02
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "question": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
+      "gold": "'Data Analysis using Python' webinar",
+      "agent_answer": "The context only mentions that you participated in a webinar on \"Data Analysis using Python\" two months ago; it does not mention an 'Effective Time Management' workshop.",
+      "verdict": "CORRECT",
+      "judge_raw": "CORRECT",
+      "correct": true,
+      "facts_imprinted": 2,
+      "scrolls_demoted": 0,
+      "candidates_returned": 2,
+      "ingest_s": 0.23,
+      "consolidate_s": 0.0,
+      "answer_s": 2.9
+    },
+    {
+      "question_id": "gpt4_76048e76",
+      "question": "Which vehicle did I take care of first in February, the bike or the car?",
+      "gold": "bike",
+      "agent_answer": "You took care of the bike first, as you had to take it in for repairs in mid-February, whereas you washed your car on Monday, February 27th.",
+      "verdict": "CORRECT",
+      "judge_raw": "CORRECT",
+      "correct": true,
+      "facts_imprinted": 2,
+      "scrolls_demoted": 0,
+      "candidates_returned": 2,
+      "ingest_s": 0.22,
+      "consolidate_s": 0.0,
+      "answer_s": 3.46
+    }
+  ]
+}

@@ -53,17 +53,58 @@ Rules:
 Output: CORRECT or INCORRECT"""
 
 
+ATOMISE_SYSTEM = """Extract atomic facts from the conversation excerpts below.
+
+Each fact is a triple in the form:  subject | attribute | value
+
+Focus on:
+- Named entities (people, places, products, events)
+- Dates and times (absolute or relative — keep verbatim)
+- Quantities (counts, durations, prices, sizes)
+- Actions (purchased, attended, set up, deployed)
+- Relations between entities
+
+Output ONE triple per line. No commentary, no headers, no Markdown.
+If a session contains no extractable facts, output nothing for that session.
+
+EXAMPLE INPUT:
+- session 1: Bought new Samsung Galaxy S22 today (Feb 20), very excited.
+- session 2: My Dell XPS 13 finally arrived (Feb 25).
+
+EXAMPLE OUTPUT:
+user | bought | Samsung Galaxy S22
+purchase of Samsung Galaxy S22 | date | Feb 20
+user | received | Dell XPS 13
+arrival of Dell XPS 13 | date | Feb 25"""
+
+
 COMPOSE_SYSTEM = """You are answering questions about a user's past conversations.
 
 OUTPUT FORMAT — STRICT:
 You may emit reasoning, but the FINAL ANSWER must be wrapped in <answer>...</answer> tags.
 The parser reads ONLY what is inside <answer>...</answer>.
 
-RULES:
+COMMIT-FIRST RULES:
+- DEFAULT to answering. The context usually DOES contain the answer.
+- Multi-session reasoning IS part of the task: ordering events, comparing
+  dates, counting day-gaps, picking which of two things came first. If the
+  facts are present in different sessions, COMBINE them and COMMIT.
+- Abstain (<answer>NO_ANSWER_IN_CONTEXT</answer>) ONLY when the context
+  is completely unrelated to the question's topic. "I see partial facts but
+  am not sure" is NOT a valid reason to abstain — pick the best-supported
+  answer and commit.
 - Answer in 1-2 sentences using ONLY the context below.
-- If the context does not contain the answer, output: <answer>NO_ANSWER_IN_CONTEXT</answer>
 
-EXAMPLE:
+TEMPORAL EXAMPLE (multi-session ordering):
+Context:
+- Session 2024-02-20: Bought new Samsung Galaxy S22 today, very excited.
+- Session 2024-02-25: My Dell XPS 13 finally arrived from the courier.
+
+Question: Which device did I get first, the Samsung Galaxy S22 or the Dell XPS 13?
+
+<answer>The Samsung Galaxy S22 (Feb 20) came before the Dell XPS 13 (Feb 25).</answer>
+
+SIMPLE EXAMPLE:
 Context:
 - Yesterday I deployed terraform v1.5 to prod.
 - The deployment took 12 minutes.
@@ -125,29 +166,67 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
     # (c) Query + compose answer.
     t2 = time.perf_counter()
     candidates = tm.query_context(question, k=8, min_confidence=0.0)
+    atomise_s = 0.0
+    triples = ""
     if not candidates:
         agent_answer = "NO_ANSWER_IN_CONTEXT"
     else:
         ctx = "\\n".join(f"- {c['content']}" for c in candidates)
+
+        # Read-time atomisation: opt-in via ATOMISE_AT_READ env flag.
+        # Mirrors §3.2.1's WRITE-time atomisation primitive but applied
+        # at READ time. Pre-extracts (subject, attribute, value) triples
+        # from retrieved candidates so the composer reasons over
+        # structured tuples instead of raw multi-turn dialogue.
+        # Trade-off: +1 LLM call (~10s) per question; recovers temporal
+        # arithmetic + period-bounded counting failures.
+        if os.getenv("ATOMISE_AT_READ", "0") == "1":
+            ta = time.perf_counter()
+            atom_resp = llm.chat.completions.create(
+                model=os.getenv("MODEL_HAIKU", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"),
+                messages=[
+                    {"role": "system", "content": ATOMISE_SYSTEM},
+                    {"role": "user", "content": ctx},
+                ],
+                temperature=0.0,
+                max_tokens=600,
+            )
+            triples = (atom_resp.choices[0].message.content or "").strip()
+            atomise_s = time.perf_counter() - ta
+
+        if triples:
+            user_content = (
+                f"Atomic facts (structured):\\n{triples}\\n\\n"
+                f"Original context (raw, for fallback):\\n{ctx}\\n\\n"
+                f"Question: {question}"
+            )
+        else:
+            user_content = f"Context:\\n{ctx}\\n\\nQuestion: {question}"
+
         resp = llm.chat.completions.create(
             model=os.getenv("MODEL_HAIKU", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"),
             messages=[
                 {"role": "system", "content": COMPOSE_SYSTEM},
-                {"role": "user",
-                 "content": f"Context:\\n{ctx}\\n\\nQuestion: {question}"},
+                {"role": "user", "content": user_content},
             ],
             temperature=0.0,
             max_tokens=600,
         )
         raw = (resp.choices[0].message.content or "").strip()
-        # Extract answer from <answer>...</answer> tags. Reasoning model
-        # may emit CoT before the tags; parser reads only what's tagged.
-        # Fallback: if no tags, use the last non-empty line.
-        m = re.search(r"<answer>(.*?)</answer>", raw, re.DOTALL | re.IGNORECASE)
-        if m:
-            agent_answer = m.group(1).strip()
-        else:
-            lines = [l.strip() for l in raw.split("\\n") if l.strip()]
+        # Extract answer from <answer>...</answer> tags. Reasoning models
+        # may emit CoT that echoes the prompt's "<answer>...</answer>"
+        # template description, so take the LAST match (real answer)
+        # rather than the first (template echo). Reject sentinel `...`
+        # and empty content; fall back to last non-empty line.
+        matches = re.findall(r"<answer>(.*?)</answer>", raw, re.DOTALL | re.IGNORECASE)
+        agent_answer = ""
+        for cand in reversed(matches):
+            cand = cand.strip()
+            if cand and cand != "...":
+                agent_answer = cand
+                break
+        if not agent_answer:
+            lines = [l.strip() for l in raw.split("\n") if l.strip()]
             agent_answer = lines[-1] if lines else raw
     answer_s = time.perf_counter() - t2
 
@@ -199,7 +278,9 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
         "scrolls_demoted": 0,
         "candidates_returned": len(candidates),
         "ingest_s": round(ingest_s, 2),
+        "atomise_s": round(atomise_s, 2),
         "answer_s": round(answer_s, 2),
+        "triples_emitted": len(triples.splitlines()) if triples else 0,
     }
 
 
@@ -217,7 +298,8 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
             try:
                 r = await run_one_question(tm, q, llm, judge_model)
                 results.append(r)
-                print(f"  → {r['verdict']} (ingest {r['ingest_s']}s + ans {r['answer_s']}s)")
+                atom_str = f" + atom {r['atomise_s']}s ({r['triples_emitted']} triples)" if r.get('atomise_s', 0) > 0 else ""
+                print(f"  → {r['verdict']} (ingest {r['ingest_s']}s{atom_str} + ans {r['answer_s']}s)")
             except Exception as e:                                       # noqa: BLE001
                 print(f"  → ERROR: {type(e).__name__}: {e}")
                 results.append({"question_id": q.get("question_id"), "error": str(e), "correct": False})
