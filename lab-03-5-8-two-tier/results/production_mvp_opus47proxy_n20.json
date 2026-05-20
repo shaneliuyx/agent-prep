@@ -1,0 +1,1402 @@
+{
+  "limit": 20,
+  "model": "claude-opus-4-7",
+  "claims": {
+    "C1": {
+      "claim": "C1: classifier tags conversational sessions",
+      "n_sessions": 48,
+      "n_classified_conversation": 48,
+      "n_classified_unknown": 0,
+      "conversation_rate": 1.0,
+      "speakers_detected": [
+        "assistant",
+        "user"
+      ],
+      "pass": true
+    },
+    "C2": {
+      "claim": "C2: SafeAtomiser enforces K_min volume floor",
+      "good_extractor_passed": true,
+      "good_extractor_n_emitted": 15,
+      "bad_extractor_dropped": true,
+      "bad_extractor_n_emitted": 1,
+      "bad_extractor_triples_returned": 0,
+      "pass": true
+    },
+    "C3": {
+      "claim": "C3: DeploymentGate rejects bad extractors",
+      "raw_only_accuracy": 1.0,
+      "bad_extractor_accuracy": 1.0,
+      "delta_pts": 0.0,
+      "threshold_pts": 3.0,
+      "gate_would_ship": false,
+      "pass": true
+    },
+    "C4": {
+      "claim": "C4: production-mode does not regress vs raw-only (delta >= -3pts)",
+      "baseline_accuracy": 0.65,
+      "production_accuracy": 0.75,
+      "delta_pts": 10.0,
+      "regression_floor_pts": -3.0,
+      "note": "non-regression claim \u2014 atomise +5pt lift is at noise floor (\u00a75.3.2); MVP verifies guardrails prevent catastrophic regression, not that atomise is magic",
+      "pass": true
+    }
+  },
+  "baseline_results": [
+    {
+      "question_id": "gpt4_2655b836",
+      "verdict": "CORRECT",
+      "agent_answer": "The first issue you mentioned after your car's first service (March 15th) was a problem with the GPS system on March 22nd, which required taking it back to the dealership. They replaced the entire system.",
+      "gold": "GPS system not functioning correctly",
+      "candidates_returned": 3,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.27,
+      "answer_s": 5.56,
+      "judge_s": 3.07
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "verdict": "CORRECT",
+      "agent_answer": "So based on what's in our conversation, the only event you actually attended was the \"Data Analysis using Python\" webinar.",
+      "gold": "'Data Analysis using Python' webinar",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 5.22,
+      "judge_s": 3.02
+    },
+    {
+      "question_id": "gpt4_76048e76",
+      "verdict": "CORRECT",
+      "agent_answer": "The bike. You took it in for repairs in mid-February, while you washed the car on February 27th.",
+      "gold": "bike",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 8.38,
+      "judge_s": 3.55
+    },
+    {
+      "question_id": "gpt4_2312f94c",
+      "verdict": "CORRECT",
+      "agent_answer": "You got the Samsung Galaxy S22 first. You received it on February 20th, while the Dell XPS 13 arrived on February 25th.",
+      "gold": "Samsung Galaxy S22",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 4.57,
+      "judge_s": 3.94
+    },
+    {
+      "question_id": "0bb5a684",
+      "verdict": "CORRECT",
+      "agent_answer": "7 days. The workshop was on January 10th and the team meeting is on January 17th.",
+      "gold": "7 days. 8 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 5.36,
+      "judge_s": 9.09
+    },
+    {
+      "question_id": "08f4fc43",
+      "verdict": "CORRECT",
+      "agent_answer": "30 days. From January 2nd to February 1st is 30 days.",
+      "gold": "30 days. 31 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 4.36,
+      "judge_s": 4.26
+    },
+    {
+      "question_id": "2c63a862",
+      "verdict": "INCORRECT",
+      "agent_answer": "You didn't mention when you started working with Rachel, so I can't calculate the exact number of days. You only shared that you got pre-approved on February 10th and found the house you loved on March 1st (19 days apart). If you can share the date you started working with Rachel, I can give you a precise answer.",
+      "gold": "14 days. 15 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 5.08,
+      "judge_s": 4.28
+    },
+    {
+      "question_id": "gpt4_385a5000",
+      "verdict": "CORRECT",
+      "agent_answer": "The tomatoes were started first. You began the tomatoes (along with peppers and cucumbers) indoors on February 20th, while the marigold seeds arrived and were started on March 3rd.",
+      "gold": "Tomatoes",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 4.27,
+      "judge_s": 6.65
+    },
+    {
+      "question_id": "2a1811e2",
+      "verdict": "CORRECT",
+      "agent_answer": "Holi was February 26th and the Sunday mass was March 19th. That's 21 days between them.",
+      "gold": "21 days. 22 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 3.82,
+      "judge_s": 3.85
+    },
+    {
+      "question_id": "bbf86515",
+      "verdict": "CORRECT",
+      "agent_answer": "4 days.",
+      "gold": "4 days.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 3.66,
+      "judge_s": 3.3
+    },
+    {
+      "question_id": "gpt4_5dcc0aab",
+      "verdict": "INCORRECT",
+      "agent_answer": "You did not mention cleaning any shoes last month in our conversation. You mentioned wearing your Converse Chuck Taylor All Star sneakers to a music festival last month, but not cleaning any pair.",
+      "gold": "white Adidas sneakers",
+      "candidates_returned": 5,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 3,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 4,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.44,
+      "answer_s": 7.06,
+      "judge_s": 3.54
+    },
+    {
+      "question_id": "gpt4_0b2f1d21",
+      "verdict": "INCORRECT",
+      "agent_answer": "- Coffee maker purchase: \"about three weeks ago\"",
+      "gold": "The malfunction of the stand mixer",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 4.53,
+      "judge_s": 3.79
+    },
+    {
+      "question_id": "f0853d11",
+      "verdict": "CORRECT",
+      "agent_answer": "14 days (February 21st to March 7th).",
+      "gold": "14 days. 8 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 4.3,
+      "judge_s": 13.0
+    },
+    {
+      "question_id": "gpt4_6ed717ea",
+      "verdict": "CORRECT",
+      "agent_answer": "You purchased the training pads for Luna first. You bought them about a month ago, while the orthopedic dog bed for Max was purchased about three weeks ago.",
+      "gold": "Training pads for Luna",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 4.61,
+      "judge_s": 6.09
+    },
+    {
+      "question_id": "gpt4_70e84552",
+      "verdict": "CORRECT",
+      "agent_answer": "You fixed the fence first. You mentioned fixing the fence three weeks ago, while the hoof trimming was done two weeks ago.",
+      "gold": "Fixing the fence",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 4.37,
+      "judge_s": 3.71
+    },
+    {
+      "question_id": "a3838d2b",
+      "verdict": "INCORRECT",
+      "agent_answer": "(Note: the Bike-a-Thon in November came after Run for the Cure.)",
+      "gold": "4",
+      "candidates_returned": 6,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 3,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 4,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 5,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.51,
+      "answer_s": 5.77,
+      "judge_s": 3.89
+    },
+    {
+      "question_id": "gpt4_93159ced",
+      "verdict": "INCORRECT",
+      "agent_answer": "Based on the context, you've been working professionally for 9 years total. However, there's no information about how long you've been at NovaTech, so I can't determine how long you worked before starting your current job there.",
+      "gold": "4 years and 9 months",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 4.26,
+      "judge_s": 3.86
+    },
+    {
+      "question_id": "gpt4_2d58bcd6",
+      "verdict": "INCORRECT",
+      "agent_answer": "You finished \"The Nightingale\" first. You finished it last weekend (along with two other novels), while you finished \"The Hate U Give\" a few days before your book club meeting two weeks ago.",
+      "gold": "'The Hate U Give'",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.23,
+      "answer_s": 4.54,
+      "judge_s": 4.17
+    },
+    {
+      "question_id": "gpt4_65aabe59",
+      "verdict": "INCORRECT",
+      "agent_answer": "Based on the context, you set up the mesh network system first. In the earlier conversation you mentioned having recently upgraded to it, while the smart thermostat was mentioned in a later conversation as something you've been setting up more recently.",
+      "gold": "Smart thermostat",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.19,
+      "answer_s": 4.45,
+      "judge_s": 3.16
+    },
+    {
+      "question_id": "982b5123",
+      "verdict": "CORRECT",
+      "agent_answer": "Based on the context, you booked it about 5 months ago. You mentioned the wedding trip was 2 months ago, and you had to book the Airbnb 3 months in advance \u2014 so the booking was made roughly 5 months ago.",
+      "gold": "Five months ago",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 4.29,
+      "judge_s": 3.38
+    }
+  ],
+  "production_results": [
+    {
+      "question_id": "gpt4_2655b836",
+      "verdict": "CORRECT",
+      "agent_answer": "The first issue you had with your new car after its first service (on March 15th) was a problem with the GPS system on 3/22. You had to take it back to the dealership, and they replaced the entire system.",
+      "gold": "GPS system not functioning correctly",
+      "candidates_returned": 3,
+      "atomise": {
+        "n_emitted": 9,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.28,
+      "answer_s": 18.42,
+      "judge_s": 4.4
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "verdict": "INCORRECT",
+      "agent_answer": "So based on what you've shared, the Data Analysis using Python webinar is the only one you mentioned attending.",
+      "gold": "'Data Analysis using Python' webinar",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 1,
+        "dropped_below_k_min": true,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 9.12,
+      "judge_s": 3.56
+    },
+    {
+      "question_id": "gpt4_76048e76",
+      "verdict": "CORRECT",
+      "agent_answer": "The bike. You took it in for repairs in mid-February, while you washed the car on February 27th.",
+      "gold": "bike",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 7,
+        "dropped_below_k_min": true,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 10.29,
+      "judge_s": 3.07
+    },
+    {
+      "question_id": "gpt4_2312f94c",
+      "verdict": "CORRECT",
+      "agent_answer": "So actually, the **Samsung Galaxy S22** came first (February 20th), before the Dell XPS 13 arrived (February 25th).",
+      "gold": "Samsung Galaxy S22",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 19,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 18.88,
+      "judge_s": 3.02
+    },
+    {
+      "question_id": "0bb5a684",
+      "verdict": "CORRECT",
+      "agent_answer": "7 days (January 10 to January 17).",
+      "gold": "7 days. 8 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 21,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 18.3,
+      "judge_s": 2.63
+    },
+    {
+      "question_id": "08f4fc43",
+      "verdict": "CORRECT",
+      "agent_answer": "30 days passed between January 2nd (Sunday mass) and February 1st (Ash Wednesday service).",
+      "gold": "30 days. 31 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 13,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.18,
+      "answer_s": 17.79,
+      "judge_s": 2.89
+    },
+    {
+      "question_id": "2c63a862",
+      "verdict": "INCORRECT",
+      "agent_answer": "Pre-approval was on February 10th, and you found the house you loved on March 1st \u2014 that's 19 days.",
+      "gold": "14 days. 15 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 12,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 27.27,
+      "judge_s": 3.63
+    },
+    {
+      "question_id": "gpt4_385a5000",
+      "verdict": "CORRECT",
+      "agent_answer": "The tomatoes were started first. They were started indoors under grow lights on February 20th, while the marigold seeds arrived and were started on March 3rd.",
+      "gold": "Tomatoes",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 15,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 18.33,
+      "judge_s": 8.11
+    },
+    {
+      "question_id": "2a1811e2",
+      "verdict": "CORRECT",
+      "agent_answer": "Holi was on February 26th and the Sunday mass at St. Mary's was on March 19th, so **21 days** had passed between them.",
+      "gold": "21 days. 22 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 16,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 19.24,
+      "judge_s": 3.62
+    },
+    {
+      "question_id": "bbf86515",
+      "verdict": "CORRECT",
+      "agent_answer": "4 days (June 14th to June 18th).",
+      "gold": "4 days.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 13,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 18.95,
+      "judge_s": 3.07
+    },
+    {
+      "question_id": "gpt4_5dcc0aab",
+      "verdict": "INCORRECT",
+      "agent_answer": "There's no mention in our conversation of you cleaning any pair of shoes last month. You mentioned wearing your Converse Chuck Taylor All Star sneakers to an outdoor music festival last month, but not cleaning them.",
+      "gold": "white Adidas sneakers",
+      "candidates_returned": 5,
+      "atomise": {
+        "n_emitted": 9,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 3,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 4,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.43,
+      "answer_s": 18.57,
+      "judge_s": 3.36
+    },
+    {
+      "question_id": "gpt4_0b2f1d21",
+      "verdict": "CORRECT",
+      "agent_answer": "The stand mixer malfunction happened first. The user took it to the repair shop \"last month,\" while the coffee maker was purchased \"about three weeks ago.\"",
+      "gold": "The malfunction of the stand mixer",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 11,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.23,
+      "answer_s": 16.42,
+      "judge_s": 4.48
+    },
+    {
+      "question_id": "f0853d11",
+      "verdict": "CORRECT",
+      "agent_answer": "14 days (February 21 to March 7).",
+      "gold": "14 days. 8 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 16,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 16.29,
+      "judge_s": 3.43
+    },
+    {
+      "question_id": "gpt4_6ed717ea",
+      "verdict": "CORRECT",
+      "agent_answer": "The training pads for Luna. You bought them about a month ago, while Max's dog bed was purchased about three weeks ago.",
+      "gold": "Training pads for Luna",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 15,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 17.62,
+      "judge_s": 2.89
+    },
+    {
+      "question_id": "gpt4_70e84552",
+      "verdict": "CORRECT",
+      "agent_answer": "You fixed the fence first. You mentioned fixing it three weeks ago, while the goats' hoof trimming was done two weeks ago.",
+      "gold": "Fixing the fence",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 13,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 18.44,
+      "judge_s": 3.27
+    },
+    {
+      "question_id": "a3838d2b",
+      "verdict": "INCORRECT",
+      "agent_answer": "(Note: The \"Bike-a-Thon\" in November and the upcoming cycling event were after October 15th, so they don't count.)",
+      "gold": "4",
+      "candidates_returned": 6,
+      "atomise": {
+        "n_emitted": 8,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 3,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 4,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 5,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.5,
+      "answer_s": 20.37,
+      "judge_s": 5.28
+    },
+    {
+      "question_id": "gpt4_93159ced",
+      "verdict": "INCORRECT",
+      "agent_answer": "Based on the context, you've been working professionally for 9 years total, but it doesn't specify how long you've been at NovaTech, so I can't determine how long you worked before joining NovaTech.",
+      "gold": "4 years and 9 months",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 17,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 20.17,
+      "judge_s": 3.53
+    },
+    {
+      "question_id": "gpt4_2d58bcd6",
+      "verdict": "CORRECT",
+      "agent_answer": "You finished \"The Hate U Give\" first. You mentioned finishing it a few days before your book club meeting two weeks ago, while you finished \"The Nightingale\" last weekend.",
+      "gold": "'The Hate U Give'",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 16,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 21.26,
+      "judge_s": 3.82
+    },
+    {
+      "question_id": "gpt4_65aabe59",
+      "verdict": "CORRECT",
+      "agent_answer": "Based on the conversation, you set up the smart thermostat first. You mentioned it in your initial message, and then later brought up that you \"recently upgraded\" to the mesh network system.",
+      "gold": "Smart thermostat",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 13,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.22,
+      "answer_s": 18.1,
+      "judge_s": 2.97
+    },
+    {
+      "question_id": "982b5123",
+      "verdict": "CORRECT",
+      "agent_answer": "Actually, if the wedding was two months ago and you booked three months before the wedding, the booking was made approximately **five months ago**.",
+      "gold": "Five months ago",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 8,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 23.24,
+      "judge_s": 3.93
+    }
+  ],
+  "all_pass": true
+}

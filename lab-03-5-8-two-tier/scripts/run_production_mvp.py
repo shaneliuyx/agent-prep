@@ -66,6 +66,12 @@ from scripts.run_longmemeval_oracle import (
 # namespace embeds it.
 RUN_ID = str(int(time.time()))
 
+# Opus 4.7 (and other extended-thinking models) DEPRECATE the `temperature`
+# parameter — passing it returns HTTP 400. Local 4-bit MLX models, in
+# contrast, want temperature=0.0 for deterministic eval. Gate it: set
+# DISABLE_TEMPERATURE=1 when the compose endpoint is a thinking model.
+_TEMP_KW: dict = {} if os.getenv("DISABLE_TEMPERATURE") == "1" else {"temperature": 0.0}
+
 
 def _qid(q: dict) -> str:
     """Stable per-question id — explicit question_id, else question prefix."""
@@ -106,7 +112,7 @@ def make_unconstrained_atomiser(llm: OpenAI, model: str):
                 {"role": "system", "content": ATOMISE_SYSTEM},
                 {"role": "user", "content": ctx},
             ],
-            temperature=0.0,
+            **_TEMP_KW,
             max_tokens=600,
         )
         text = (resp.choices[0].message.content or "").strip()
@@ -114,25 +120,40 @@ def make_unconstrained_atomiser(llm: OpenAI, model: str):
     return atomiser
 
 
-def make_constrained_atomiser(llm: OpenAI, model: str):
-    """v5/v7 known-bad extractor — emits 1 triple per session.
-    Used ONLY to verify the DeploymentGate rejects bad extractors."""
-    def atomiser(ctx: str) -> list[str]:
-        prompt = (
-            "Extract the SINGLE most important fact from the context. "
-            "Output one triple `subject | attribute | value`. No other output."
-        )
-        resp = llm.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": ctx},
-            ],
-            temperature=0.0,
-            max_tokens=80,
-        )
-        text = (resp.choices[0].message.content or "").strip()
-        return [l for l in text.splitlines() if l.strip()]
+# Genuinely-broken extractor — fixed garbage triples unrelated to any
+# context. MODEL-INDEPENDENT negative fixture: garbage facts carry zero
+# signal, so they can NEVER legitimately beat raw retrieval by the gate's
+# +3pt threshold. Best case the composer ignores them (delta ~0); worst
+# case they distract it (delta < 0). Either way delta < +3 → gate must
+# reject → C3 passes on any model.
+#
+# Why this replaces the old LLM-constrained 1-triple extractor: on a
+# strong full-precision model (Opus 4.7) the constrained extractor still
+# produced a GOOD single fact and scored +20pts, so the gate correctly
+# shipped it and C3 "failed". The anchoring-bias collapse it relied on is
+# a 4-bit-quantization artifact, not model-independent. Fixed garbage has
+# no such model dependence.
+_GARBAGE_TRIPLES = [
+    "user | favorite color | teal",
+    "user | home planet | Mars",
+    "user | pet count | 47",
+    "user | birth year | 1623",
+    "user | shoe size | 99",
+    "user | occupation | lighthouse keeper",
+    "user | last meal | gravel",
+    "user | timezone | UTC+25",
+    "user | hair color | invisible",
+    "user | current mood | quadratic",
+]
+
+
+def make_broken_atomiser():
+    """Genuinely-broken extractor — returns fixed garbage triples,
+    no LLM call. 10 triples clears the K_min=8 floor so the garbage
+    reaches the composer (tests the gate's A/B math, not the volume
+    floor — that's C2's job). Model-independent negative fixture."""
+    def atomiser(ctx: str) -> list[str]:                       # noqa: ARG001
+        return list(_GARBAGE_TRIPLES)
     return atomiser
 
 
@@ -228,7 +249,7 @@ async def run_one_question(
                 {"role": "system", "content": COMPOSE_SYSTEM},
                 {"role": "user", "content": user_content},
             ],
-            temperature=0.0,
+            **_TEMP_KW,
             max_tokens=600,
         )
         raw = (resp.choices[0].message.content or "").strip()
@@ -243,7 +264,7 @@ async def run_one_question(
             "role": "user",
             "content": JUDGE_PROMPT.format(question=question, gold=gold, answer=agent_answer),
         }],
-        temperature=0.0,
+        **_TEMP_KW,
         max_tokens=400,
     )
     judge_raw = (judge_resp.choices[0].message.content or "").strip()
@@ -327,19 +348,28 @@ async def verify_c3_deployment_gate(
     model: str,
     judge_model: str,
 ) -> dict:
-    """C3: DeploymentGate rejects synthetically-bad (constrained-1-triple)
-    extractor while accepting the unconstrained variant."""
-    constrained = make_constrained_atomiser(llm, model)
+    """C3: DeploymentGate rejects a genuinely-broken extractor.
+
+    Uses a fixed-garbage extractor (model-independent) instead of an
+    LLM-constrained one. Garbage triples carry zero signal, so they
+    cannot legitimately beat raw retrieval by the +3pt gate threshold
+    on ANY model — the gate must reject. The old LLM-constrained
+    extractor produced GOOD facts on strong models (Opus 4.7: +20pts),
+    making C3 model-dependent; fixed garbage removes that dependence."""
+    broken = make_broken_atomiser()
 
     # We piggyback on the per-question scoring — run a small subset
-    # twice: once with raw only, once with constrained-bad atomiser.
+    # twice: once with raw only, once with the broken-garbage atomiser.
+    # k_min=1 disables the volume floor so the garbage actually reaches
+    # the composer (the gate's A/B math is what's under test here, not
+    # the K_min guardrail — that's C2's job).
     raw_results = []
     bad_results = []
     for q in questions:
         raw_r = await run_one_question(tm, q, llm, model, judge_model,
                                        atomiser_fn=None, namespace="c3raw")
         bad_r = await run_one_question(tm, q, llm, model, judge_model,
-                                       atomiser_fn=constrained, k_min=1,  # disable guardrail
+                                       atomiser_fn=broken, k_min=1,
                                        namespace="c3bad")
         raw_results.append(raw_r)
         bad_results.append(bad_r)
@@ -385,7 +415,22 @@ async def main() -> None:
     questions = json.loads(data_path.read_text())[:args.limit]
     print(f"Loaded {len(questions)} questions from {data_path}")
 
-    llm = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
+    # Compose/judge client. COMPOSE_BASE_URL lets compose+judge run on a
+    # different endpoint than embeddings — e.g. compose on an Anthropic
+    # proxy that has no /v1/embeddings, embeddings on the oMLX server.
+    # Falls back to OMLX_BASE_URL when unset (single-endpoint case).
+    # TieredMemory builds its OWN client from OMLX_BASE_URL for embeddings;
+    # that path is untouched, so the embedding model always hits oMLX.
+    # max_retries=6: remote proxy relays to api.anthropic.com; transient
+    # 500/EOF blips happen across a 50+-call run. SDK does exponential
+    # backoff on 5xx + connection errors. Local oMLX rarely blips, so the
+    # embeddings client (TieredMemory) keeps the SDK default.
+    llm = OpenAI(
+        base_url=os.getenv("COMPOSE_BASE_URL") or os.getenv("OMLX_BASE_URL"),
+        api_key=os.getenv("COMPOSE_API_KEY") or os.getenv("OMLX_API_KEY"),
+        max_retries=6,
+        timeout=120.0,
+    )
     model = os.getenv("MODEL_HAIKU", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
     judge_model = os.getenv("MODEL_JUDGE", model)
 

@@ -1,0 +1,374 @@
+{
+  "limit": 5,
+  "model": "claude-opus-4-7",
+  "claims": {
+    "C1": {
+      "claim": "C1: classifier tags conversational sessions",
+      "n_sessions": 11,
+      "n_classified_conversation": 11,
+      "n_classified_unknown": 0,
+      "conversation_rate": 1.0,
+      "speakers_detected": [
+        "assistant",
+        "user"
+      ],
+      "pass": true
+    },
+    "C2": {
+      "claim": "C2: SafeAtomiser enforces K_min volume floor",
+      "good_extractor_passed": true,
+      "good_extractor_n_emitted": 15,
+      "bad_extractor_dropped": true,
+      "bad_extractor_n_emitted": 1,
+      "bad_extractor_triples_returned": 0,
+      "pass": true
+    },
+    "C3": {
+      "claim": "C3: DeploymentGate rejects bad extractors",
+      "raw_only_accuracy": 0.8,
+      "bad_extractor_accuracy": 1.0,
+      "delta_pts": 20.0,
+      "threshold_pts": 3.0,
+      "gate_would_ship": true,
+      "pass": false
+    },
+    "C4": {
+      "claim": "C4: production-mode does not regress vs raw-only (delta >= -3pts)",
+      "baseline_accuracy": 0.8,
+      "production_accuracy": 0.8,
+      "delta_pts": 0.0,
+      "regression_floor_pts": -3.0,
+      "note": "non-regression claim \u2014 atomise +5pt lift is at noise floor (\u00a75.3.2); MVP verifies guardrails prevent catastrophic regression, not that atomise is magic",
+      "pass": true
+    }
+  },
+  "baseline_results": [
+    {
+      "question_id": "gpt4_2655b836",
+      "verdict": "CORRECT",
+      "agent_answer": "The first issue was with your car's GPS system on 3/22, which required taking it back to the dealership. They replaced the entire system to fix it.",
+      "gold": "GPS system not functioning correctly",
+      "candidates_returned": 3,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.27,
+      "answer_s": 3.79,
+      "judge_s": 3.4
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "verdict": "INCORRECT",
+      "agent_answer": "So I can't determine which came first, since only one of the two events appears in our conversation.",
+      "gold": "'Data Analysis using Python' webinar",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 5.23,
+      "judge_s": 3.88
+    },
+    {
+      "question_id": "gpt4_76048e76",
+      "verdict": "CORRECT",
+      "agent_answer": "The bike. You took it in for repairs in mid-February, while the car was washed on February 27th.",
+      "gold": "bike",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 3.76,
+      "judge_s": 3.11
+    },
+    {
+      "question_id": "gpt4_2312f94c",
+      "verdict": "CORRECT",
+      "agent_answer": "You got the Samsung Galaxy S22 first. It was purchased on February 20th, while the Dell XPS 13 arrived on February 25th.",
+      "gold": "Samsung Galaxy S22",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 3.88,
+      "judge_s": 2.96
+    },
+    {
+      "question_id": "0bb5a684",
+      "verdict": "CORRECT",
+      "agent_answer": "7 days. The workshop was on January 10th and the team meeting is on January 17th.",
+      "gold": "7 days. 8 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 0,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 4.07,
+      "judge_s": 3.46
+    }
+  ],
+  "production_results": [
+    {
+      "question_id": "gpt4_2655b836",
+      "verdict": "CORRECT",
+      "agent_answer": "The first issue was with your car's GPS system on 3/22, which required taking it back to the dealership. They replaced the entire system, and it's now working flawlessly.",
+      "gold": "GPS system not functioning correctly",
+      "candidates_returned": 3,
+      "atomise": {
+        "n_emitted": 12,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 2,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.28,
+      "answer_s": 21.51,
+      "judge_s": 5.11
+    },
+    {
+      "question_id": "gpt4_2487a7cb",
+      "verdict": "INCORRECT",
+      "agent_answer": "So I can't definitively compare the two, but only the Data Analysis webinar was explicitly mentioned with a timeframe.",
+      "gold": "'Data Analysis using Python' webinar",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 1,
+        "dropped_below_k_min": true,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 13.95,
+      "judge_s": 5.41
+    },
+    {
+      "question_id": "gpt4_76048e76",
+      "verdict": "CORRECT",
+      "agent_answer": "The bike. You took it in for repairs in mid-February, while you washed the car on February 27th.",
+      "gold": "bike",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 2,
+        "dropped_below_k_min": true,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.2,
+      "answer_s": 9.15,
+      "judge_s": 3.25
+    },
+    {
+      "question_id": "gpt4_2312f94c",
+      "verdict": "CORRECT",
+      "agent_answer": "Short answer: the **Samsung Galaxy S22** came into your possession first (Feb 20), before the Dell XPS 13 (Feb 25).",
+      "gold": "Samsung Galaxy S22",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 27,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.19,
+      "answer_s": 20.86,
+      "judge_s": 4.97
+    },
+    {
+      "question_id": "0bb5a684",
+      "verdict": "CORRECT",
+      "agent_answer": "7 days. The workshop was on January 10th and the team meeting was on January 17th.",
+      "gold": "7 days. 8 days (including the last day) is also acceptable.",
+      "candidates_returned": 2,
+      "atomise": {
+        "n_emitted": 18,
+        "dropped_below_k_min": false,
+        "k_min": 8
+      },
+      "routing_decisions": [
+        {
+          "session_idx": 0,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        },
+        {
+          "session_idx": 1,
+          "shape": "structured",
+          "lifecycle": "write_time",
+          "tier": "guild",
+          "confidence": 0.95
+        }
+      ],
+      "ingest_s": 0.21,
+      "answer_s": 17.3,
+      "judge_s": 4.47
+    }
+  ],
+  "all_pass": false
+}
