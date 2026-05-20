@@ -37,6 +37,12 @@ from src.tiered_memory_qdrant import TieredMemory
 # correctly). RUN_ID makes every run's namespace disjoint.
 RUN_ID = str(int(time.time()))
 
+# Opus 4.7 (and other extended-thinking models) DEPRECATE the `temperature`
+# parameter — passing it returns HTTP 400. Local 4-bit MLX models want
+# temperature=0.0 for deterministic eval. Gate it: set DISABLE_TEMPERATURE=1
+# when the compose endpoint is a thinking model.
+_TEMP_KW: dict = {} if os.getenv("DISABLE_TEMPERATURE") == "1" else {"temperature": 0.0}
+
 
 JUDGE_PROMPT = """You are an evaluation judge. Decide if the agent's answer
 substantively matches the gold answer. Output the verdict as one word:
@@ -237,7 +243,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
                     {"role": "system", "content": ATOMISE_SYSTEM},
                     {"role": "user", "content": ctx},
                 ],
-                temperature=0.0,
+                **_TEMP_KW,
                 max_tokens=600,   # unconstrained: many triples per session
             )
             triples = (atom_resp.choices[0].message.content or "").strip()
@@ -270,7 +276,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
                 {"role": "system", "content": COMPOSE_SYSTEM},
                 {"role": "user", "content": user_content},
             ],
-            temperature=0.0,
+            **_TEMP_KW,
             max_tokens=4000,
         )
         compose_truncated = resp.choices[0].finish_reason == "length"
@@ -306,7 +312,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
                  question=question, gold=gold, answer=agent_answer
              )},
         ],
-        temperature=0.0,
+        **_TEMP_KW,
         max_tokens=1000,
     )
     judge_truncated = judge_resp.choices[0].finish_reason == "length"
@@ -349,11 +355,16 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
     # 2 retries ride out a single transient. A genuinely hung request
     # now raises, the per-question try/except logs it as an error, and
     # the run proceeds instead of deadlocking.
+    # Compose/judge client. COMPOSE_BASE_URL lets compose+judge run on a
+    # different endpoint than embeddings — e.g. an Anthropic proxy that
+    # has no /v1/embeddings route. Falls back to OMLX_BASE_URL when unset.
+    # TieredMemory builds its OWN embedding client from OMLX_BASE_URL, so
+    # the embedding model always stays on oMLX regardless of this split.
     llm = OpenAI(
-        base_url=os.getenv("OMLX_BASE_URL"),
-        api_key=os.getenv("OMLX_API_KEY"),
+        base_url=os.getenv("COMPOSE_BASE_URL") or os.getenv("OMLX_BASE_URL"),
+        api_key=os.getenv("COMPOSE_API_KEY") or os.getenv("OMLX_API_KEY"),
         timeout=300.0,
-        max_retries=2,
+        max_retries=6,
     )
     judge_model = os.getenv("MODEL_JUDGE", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
 
