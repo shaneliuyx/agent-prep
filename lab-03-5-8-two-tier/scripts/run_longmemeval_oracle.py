@@ -28,6 +28,16 @@ from openai import OpenAI
 from src.tiered_memory_qdrant import TieredMemory
 
 
+# Run-unique ID — prevents cross-RUN Qdrant residue. The Qdrant collection
+# persists between eval invocations; without a per-run prefix every run
+# reuses the `longmemeval-{qid}` namespace and accumulates duplicate
+# imprints, inflating k=8 retrieval to bloated multi-run context (BCJ
+# Entry 14 cross-test residue — diagnosed 2026-05-20 when a 3B-active MoE
+# abstained on the bloat while a probe on a fresh namespace answered
+# correctly). RUN_ID makes every run's namespace disjoint.
+RUN_ID = str(int(time.time()))
+
+
 JUDGE_PROMPT = """You are an evaluation judge. Decide if the agent's answer
 substantively matches the gold answer. Output the verdict as one word:
 CORRECT or INCORRECT (optionally preceded by short reasoning).
@@ -119,6 +129,38 @@ Question: How long did yesterday's deployment take?
 <answer>Twelve minutes.</answer>"""
 
 
+def parse_verdict(judge_raw: str) -> str:
+    """Parse a judge response into CORRECT / INCORRECT / UNKNOWN.
+
+    Two-tier. TIER 1: prefer an explicit labeled verdict ("Verdict:
+    CORRECT", "**Verdict: INCORRECT**"). Opus-distilled models emit the
+    verdict FIRST then reasoning prose, and that prose naturally contains
+    the word "incorrect" ("no hallucinated or incorrect information") — a
+    whole-text rfind scan grabs the prose word and flips the verdict. A
+    labeled verdict is unambiguous wherever it sits.
+
+    TIER 2: fallback whole-text rfind for judges that emit a bare token
+    with no label. "INCORRECT" contains "CORRECT" at offset +2, so the
+    CORRECT-rfind hit at N+2 corresponds to an INCORRECT match at N;
+    check INCORRECT first via offset.
+
+    Single source of truth — imported by scripts/test_llm_io.py so the
+    quick-iteration harness scores verdicts exactly as the eval runner.
+    """
+    m = re.search(r"verdict\s*[:\-]?\s*\**\s*(INCORRECT|CORRECT)\b",
+                  judge_raw, re.IGNORECASE)
+    if m:
+        return m.group(1).upper()
+    judge_upper = judge_raw.upper()
+    last_correct = judge_upper.rfind("CORRECT")
+    last_incorrect = judge_upper.rfind("INCORRECT")
+    if last_incorrect > -1 and last_incorrect + 2 >= last_correct:
+        return "INCORRECT"
+    if last_correct > -1:
+        return "CORRECT"
+    return "UNKNOWN"
+
+
 async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: str) -> dict:
     """Process one LongMemEval question end-to-end. Returns scored result."""
     qid = q.get("question_id") or q["question"][:32]
@@ -130,7 +172,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
     # per-question namespace. Qdrant query_context filters on user_id;
     # this prevents Q(N+1) from seeing Q(N)'s imprints (BCJ Entry 14
     # cross-test residue pattern applied to eval runs).
-    tm.user_id = f"longmemeval-{qid}"
+    tm.user_id = f"longmemeval-{RUN_ID}-{qid}"
 
     # (a) DIRECT IMPRINT each session — bypass consolidate() entirely.
     #
@@ -174,6 +216,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
     atomise_s = 0.0
     triples = ""
     triple_lines: list[str] = []
+    compose_truncated = False
     if not candidates:
         agent_answer = "NO_ANSWER_IN_CONTEXT"
     else:
@@ -216,6 +259,11 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
         else:
             user_content = f"Context:\\n{ctx}\\n\\nQuestion: {question}"
 
+        # max_tokens=4000: reasoning-distilled models burn 600+ tokens on
+        # chain-of-thought before emitting <answer>. Measured 2026-05-20:
+        # at 600 a CoT-heavy model truncated mid-reasoning; 1500 → 2/20
+        # truncated; 2000 → 1/20 truncated. 4000 gives full CoT headroom
+        # so finish_reason=length never silently corrupts a verdict.
         resp = llm.chat.completions.create(
             model=os.getenv("MODEL_HAIKU", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"),
             messages=[
@@ -223,8 +271,9 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
                 {"role": "user", "content": user_content},
             ],
             temperature=0.0,
-            max_tokens=600,
+            max_tokens=4000,
         )
+        compose_truncated = resp.choices[0].finish_reason == "length"
         raw = (resp.choices[0].message.content or "").strip()
         # Extract answer from <answer>...</answer> tags. Reasoning models
         # may emit CoT that echoes the prompt's "<answer>...</answer>"
@@ -244,8 +293,11 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
     answer_s = time.perf_counter() - t2
 
     # (d) Score answer via LLM-as-judge.
-    # max_tokens=400 leaves room for reasoning-model chain-of-thought
-    # prelude AND the final verdict token.
+    # max_tokens=1000: verbose self-judging models (e.g. an Opus-distilled
+    # model judging its own answers) write multi-step "**Analysis:** 1...
+    # 2... 3. Verification:" prose and hit a 400-token cap BEFORE emitting
+    # the verdict — diagnosed 2026-05-20 (2/20 UNKNOWN verdicts on a clean
+    # run, judge_raw truncated mid-reasoning). 1000 covers the verbose tail.
     judge_resp = llm.chat.completions.create(
         model=judge_model,
         messages=[
@@ -255,28 +307,14 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
              )},
         ],
         temperature=0.0,
-        max_tokens=400,
+        max_tokens=1000,
     )
+    judge_truncated = judge_resp.choices[0].finish_reason == "length"
     judge_raw = (judge_resp.choices[0].message.content or "").strip()
-    judge_upper = judge_raw.upper()
 
-    # Reasoning models (gpt-oss-20b, distilled-from-reasoning Qwen) emit
-    # chain-of-thought BEFORE the verdict. Scan whole response — prefer
-    # the LATER occurrence (verdict usually at end of reasoning).
-    # "INCORRECT" contains "CORRECT" as substring at offset +2, so the
-    # CORRECT-rfind hit at position N+2 corresponds to an INCORRECT
-    # match at position N; check INCORRECT first via offset.
-    last_correct = judge_upper.rfind("CORRECT")
-    last_incorrect = judge_upper.rfind("INCORRECT")
-    if last_incorrect > -1 and last_incorrect + 2 >= last_correct:
-        verdict = "INCORRECT"
-        correct = False
-    elif last_correct > -1:
-        verdict = "CORRECT"
-        correct = True
-    else:
-        verdict = "UNKNOWN"
-        correct = False
+    verdict = parse_verdict(judge_raw)   # see parse_verdict() for the two-tier logic
+    correct = verdict == "CORRECT"
+    if verdict == "UNKNOWN":
         print(f"    [judge-unknown] raw: {judge_raw[:200]!r}")
 
     return {
@@ -287,6 +325,8 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
         "verdict": verdict,
         "judge_raw": judge_raw[:500],   # truncate to keep results JSON small
         "correct": correct,
+        "compose_truncated": compose_truncated,
+        "judge_truncated": judge_truncated,
         "facts_imprinted": facts_imprinted,
         "scrolls_demoted": 0,
         "candidates_returned": len(candidates),
@@ -301,7 +341,20 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
     data_path = Path("data/longmemeval/longmemeval_oracle.json")
     questions = json.loads(data_path.read_text())[:limit]
 
-    llm = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
+    # timeout + retries: a transient oMLX hiccup (model auto-eviction,
+    # server KeyError) otherwise hangs the run forever — the default
+    # OpenAI client has no timeout. Diagnosed 2026-05-20 when a 5-model
+    # matrix run hung indefinitely on Q1 after oMLX unloaded the model
+    # mid-request. 300s covers a cold model load + a long CoT compose;
+    # 2 retries ride out a single transient. A genuinely hung request
+    # now raises, the per-question try/except logs it as an error, and
+    # the run proceeds instead of deadlocking.
+    llm = OpenAI(
+        base_url=os.getenv("OMLX_BASE_URL"),
+        api_key=os.getenv("OMLX_API_KEY"),
+        timeout=300.0,
+        max_retries=2,
+    )
     judge_model = os.getenv("MODEL_JUDGE", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
 
     async with TieredMemory(agent_id=f"longmemeval-{campaign}") as tm:
@@ -312,7 +365,8 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
                 r = await run_one_question(tm, q, llm, judge_model)
                 results.append(r)
                 atom_str = f" + atom {r['atomise_s']}s ({r['triples_emitted']} triples)" if r.get('atomise_s', 0) > 0 else ""
-                print(f"  → {r['verdict']} (ingest {r['ingest_s']}s{atom_str} + ans {r['answer_s']}s)")
+                trunc_str = "  [!] compose TRUNCATED (finish_reason=length)" if r.get('compose_truncated') else ""
+                print(f"  → {r['verdict']} (ingest {r['ingest_s']}s{atom_str} + ans {r['answer_s']}s){trunc_str}")
             except Exception as e:                                       # noqa: BLE001
                 print(f"  → ERROR: {type(e).__name__}: {e}")
                 results.append({"question_id": q.get("question_id"), "error": str(e), "correct": False})
@@ -320,14 +374,19 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
     n_correct = sum(1 for r in results if r.get("correct"))
     n_total = len(results)
     n_err = sum(1 for r in results if r.get("error"))
+    n_trunc = sum(1 for r in results if r.get("compose_truncated"))
+    n_judge_trunc = sum(1 for r in results if r.get("judge_truncated"))
     accuracy = n_correct / n_total if n_total else 0.0
 
     summary = {
         "campaign": campaign,
+        "run_id": RUN_ID,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "total_questions": n_total,
         "correct": n_correct,
         "errors": n_err,
+        "compose_truncations": n_trunc,
+        "judge_truncations": n_judge_trunc,
         "accuracy": round(accuracy, 4),
         "evercore_published": 0.83,
         "delta_vs_evercore": round(accuracy - 0.83, 4),
@@ -335,6 +394,10 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
     }
     out_path.write_text(json.dumps(summary, indent=2))
     print(f"\\nFinal: {n_correct}/{n_total} = {accuracy:.1%} (errors: {n_err}). EverCore baseline: 83%. Delta: {summary['delta_vs_evercore']:+.1%}.")
+    if n_trunc:
+        print(f"[!] {n_trunc}/{n_total} compose calls TRUNCATED (finish_reason=length) — accuracy is a LOWER BOUND; raise max_tokens and re-run.")
+    if n_judge_trunc:
+        print(f"[!] {n_judge_trunc}/{n_total} JUDGE calls TRUNCATED — verdicts unreliable; raise judge max_tokens and re-run.")
     print(f"Wrote {out_path}")
 
 

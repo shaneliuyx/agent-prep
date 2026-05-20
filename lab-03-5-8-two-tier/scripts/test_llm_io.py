@@ -23,7 +23,7 @@ from openai import OpenAI
 
 # Import the prompts from the runner so we test the SAME prompts the
 # eval uses. Keeps this harness in sync with chapter-shipping runner.
-from scripts.run_longmemeval_oracle import COMPOSE_SYSTEM, JUDGE_PROMPT
+from scripts.run_longmemeval_oracle import COMPOSE_SYSTEM, JUDGE_PROMPT, parse_verdict
 
 
 # ─── Test fixtures: 3 LongMemEval-shaped questions ───
@@ -83,18 +83,6 @@ def extract_answer(raw: str) -> str:
             return cand
     lines = [l.strip() for l in raw.split("\n") if l.strip()]
     return lines[-1] if lines else raw
-
-
-def parse_verdict(judge_raw: str) -> str:
-    """Same parser the runner uses for the judge output."""
-    judge_upper = judge_raw.upper()
-    last_correct = judge_upper.rfind("CORRECT")
-    last_incorrect = judge_upper.rfind("INCORRECT")
-    if last_incorrect > -1 and last_incorrect + 2 >= last_correct:
-        return "INCORRECT"
-    if last_correct > -1:
-        return "CORRECT"
-    return "UNKNOWN"
 
 
 def run_one_fixture(fix: dict, llm: OpenAI, model: str, judge_model: str) -> bool:
