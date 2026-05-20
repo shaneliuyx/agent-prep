@@ -67,6 +67,11 @@ Focus on:
 Output ONE triple per line. No commentary, no headers, no Markdown.
 If a session contains no extractable facts, output nothing for that session.
 
+NOTE: emit MANY triples (15+ per session is fine). Volume buffers extraction
+error — empirical 2026-05-20: constrained K=5 atomise caused −30pts on Opus
+and −35pts on Qwen3.6-27B due to single-triple anchoring bias in the
+downstream composer. See W3.5.8 §5.3.4 for the Bayesian framing.
+
 EXAMPLE INPUT:
 - session 1: Bought new Samsung Galaxy S22 today (Feb 20), very excited.
 - session 2: My Dell XPS 13 finally arrived (Feb 25).
@@ -168,6 +173,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
     candidates = tm.query_context(question, k=8, min_confidence=0.0)
     atomise_s = 0.0
     triples = ""
+    triple_lines: list[str] = []
     if not candidates:
         agent_answer = "NO_ANSWER_IN_CONTEXT"
     else:
@@ -189,12 +195,19 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
                     {"role": "user", "content": ctx},
                 ],
                 temperature=0.0,
-                max_tokens=600,
+                max_tokens=600,   # unconstrained: many triples per session
             )
             triples = (atom_resp.choices[0].message.content or "").strip()
+            triple_lines = [l for l in triples.splitlines() if l.strip()]
             atomise_s = time.perf_counter() - ta
 
-        if triples:
+        if triples and triples.lower() != "(no relevant facts)":
+            # PRESERVE raw alongside triples (industry-standard invariant —
+            # Mem0/Zep/Letta/Governed Memory all keep raw + derived together).
+            # Use NEUTRAL framing — measured 2026-05-20: confidence-boosting
+            # labels like "top-N, question-conditioned" caused the composer
+            # to over-trust wrong triples (v5: 25%). Match v3's neutral
+            # "Atomic facts (structured)" framing.
             user_content = (
                 f"Atomic facts (structured):\\n{triples}\\n\\n"
                 f"Original context (raw, for fallback):\\n{ctx}\\n\\n"
