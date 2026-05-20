@@ -1,0 +1,45 @@
+{
+  "fixed_judge": "claude-opus-4-7",
+  "files": [
+    {
+      "path": "results/longmemeval_qwen_distill_n100.json",
+      "n_total": 100,
+      "judged": 100,
+      "errors": 0,
+      "correct": 77,
+      "acc_raw": 0.77,
+      "acc_excl_errors": 0.77,
+      "wall_s": 417.4
+    },
+    {
+      "path": "results/longmemeval_qwen_distill_atomise_n100.json",
+      "n_total": 100,
+      "judged": 100,
+      "errors": 0,
+      "correct": 76,
+      "acc_raw": 0.76,
+      "acc_excl_errors": 0.76,
+      "wall_s": 415.6
+    },
+    {
+      "path": "results/longmemeval_opus47proxy_n100_rerun.json",
+      "n_total": 100,
+      "judged": 100,
+      "errors": 0,
+      "correct": 68,
+      "acc_raw": 0.68,
+      "acc_excl_errors": 0.68,
+      "wall_s": 379.4
+    },
+    {
+      "path": "results/longmemeval_opus47proxy_atomise_n100.json",
+      "n_total": 100,
+      "judged": 96,
+      "errors": 4,
+      "correct": 69,
+      "acc_raw": 0.69,
+      "acc_excl_errors": 0.719,
+      "wall_s": 362.2
+    }
+  ]
+}

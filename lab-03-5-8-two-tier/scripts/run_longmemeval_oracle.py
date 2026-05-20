@@ -364,7 +364,10 @@ async def main(limit: int, campaign: str, out_path: Path) -> None:
         base_url=os.getenv("COMPOSE_BASE_URL") or os.getenv("OMLX_BASE_URL"),
         api_key=os.getenv("COMPOSE_API_KEY") or os.getenv("OMLX_API_KEY"),
         timeout=300.0,
-        max_retries=6,
+        max_retries=10,   # bumped 6→10 (2026-05-21): a remote Anthropic
+        # proxy N=100 run hit 23 transient 500/EOF errors — 6 retries
+        # could not ride out a sustained upstream wobble. 10 retries with
+        # exponential backoff spans a longer bad window.
     )
     judge_model = os.getenv("MODEL_JUDGE", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
 
