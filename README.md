@@ -15,8 +15,9 @@ Each `lab-NN-*/` subdirectory is a self-contained week. Every lab follows the sa
 | 2.7 | [`lab-02-7-pageindex`](./lab-02-7-pageindex) — PageIndex / tree-index RAG on Berkshire 2023 10-K (152 pages), 4-index architecture (LLM tree + K-means cluster + entity reverse-index + BGE-M3 hybrid page-vector fallback) + agentic multi-iter loop + GT-judge methodology, **Phase 9 final: 16/16 = 1.000 vs Vector 0.500 / Graph 0.375** | ✅ complete |
 | 3 | [`lab-03-rag-eval`](./lab-03-rag-eval) — RAGAS harness + HyDE A/B + multi-query fusion + Phoenix tracing | ✅ complete |
 | 3.5 | [`lab-03-5-memory`](./lab-03-5-memory) — single-agent cross-session memory: hand-rolled Python extraction + Qdrant episodic + SQLite semantic (SCD-2 archival, partial unique index, WAL + try/finally), `src/lab_init.py` guided setup, **15/15 recall benchmark + Phase 5 mem0 cross-check 10/14 (4 measured architectural differences)** | ✅ complete |
-| 3.5.5 | `lab-03-5-5-guild` — multi-agent shared memory via `mathomhaus/guild` (Go MCP), atomic-claim race demo, 3-act cross-session handoff, 15-Q multi-agent recall benchmark; chapter shipped (1037 lines), lab pending | pending |
-| 3.5.8 | `lab-03-5-8-two-tier` — two-tier production architecture (guild operational + EverCore semantic) with consolidation pipeline (hippocampus + neocortex + REM-sleep analogy), 4-way benchmark; chapter shipped, lab pending | pending |
+| 3.5.5 | [`lab-03-5-5-guild`](./lab-03-5-5-guild) — multi-agent shared memory via `mathomhaus/guild` (Go MCP), atomic-claim race demo, 3-act cross-session handoff, 15-Q multi-agent recall benchmark, `RESULTS.md` dated 2026-05-12 | ✅ complete |
+| 3.5.5.5 | [`lab-03-5-5-5-topology`](./lab-03-5-5-5-topology) — five multi-agent topology patterns (supervisor + hierarchical + group-chat + handoffs + voting) implemented as standalone runnable Python; LLM-provider abstraction (anthropic-proxy / openai-compatible / mock) with .env autoload + integration-marker test gating; **17/17 PASS against real LLM (gpt-oss-20b via oMLX) in 95s** | ✅ complete |
+| 3.5.8 | [`lab-03-5-8-two-tier`](./lab-03-5-8-two-tier) — two-tier production architecture (guild operational + EverCore semantic) with consolidation pipeline (hippocampus + neocortex + REM-sleep analogy), 4-way benchmark; Phase 9+ longmemeval slice harness landed (Sonnet judge + memory tools + replay rejudge); **commitment-bias finding under judge-controlled head-to-head**; chapter shipped, RESULTS pending | in progress |
 | 3.5.9 | `lab-03-5-9-bench-hypergraph` — three-tier (guild + EverCore + HyperMem) + LongMemEval `oracle` subset 5-way comparison anchored to EverCore's published 83%; chapter shipped, lab pending | pending |
 | 3.7 | [`lab-03.7-agentic-rag`](./lab-03.7-agentic-rag) — LangChain 5-node Agentic RAG + CRAG variant + Self-RAG hand-roll + FastMCP wrapper (first MCP-server pattern); chapter Phases 1-8 | in progress |
 | 4 | [`lab-04-react-from-scratch`](./lab-04-react-from-scratch) — ReAct loop in ~150 lines, 15-scenario bad-case suite | in progress |
@@ -36,7 +37,7 @@ The curriculum maps onto Akshay Pachaar's 6-area AI-engineer rubric — verified
 
 | # | Area | Anchor week(s) |
 |---|---|---|
-| 1 | Harness engineering (loop / tool registry / budget / scratchpad) | W4, W5, W7 |
+| 1 | Harness engineering (loop / tool registry / budget / scratchpad / **multi-agent topology**) | W3.5.5.5, W4, W5, W7 |
 | 2 | Inference serving (KV cache, paged attention, spec decoding, quantization) | W0, W2.7 BCJ #23, W9.5 |
 | 3 | Structured output reliability (FSM-guided decoding, schema-first, post-validation) | W8 |
 | 4 | Evals + observability (LLM-as-judge bias, RAGAS, Phoenix, OpenTelemetry GenAI) | W3, W2.7, W3.5 |
