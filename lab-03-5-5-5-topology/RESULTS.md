@@ -80,6 +80,36 @@ Full per-run outputs in lab `results/` dir:
 
 10. **The "speedup is invariant" finding from the 2-macro sweep DOES NOT generalize across fan widths.** 2-macro showed 1.43-1.55× (tight cluster across 3 models). 3-macro shows 1.82-2.11× (also tight cluster). The CLUSTER is invariant per-fan-width because Amdahl's law caps it given the serial fraction. But moving from 2 → 3 macros shifts the cluster up. **Refined production rule: speedup is a TOPOLOGY-AND-FAN-WIDTH constant; wall is a model constant.**
 
+### Phase 3 group-chat — 3-model compose sweep (2026-05-28)
+
+Same task across 3 compose models: *"Write a Python function `is_palindrome(s: str) -> bool`. Reviewer + tester collaborate."* Three selector flavors per model (round-robin / llm-selected / custom). Max rounds = 9.
+
+| Model | round-robin | llm-selected | custom | Total LLM calls |
+|---|:-:|:-:|:-:|:-:|
+| **Sonnet 4.6** (cloud) | 9 (max cap hit, no convergence) | **4** (optimal) | 7 | 9 + 8 + 7 = 24 |
+| **gpt-oss-20b** (local reasoning) | **3** (early TERMINATE) | 6 | 4 | 3 + 12 + 4 = 19 |
+| **Qwen3.5-27B-Opus-distill** (local distilled) | 6 | **1** (premature) | **1** (premature) | 6 + 2 + 1 = 9 |
+
+Full per-run transcripts in lab `results/group_chat_{sonnet-4-6,gpt-oss-20b,qwen-3.5-27b-claude-opus-distill}.txt`.
+
+**Three distinct failure shapes — same selector, opposite behaviors per model:**
+
+1. **Sonnet HEDGES (round-robin hits max cap).** Sonnet's coder kept iterating, refining the function, asking for more review feedback — no natural stopping point. Round-robin has no convergence detection, so the loop hit max_rounds=9 instead of converging. Sonnet's "calibrated hedging" trait that wins §5.3.5 LongMemEval (more honest abstention) becomes "doesn't know when to stop" in group_chat.
+
+2. **gpt-oss-20b TERMINATES EARLY (round-robin = 3 rounds).** Reasoning model's CoT decided "this code is good enough, time to stop" after only 3 turns — coder→reviewer→tester ended with TERMINATE. Tester's brief input was enough. Reasoning trace's internal "I think we're done" leaked into the emitted text as the TERMINATE token.
+
+3. **Qwen-distill SHORTCUTS THE COLLABORATION (llm-selected + custom = 1 round).** Coder's turn 1 emitted: code + design notes + `"**Reviewer:** Please review..."` + `"**Tester:** Please provide test cases..."` + **`TERMINATE`** — coder DELEGATED to reviewer/tester but ALSO emitted TERMINATE in the same turn, so the loop exited before the named collaborators ever responded. The commitment-bias trait that wins LongMemEval (committed answers vs hedging) breaks group_chat (committed to "done" before any actual collaboration).
+
+`★ The trait-vs-eval finding crystallized ─`
+- **Same model trait wins in one eval, fails in another.**
+  - LongMemEval (commitment-bias eval): Qwen-distill 77% > Opus 4.7 68% > Sonnet 4.6 60% — commit wins, hedge loses.
+  - Group_chat collaboration eval: Sonnet 7 rounds custom > gpt-oss-20b 4 rounds custom >> Qwen-distill 1 round (BROKEN) — collaboration wins, premature-commit loses.
+- **The eval selects the trait it scores.** Production rule: pick a model for the right TRAIT for your workload's failure mode, not for "best score on benchmark X." Anyone who reads "Qwen-distill won 77% on LongMemEval" and ships it into a multi-agent collaboration workload gets a 1-round broken loop. Anyone who reads "Sonnet wins on calibrated abstention" and ships it into a fast-decision workload gets a 9-round hung loop.
+- **The Qwen-distill "1-round premature TERMINATE" is itself a new BCJ-class observation.** Group_chat's termination contract (`if "TERMINATE" in msg.upper(): exit`) assumes TERMINATE is emitted on CONVERGENCE. Models that commit to "I'm done" before any collaboration happens can emit TERMINATE prematurely. **Fix at the prompt layer**: change CODER's system prompt to "End with TERMINATE ONLY after AT LEAST 3 turns have happened AND reviewer + tester have both responded." OR fix at the runtime layer: assert minimum-rounds before honoring TERMINATE.
+- **The selector matters less than I thought, the model matters MORE than I thought.** Earlier finding (Sonnet llm-selected = 4 rounds, cheapest) was Sonnet-specific. On Qwen-distill, llm-selected was the WORST (premature 1-round); on gpt-oss-20b, llm-selected was middle (6 rounds). **The selector × model matrix is a true 2D search space; pick by joint workload-fit, not by reading either axis alone.**
+- **The round-robin "no convergence detection" finding REPLICATES across models.** Sonnet hit max cap at 9; gpt-oss-20b lucked into 3 rounds because coder's third-turn response happened to contain TERMINATE; Qwen-distill needed 6 rounds (closer to Sonnet shape because the rule-pinned cycle forced collaborators to speak before coder could TERMINATE on round 2). **Production rule from cross-model evidence: round-robin needs explicit max-cap + post-hoc convergence check; don't trust agents to self-terminate cyclically.**
+`─────────────────────────────────────────────────`
+
 ### Phase 1 supervisor — manual run measurement (2026-05-28)
 
 Direct invocation `python code/supervisor.py` on prompt "What changed in multi-agent systems between 2023 and 2026?" against oMLX `gpt-oss-20b` @ :8000:
