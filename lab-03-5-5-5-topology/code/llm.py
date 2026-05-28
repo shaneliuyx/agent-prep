@@ -33,30 +33,31 @@ def _timeout_s() -> float:
     return float(os.getenv("LLM_TIMEOUT_S", "60"))
 
 
-# Back-compat shims for any older callers reading module-level constants.
-_PROVIDER = _provider()
-_TIMEOUT_S = _timeout_s()
+def chat(prompt: str, system: str | None = None, max_tokens: int = 1024) -> str:
+    """Send (system, prompt) → return assistant text. Sync; uses httpx.
 
-
-def chat(prompt: str, system: str | None = None) -> str:
-    """Send (system, prompt) → return assistant text. Sync; uses httpx."""
+    `max_tokens` defaults to 1024. Bump higher for synthesis-heavy calls
+    when the model is a reasoning model (e.g. gpt-oss-20b) whose CoT
+    consumes the budget before the final answer emits — see W3.5.8 BCJ
+    Entry 8 for the canonical 'finish_reason=length, content=None' trap.
+    """
     provider = _provider()
     if provider == "anthropic-proxy":
-        return _chat_anthropic_proxy(prompt, system)
+        return _chat_anthropic_proxy(prompt, system, max_tokens)
     if provider == "openai":
-        return _chat_openai(prompt, system)
+        return _chat_openai(prompt, system, max_tokens)
     if provider == "mock":
         return _chat_mock(prompt, system)
     raise ValueError(f"unknown LLM_PROVIDER: {provider}")
 
 
-def _chat_anthropic_proxy(prompt: str, system: str | None) -> str:
+def _chat_anthropic_proxy(prompt: str, system: str | None, max_tokens: int = 1024) -> str:
     """Claude-Sonnet-4.6 via local :8317 proxy. User-only payload avoids the
     proxy's system-field overwrite (see W3.5.8 BCJ Entry 19)."""
     url = os.getenv("ANTHROPIC_BASE_URL", "http://localhost:8317") + "/v1/messages"
     body = {
         "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-        "max_tokens": 1024,
+        "max_tokens": max_tokens,
         "messages": [{
             "role": "user",
             "content": (f"[INSTRUCTIONS]\n{system}\n\n[USER MESSAGE]\n{prompt}"
@@ -68,12 +69,12 @@ def _chat_anthropic_proxy(prompt: str, system: str | None) -> str:
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
-    r = httpx.post(url, json=body, headers=headers, timeout=_TIMEOUT_S)
+    r = httpx.post(url, json=body, headers=headers, timeout=_timeout_s())
     r.raise_for_status()
     return r.json()["content"][0]["text"]
 
 
-def _chat_openai(prompt: str, system: str | None) -> str:
+def _chat_openai(prompt: str, system: str | None, max_tokens: int = 1024) -> str:
     """OpenAI-compatible chat.completions endpoint (Azure / vLLM / oMLX).
 
     Env-var precedence (agent-prep convention):
@@ -105,7 +106,7 @@ def _chat_openai(prompt: str, system: str | None) -> str:
         "model": model,
         "messages": messages,
         "temperature": 0.0,
-        "max_tokens": 1024,
+        "max_tokens": max_tokens,
     }
     headers = {"Authorization": f"Bearer {api_key}"}
     r = httpx.post(url, json=body, headers=headers, timeout=_timeout_s())

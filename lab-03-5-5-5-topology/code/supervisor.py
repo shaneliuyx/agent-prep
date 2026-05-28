@@ -50,13 +50,20 @@ def worker_run(sub_question: str) -> WorkerResult:
     )
 
 def synthesize(question: str, results: list[WorkerResult]) -> str:
-    """Lead's second LLM call: combine worker answers."""
+    """Lead's second LLM call: combine worker answers.
+
+    `max_tokens=2048` bump: synthesize prompts can be large (sum of all
+    worker answers + question + instruction); on reasoning models like
+    gpt-oss-20b the CoT can consume the budget before the final answer
+    emits (the W3.5.8 BCJ Entry 8 trap — finish_reason=length + empty
+    content). 2048 gives 1024 for reasoning + 1024 for the actual answer.
+    """
     bundle = "\n\n".join(
         f"Worker {i+1} on '{r.sub_question}':\n{r.answer}"
         for i, r in enumerate(results)
     )
     prompt = f"ORIGINAL QUESTION: {question}\n\nWORKER ANSWERS:\n{bundle}\n\nSYNTHESIZE."
-    return chat(prompt, system=LEAD_SYNTHESIZE_SYSTEM)
+    return chat(prompt, system=LEAD_SYNTHESIZE_SYSTEM, max_tokens=2048)
 
 def supervisor_run(question: str) -> dict:
     """End-to-end supervisor topology. Returns answer + timing breakdown."""
@@ -75,6 +82,12 @@ def supervisor_run(question: str) -> dict:
 
     return {
         "answer": answer,
+        "sub_questions": sub_qs,
+        "workers": [
+            {"sub_question": r.sub_question, "answer": r.answer,
+             "wall_s": round(r.wall_seconds, 2)}
+            for r in results
+        ],
         "plan_wall_s": round(plan_wall, 2),
         "worker_walls_s": [round(r.wall_seconds, 2) for r in results],
         "max_worker_wall_s": round(max(r.wall_seconds for r in results), 2),
@@ -84,6 +97,36 @@ def supervisor_run(question: str) -> dict:
     }
 
 
+def print_supervisor_tree(out: dict) -> None:
+    """Pretty-print supervisor run with per-agent visibility."""
+    print(f"\n{'=' * 70}")
+    print(f"SUPERVISOR TOPOLOGY — total {out['total_wall_s']}s "
+          f"(plan {out['plan_wall_s']}s + max_worker {out['max_worker_wall_s']}s "
+          f"+ synth {out['synthesize_wall_s']}s)")
+    print(f"{'=' * 70}\n")
+    print(f"LEAD (plan): decomposed into {len(out['workers'])} sub-questions:")
+    for i, w in enumerate(out["workers"], 1):
+        print(f"\n  Worker {i} (wall {w['wall_s']}s)")
+        print(f"  ├─ sub-question: {w['sub_question']}")
+        print(f"  └─ answer:")
+        for line in (w["answer"] or "<empty>").splitlines():
+            print(f"     │ {line}")
+    print(f"\n{'─' * 70}")
+    print(f"LEAD (synthesize): combined {len(out['workers'])} worker answers:")
+    print(f"{'─' * 70}")
+    for line in (out["answer"] or "<EMPTY — BCJ Entry 8 trap, bump max_tokens>").splitlines():
+        print(f"  {line}")
+    print(f"\n{'=' * 70}")
+    # Guard against ZeroDivisionError on instant workers (mock provider /
+    # cached responses can produce max_worker_wall_s = 0.0)
+    ratio = out['sum_worker_walls_s'] / max(out['max_worker_wall_s'], 0.01)
+    print(f"PARALLELISM RECEIPT: sum_worker_walls_s = {out['sum_worker_walls_s']}s, "
+          f"max_worker_wall_s = {out['max_worker_wall_s']}s, "
+          f"ratio = {ratio:.2f}× "
+          f"(close to N-1={len(out['workers'])-1} = full parallelism)")
+    print(f"{'=' * 70}\n")
+
+
 if __name__ == "__main__":
     out = supervisor_run("What changed in multi-agent agent systems between 2023 and 2026?")
-    print(json.dumps(out, indent=2))
+    print_supervisor_tree(out)
