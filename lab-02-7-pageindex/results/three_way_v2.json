@@ -1,0 +1,88 @@
+[
+  {
+    "q": "What were Berkshire's total revenues in 2023?",
+    "type": "section-specific factoid",
+    "sub": 1.0,
+    "judge": 1.0,
+    "lat": 9.801637887954712,
+    "tools": [
+      "get_page_content"
+    ]
+  },
+  {
+    "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+    "type": "section-specific factoid",
+    "sub": 1.0,
+    "judge": 1.0,
+    "lat": 9.283693075180054,
+    "tools": [
+      "get_page_content"
+    ]
+  },
+  {
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+    "type": "cross-section synthesis",
+    "sub": 0.0,
+    "judge": 0.0,
+    "lat": 25.32405996322632,
+    "tools": [
+      "get_page_content",
+      "get_page_content",
+      "find_nodes_mentioning",
+      "get_page_content",
+      "get_page_content",
+      "get_page_content"
+    ]
+  },
+  {
+    "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+    "type": "cross-section synthesis",
+    "sub": 1.0,
+    "judge": 1.0,
+    "lat": 23.12460207939148,
+    "tools": [
+      "find_nodes_mentioning",
+      "get_subtree_text",
+      "get_page_content",
+      "get_page_content"
+    ]
+  },
+  {
+    "q": "Which section of the annual report covers BNSF Railway operating results?",
+    "type": "citation-required",
+    "sub": 0.3333333333333333,
+    "judge": 0.6666666666666666,
+    "lat": 12.419020175933838,
+    "tools": [
+      "find_nodes_mentioning",
+      "get_page_content"
+    ]
+  },
+  {
+    "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+    "type": "citation-required",
+    "sub": 1.0,
+    "judge": 1.0,
+    "lat": 11.165552854537964,
+    "tools": [
+      "find_nodes_mentioning",
+      "get_page_content"
+    ]
+  },
+  {
+    "q": "What is Berkshire Hathaway's stock price today?",
+    "type": "out-of-document",
+    "sub": 0.6666666666666666,
+    "judge": 1.0,
+    "lat": 7.52391505241394,
+    "tools": []
+  },
+  {
+    "q": "Who is the CEO of Microsoft?",
+    "type": "out-of-document",
+    "sub": 0.3333333333333333,
+    "judge": 1.0,
+    "lat": 7.157428979873657,
+    "tools": []
+  }
+]

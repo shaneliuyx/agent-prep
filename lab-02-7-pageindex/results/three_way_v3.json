@@ -1,0 +1,582 @@
+[
+  {
+    "q": "What were Berkshire's total revenues in 2023?",
+    "type": "section-specific factoid",
+    "expected": [
+      "364",
+      "billion",
+      "revenues"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 6.87,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the required total revenue figure specified in the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain the specific numerical value for Berkshire Hathaway Inc.'s total revenues in 2023.",
+      "latency": 21.71,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the required total revenue figure, claiming the information is missing when it is present in the ground truth."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Berkshire's total revenues in 2023 were **$364,482 million ($364.5 billion)**, as shown in the Consolidated Statements of Earnings on page 96 [pages 96-96].",
+      "latency": 67.18,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the total revenue figure and includes the bonus credit of citing the specific page number."
+    }
+  },
+  {
+    "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+    "type": "section-specific factoid",
+    "expected": [
+      "96",
+      "billion",
+      "net earnings"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "Net earnings attributable to Berkshire shareholders were $96.2 billion.",
+      "latency": 0.94,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the net earnings figure of $96.2 billion, which falls within the acceptable range specified in the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain the specific numerical value for Berkshire's net earnings attributable to shareholders in 2023.",
+      "latency": 23.14,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the required net earnings figure, which is the primary requirement for passing."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Berkshire's net earnings attributable to shareholders in 2023 were **$96,223 million** ($96.2 billion), as reported in the Consolidated Statements of Earnings on page 96 [pages 96-96].",
+      "latency": 53.07,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the specific net earnings figure of $96,223 million and includes the bonus credit of citing page 96."
+    }
+  },
+  {
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+    "type": "cross-section synthesis",
+    "expected": [
+      "secret weapon",
+      "Charlie",
+      "shareholders",
+      "patient"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.8,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the substantive information required to answer the question, merely stating that context is insufficient."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "In the 2023 letter, Buffett described American Express [Q194360] as Berkshire's \"not-so-secret weapon\" (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Our Not-So-Secret Weapon).",
+      "latency": 24.27,
+      "recall_substr": 0.5,
+      "recall_judge": 0.25,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer incorrectly identifies American Express as the 'not-so-secret weapon' instead of the ability to deploy large sums of capital during market panics."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Based on the fetched text, Buffett described Berkshire's **\"not-so-secret weapon\"** as **Berkshire's ability to immediately respond to market seizures with both huge sums and certainty of performance**.\n\nIn the section titled \"Our Not-So-Secret Weapon\" (page 9), Buffett explains that occasionally markets and/or the economy will cause stocks and bonds of large, fundamentally good businesses to be strikingly mispriced. He notes that markets can unpredictably seize up or even vanish (as they did for four months in 1914 and a few days in 2001). \n\nBerkshire's weapon is its capacity to act when these market panics occur: *\"Berkshire's ability to immediately respond to market seizures with both huge sums and certainty of performance may offer us an occasional large-scale opportunity.\"* \n\nThis means that when markets freeze up in panic (like during September 2008), Berkshire can deploy massive amounts of capital with certainty to take advantage of the resulting mispricings\u2014opportunities that other market participants, constrained by liquidity or uncertainty, cannot act on.",
+      "latency": 93.24,
+      "recall_substr": 0.25,
+      "recall_judge": 0.25,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer accurately identifies the core idea of being able to respond to market seizures with large sums and captures the specific historical examples mentioned in the ground truth."
+    }
+  },
+  {
+    "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+    "type": "cross-section synthesis",
+    "expected": [
+      "Apple",
+      "Coca-Cola",
+      "American Express",
+      "non-controlled"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "The context states that most of Berkshire's non-insurance businesses faced lower earnings in 2023. However, this decline was expected to be cushioned by decent results from BNSF and Berkshire Hathaway Energy (BHE).",
+      "latency": 1.47,
+      "recall_substr": 0.0,
+      "recall_judge": 0.25,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer discusses earnings and BNSF/BHE instead of naming at least two of the specific non-controlled positions required by the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "In the section \"Non-controlled Businesses That Leave Us Comfortable,\" Warren E. Buffett wrote a text (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable).",
+      "latency": 21.46,
+      "recall_substr": 0.25,
+      "recall_judge": 0.25,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer merely identifies the section title and source without mentioning any of the specific non-controlled positions required by the pass criteria."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Based on the fetched text, here's what Buffett wrote about non-controlled businesses that leave Berkshire comfortable in 2023:\n\n**Coca-Cola and American Express:**\n- These are long-duration partial-ownership positions, each accounting for 4-5% of Berkshire's GAAP net worth [pages 10-11]\n- In 2023, Berkshire did not buy or sell a share of either company\u2014extending their \"Rip Van Winkle slumber\" that has lasted over two decades [page 11]\n- Both companies increased their earnings and dividends in 2023; Berkshire's share of AMEX earnings in 2023 considerably exceeded the $1.3 billion cost of their long-ago purchase [page 11]\n- Both will almost certainly increase dividends in 2024 (about 16% for AMEX), and Berkshire will leave holdings untouched [page 11]\n\n**Occidental Petroleum:**\n- At yearend 2023, Berkshire owned 27.8% of Occidental's common shares plus warrants to materially increase ownership at a fixed price [page 11]\n- Berkshire increased both positions during 2023 and has no interest in purchasing or managing Occidental [page 11]\n\n**Five Japanese Companies (Itochu, Marubeni, etc.):**\n- Berkshire increased holdings in all five during 2023 after Greg Abel and Buffett made a trip to Tokyo [page 12]\n- Berkshire owns about 9% of each company, with a yearend market value of \u00a52.9 trillion and an unrealized gain of 61% or $8 billion [page 12]\n- Berkshire pledged not to purchase shares beyond 9.9% of each company [page 12]\n\n**Buffett's Core Philosophy:**\n- \"When you find a truly wonderful business, stick with it. Patience",
+      "latency": 110.99,
+      "recall_substr": 0.75,
+      "recall_judge": 0.75,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer identifies multiple specific non-controlled positions including Coca-Cola, American Express, Occidental Petroleum, and the Japanese companies, meeting the requirement of mentionin"
+    }
+  },
+  {
+    "q": "Which section of the annual report covers BNSF Railway operating results?",
+    "type": "citation-required",
+    "expected": [
+      "BNSF",
+      "Railroad",
+      "Burlington Northern"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "A summary of BNSF\u2019s earnings follows (dollars in millions).",
+      "latency": 1.08,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer provides a lead-in sentence rather than identifying the specific section or page requested by the question."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "BNSF's operating earnings are covered in the \"Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable\" section of the annual report (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders > Non-controlled Businesses That Leave Us Comfortable).",
+      "latency": 21.07,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer identifies the wrong section, pointing to the 'Chairman's Letter to Shareholders' instead of the required Item 1 or Item 7 sections specified in the ground truth and pass criteria"
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The **Railroad Business\u2014Burlington Northern Santa Fe** section (pages 30-30) covers BNSF Railway operating results. This section details BNSF's operations, including its 37,000 employees, the regions it serves (Midwest, Pacific Northwest, Western, Southwestern and Southeastern U.S., plus parts of Canada and Mexico), its freight revenue breakdown (34% consumer products, 25% industrial products, 24% agricultural products, and 17% coal for 2023), and its network of primary routes and trackage rights.",
+      "latency": 69.58,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate correctly identifies the specific section and page number required by the pass criteria."
+    }
+  },
+  {
+    "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+    "type": "citation-required",
+    "expected": [
+      "Item 1C",
+      "Cybersecurity"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.77,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide any of the required information, such as the specific section or page number, to answer the question."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The 2023 Annual Report contains information regarding Cybersecurity [Q3510521] (source: Berkshire Hathaway 2023 Annual Report > Table of Contents).",
+      "latency": 19.03,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer cites page 52, which meets the pass criteria requirement."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The 2023 annual report discloses cybersecurity governance in **Item 1C. Cybersecurity** on pages **52-53**.\n\nKey governance elements disclosed include:\n- The **Audit Committee of Berkshire's Board of Directors** has responsibility for oversight of the cybersecurity risk management program\n- The Audit Committee receives periodic reports on cybersecurity incidents, trends, and common deficiencies\n- Each Business Group's **Chief Information Security Officer (CISO)** provides annual reports to senior management on the state of their cybersecurity program and material cyber risks\n- Business Groups are required to maintain incident reporting processes for significant cybersecurity events\n- The framework allows each Business Group to tailor solutions based on their unique risks while maintaining consistent compliance in reporting material cyber events across Berkshire",
+      "latency": 66.09,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies Item 1C and page 52, meeting all primary and bonus criteria."
+    }
+  },
+  {
+    "q": "What is Berkshire Hathaway's stock price today?",
+    "type": "out-of-document",
+    "expected": [
+      "insufficient",
+      "do not",
+      "cannot"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.97,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 0.3333333333333333,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer uses the literal phrase 'insufficient context' as permitted by the pass criteria to indicate the information is not available in the document."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information about Berkshire Hathaway's stock price today.",
+      "latency": 20.08,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer provides an equivalent refusal by stating the information is not contained in the provided material, thereby avoiding fabrication."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about today's stock price.\ninsufficient context",
+      "latency": 79.93,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the document as the Berkshire Hathaway 2023 Annual Report and explains why the real-time price is not available, while also including the required refusal phr"
+    }
+  },
+  {
+    "q": "Who is the CEO of Microsoft?",
+    "type": "out-of-document",
+    "expected": [
+      "insufficient",
+      "do not",
+      "cannot"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.85,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer uses the required refusal phrase 'insufficient context', which satisfies the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information about the CEO of Microsoft.",
+      "latency": 15.32,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly refuses to provide a name and identifies that the information is not contained within the provided context."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about the CEO of Microsoft.\n\ninsufficient context",
+      "latency": 56.91,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the document as the Berkshire Hathaway 2023 Annual Report and explains that the information is not contained within it, meeting the refusal criteria."
+    }
+  },
+  {
+    "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+    "type": "section-specific factoid",
+    "expected": [
+      "37",
+      "operating earnings",
+      "Scorecard"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "Berkshire's operating earnings for 2023 were $37,350 million.",
+      "latency": 1.05,
+      "recall_substr": 0.6666666666666666,
+      "recall_judge": 0.6666666666666666,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly states the total operating earnings figure of $37,350 million as required by the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain the specific operating earnings figure for Berkshire for 2023 from the Scorecard.",
+      "latency": 22.36,
+      "recall_substr": 0.6666666666666666,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the required total operating earnings figure specified in the pass criteria."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Berkshire's operating earnings figure for 2023 was **$37.4 billion** ($37,400 million) according to the Chairman's Letter section of the document.\n\nThis figure is presented as Berkshire's preferred measure of earnings, which excludes unrealized capital gains or losses that can exceed $5 billion a day. The Chairman's Letter contrasts this with the \"net earnings (loss)\" figure of $96 billion for 2023 that appears on the official financial statements (page K-72), noting that operating earnings provides a more sensible concept for evaluating business performance.\n\n[pages 6-7]",
+      "latency": 96.39,
+      "recall_substr": 0.6666666666666666,
+      "recall_judge": 0.6666666666666666,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer provides a correct approximation of the total operating earnings ($37.4 billion) and correctly identifies the context of the figure."
+    }
+  },
+  {
+    "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+    "type": "section-specific factoid",
+    "expected": [
+      "27",
+      "Occidental"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "As of December 31, 2023, Berkshire or a subsidiary owned 27.8% of the outstanding Occidental Petroleum Corporation (\u201cOccidental\u201d) common stock.",
+      "latency": 1.21,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the ownership percentage of 27.8% as required by the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "Berkshire owns Occidental [Q35850, also Q2013357, also Occidental Petroleum Corporation]. The provided graph facts do not specify the exact percentage of ownership.",
+      "latency": 26.21,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the required ownership percentage and instead claims the information is not specified."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Berkshire owned **27.8%** of Occidental Petroleum's common shares at year-end 2023, along with warrants that give Berkshire the option to materially increase its ownership at a fixed price. [pages 10-17]",
+      "latency": 69.19,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the ownership percentage of 27.8% and includes the bonus information regarding the warrants."
+    }
+  },
+  {
+    "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+    "type": "cross-section synthesis",
+    "expected": [
+      "Itochu",
+      "Marubeni",
+      "Mitsubishi",
+      "Mitsui",
+      "Sumitomo",
+      "9"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "Buffett notes that the five companies follow shareholder-friendly policies that are much superior to those customarily practiced in the U.S. Additionally, each company operates in a highly-diversified manner somewhat similar to the way Berkshire itself is run.",
+      "latency": 1.43,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to mention the required ~9% ownership stake and lacks the specific financial or structural details required by the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain specific details regarding what Warren E. Buffett wrote about the five Japanese trading houses; they only indicate that Berkshire holds interests in, owns, and has made pledges to Japanese companies [Q58987985] (source: Berkshire Hathaway 2023 Annual Report > Chairman's Letter to Shareholders).",
+      "latency": 25.5,
+      "recall_substr": 0.16666666666666666,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to mention the specific ~9% ownership stake required by the pass criteria, instead providing a generic statement about holding interests."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about Buffett's specific comments on the five Japanese trading houses Berkshire holds. insufficient context",
+      "latency": 106.29,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer incorrectly claims the information is not in the document, whereas the ground-truth answer demonstrates that the information was indeed present."
+    }
+  },
+  {
+    "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+    "type": "cross-section synthesis",
+    "expected": [
+      "patient",
+      "long-term",
+      "shareholders",
+      "Wall Street"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.74,
+      "recall_substr": 0.0,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide any substantive information regarding the comparison between Berkshire and Wall Street as required by the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information about how Buffett describes Berkshire's relationship with shareholders compared to Wall Street firms.",
+      "latency": 18.9,
+      "recall_substr": 0.5,
+      "recall_judge": 0.0,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to provide the required comparison between Berkshire and Wall Street, instead claiming the information is missing despite it being present in the ground-truth."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Berkshire's relationship with shareholders is built on extreme fiscal conservatism and a pledge to avoid inflicting permanent financial damage, contrasting sharply with Wall Street firms whose \"juices flow\" from feverish activity and casino-like behavior. Buffett describes Berkshire as a fortress that operates with minimal cash requirements and never relies on commercial paper or debt markets during panics, whereas Wall Street firms are driven by the need to generate activity and often market foolishness. The document emphasizes that Berkshire's allegiance is always to its shareholders, delivering diverse earnings after interest and taxes rather than the capricious market movements that Wall Street firms chase.",
+      "latency": 159.66,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer successfully contrasts Berkshire's focus on avoiding permanent loss with Wall Street's drive for feverish activity, meeting all the specified criteria."
+    }
+  },
+  {
+    "q": "Which Item of Form 10-K covers Risk Factors?",
+    "type": "citation-required",
+    "expected": [
+      "Item 1A",
+      "Risk Factors"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "Item 1A covers Risk Factors.",
+      "latency": 0.76,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate correctly identifies the section as Item 1A, which meets the primary requirement of the pass criteria."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not specify a particular \"Item\" number that covers Risk Factors, only that the 2023 Annual Report contains Risk Factors [Q1475848] (source: Berkshire Hathaway 2023 Annual Report > Table of Contents).",
+      "latency": 20.27,
+      "recall_substr": 0.5,
+      "recall_judge": 0.5,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer fails to identify the specific section as Item 1A, which is the primary requirement of the pass criteria."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "Item 1A covers Risk Factors in Form 10-K, found on pages 49-51.",
+      "latency": 85.95,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate correctly identifies the section as Item 1A, which meets the primary requirement."
+    }
+  },
+  {
+    "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+    "type": "citation-required",
+    "expected": [
+      "Notes",
+      "Financial Statements",
+      "Item 8"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "The Notes to Consolidated Financial Statements are located on page K-75.",
+      "latency": 0.94,
+      "recall_substr": 0.6666666666666666,
+      "recall_judge": 0.6666666666666666,
+      "gt_pass": false,
+      "gt_rationale": "The candidate answer cites page K-75, which does not fall within the required page range of 99-141 or identify Item 8."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The Notes to Consolidated Financial Statements are located in K-78 (source: Berkshire Hathaway 2023 Annual Report > Form 10-K > Item 8. Financial Statements and Supplementary Data).",
+      "latency": 19.83,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate correctly identifies the location as Item 8, which meets the primary pass criteria."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The Notes to Consolidated Financial Statements are located in **Item 8. Financial Statements and Supplementary Data**, specifically starting on page 99 and continuing through page 147 of the report. This section contains all the detailed accounting policies, significant estimates, and supplementary financial information that support Berkshire Hathaway's consolidated financial statements. [pages 99-147]",
+      "latency": 94.79,
+      "recall_substr": 1.0,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate correctly identifies the location as Item 8 and provides a page range within the required 99-141 range (extending to 147)."
+    }
+  },
+  {
+    "q": "What is Apple Inc.'s 2024 revenue?",
+    "type": "out-of-document",
+    "expected": [
+      "insufficient",
+      "do not",
+      "cannot",
+      "2023"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 1.0,
+      "recall_substr": 0.25,
+      "recall_judge": 0.25,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the lack of sufficient context by using the required refusal phrase, which implies the information is not present in the provided document."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information regarding Apple Inc.'s 2024 revenue.",
+      "latency": 20.61,
+      "recall_substr": 0.25,
+      "recall_judge": 0.75,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies that the information is not present in the provided text, effectively refusing the out-of-scope question."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about Apple Inc.'s 2024 revenue. insufficient context",
+      "latency": 98.88,
+      "recall_substr": 0.5,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the document as the Berkshire Hathaway 2023 Annual Report and explains that it does not contain the requested information, meeting the refusal criteria."
+    }
+  },
+  {
+    "q": "Who is the current chairman of the Federal Reserve?",
+    "type": "out-of-document",
+    "expected": [
+      "insufficient",
+      "do not",
+      "cannot"
+    ],
+    "vector": {
+      "label": "vector",
+      "answer": "insufficient context.",
+      "latency": 0.77,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer uses the required refusal format by stating 'insufficient context', which aligns with the pass criteria for identifying the lack of information in the document."
+    },
+    "graph": {
+      "label": "graph",
+      "answer": "The provided graph facts do not contain information about the current chairman of the Federal Reserve.",
+      "latency": 8.56,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly refuses to provide a name and identifies that the information is not contained within the provided context."
+    },
+    "tree": {
+      "label": "tree",
+      "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about the current chairman of the Federal Reserve.\n\ninsufficient context",
+      "latency": 97.51,
+      "recall_substr": 0.3333333333333333,
+      "recall_judge": 1.0,
+      "gt_pass": true,
+      "gt_rationale": "The candidate answer correctly identifies the document as the Berkshire Hathaway 2023 Annual Report and explains that the requested information is not contained within it, meeting the refusal criteria"
+    }
+  }
+]

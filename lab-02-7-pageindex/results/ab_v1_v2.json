@@ -1,0 +1,389 @@
+{
+  "v1": {
+    "label": "v1",
+    "agg_judge": 0.0,
+    "agg_sub": 0.0,
+    "agg_lat": 1.921983763575554,
+    "per_cat": {
+      "section-specific factoid": 0.0,
+      "cross-section synthesis": 0.0,
+      "citation-required": 0.0,
+      "out-of-document": 0.0
+    },
+    "rows": [
+      {
+        "variant": "v1",
+        "q": "What were Berkshire's total revenues in 2023?",
+        "type": "section-specific factoid",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 5.53125786781311,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+        "type": "section-specific factoid",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 4.935603857040405,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6282122135162354,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6287758350372314,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "Which section of the annual report covers BNSF Railway operating results?",
+        "type": "citation-required",
+        "answer": "<|tool_call>call:get_page_content(start_page: 1, end_page: 152) own_tool_call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:get_page_content(end_page: 152, start_page: 1)\n<|tool_call>call:get_page_content(end_page: 152, start_page: 1) end_tool_call:",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 12.197588920593262,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+        "type": "citation-required",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6453900337219238,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What is Berkshire Hathaway's stock price today?",
+        "type": "out-of-document",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6095490455627441,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "Who is the CEO of Microsoft?",
+        "type": "out-of-document",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6083829402923584,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+        "type": "section-specific factoid",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6118357181549072,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+        "type": "section-specific factoid",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6375579833984375,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6270339488983154,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6295900344848633,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "Which Item of Form 10-K covers Risk Factors?",
+        "type": "citation-required",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6110820770263672,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+        "type": "citation-required",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6311471462249756,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "What is Apple Inc.'s 2024 revenue?",
+        "type": "out-of-document",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6093907356262207,
+        "tools": []
+      },
+      {
+        "variant": "v1",
+        "q": "Who is the current chairman of the Federal Reserve?",
+        "type": "out-of-document",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.6093418598175049,
+        "tools": []
+      }
+    ]
+  },
+  "v2": {
+    "label": "v2",
+    "agg_judge": 0.484375,
+    "agg_sub": 0.2708333333333333,
+    "agg_lat": 4.369999080896378,
+    "per_cat": {
+      "section-specific factoid": 0.16666666666666666,
+      "cross-section synthesis": 0.1875,
+      "citation-required": 0.5833333333333333,
+      "out-of-document": 1.0
+    },
+    "rows": [
+      {
+        "variant": "v2",
+        "q": "What were Berkshire's total revenues in 2023?",
+        "type": "section-specific factoid",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 6.0693519115448,
+        "tools": []
+      },
+      {
+        "variant": "v2",
+        "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+        "type": "section-specific factoid",
+        "answer": "Berkshire Hathaway's net earnings attributable to shareholders in 2023 were $96,223 million [page 96].",
+        "sub": 0.6666666666666666,
+        "judge": 0.6666666666666666,
+        "lat": 6.303297996520996,
+        "tools": [
+          "get_page_content"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.5964210033416748,
+        "tools": []
+      },
+      {
+        "variant": "v2",
+        "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 4.8348610401153564,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_subtree_text"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "Which section of the annual report covers BNSF Railway operating results?",
+        "type": "citation-required",
+        "answer": "The BNSF Railway operating results are covered in the **\"Results of Operations\"** section of the **\"Management\u2019s Discussion and Analysis\"** (specifically within **Item 7**).\n\nThe report provides a summary of BNSF's after-tax earnings in a table on page 59, noting that after-tax earnings for BNSF were $5,087 million in 2023, $5,946 million in 2022, and $5,990 million in 2021 [page 59]. The text further explains that the decrease in 2023 was primarily due to lower overall freight volumes and higher non-fuel operating costs [page 59].",
+        "sub": 0.3333333333333333,
+        "judge": 0.6666666666666666,
+        "lat": 5.43653416633606,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_page_content"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+        "type": "citation-required",
+        "answer": "The 2023 annual report discloses cybersecurity governance in **Item 1C. Cybersecurity** (page 52). \n\nAccording to the report:\n*   **Framework:** Berkshire has implemented a cybersecurity and cyber-related information management framework across its diverse business groups. This framework allows each Business Group to tailor solutions to their unique risks while ensuring consistent compliance in reporting material cyber events and risks to Berkshire [page 52].\n*   **Reporting Structure:** Each Business Group's Chief Information Security Officer (CISO) must provide an annual report to their respective senior management regarding the state of their cybersecurity program and material cyber risks. These reports are also shared with Berkshire\u2019s internal audit group to enhance the company's overall risk management [page 52].\n*   **Incident Reporting:** Each Business Group is required to maintain an incident reporting process to report significant cybersecurity events to Berkshire [page 52].",
+        "sub": 1.0,
+        "judge": 1.0,
+        "lat": 5.072575092315674,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_page_content"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "What is Berkshire Hathaway's stock price today?",
+        "type": "out-of-document",
+        "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which contains historical financial data and corporate information but does not provide real-time market data such as the current stock price.\n\nThe document specifies the relationship between the two classes of common stock (each share of Class A is convertible into 1,500 shares of Class B), but it does not list a \"today's\" price [pages 150-151].",
+        "sub": 0.0,
+        "judge": 1.0,
+        "lat": 4.779365301132202,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_page_content"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "Who is the CEO of Microsoft?",
+        "type": "out-of-document",
+        "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about the CEO of Microsoft.\n\ninsufficient context.",
+        "sub": 0.3333333333333333,
+        "judge": 1.0,
+        "lat": 1.2605178356170654,
+        "tools": [
+          "find_nodes_mentioning"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+        "type": "section-specific factoid",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.5849270820617676,
+        "tools": []
+      },
+      {
+        "variant": "v2",
+        "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+        "type": "section-specific factoid",
+        "answer": "insufficient context",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 10.052114248275757,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_subtree_text",
+          "find_nodes_mentioning",
+          "get_page_content",
+          "get_page_content",
+          "get_page_content"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+        "type": "cross-section synthesis",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 4.819940090179443,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_subtree_text"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+        "type": "cross-section synthesis",
+        "answer": "Buffett describes Berkshire's relationship with its shareholders as one of trust and directness, contrasting it with the \"feverish activity\" and \"syrupy mush\" often found in the broader financial industry.\n\nKey distinctions include:\n\n*   **Target Audience:** Buffett notes that while many writers seek a mass audience, Berkshire's target is a more limited group of \"investors who trust Berkshire with their savings without any expectation of resale\" [page 5]. He compares these \"lifetime\" shareholders to people who save to buy a farm or rental property, rather than those who treat investing like buying \"lottery tickets or 'hot' stocks\" [page 5].\n*   **Communication Style:** He emphasizes that shareholders are entitled to hear both \"good and bad news, delivered directly from their CEO\" rather than through an \"investor-relations officer or communications consultant forever serving up optimism and syrupy mush\" [page 5].\n*   **Relationship to Wall Street:** Buffett suggests that \"Wall Street\" (in a figurative sense) thrives on \"feverish activity,\" where the goal is often to market \"whatever foolishness can be marketed\" [page 7]. In contrast, Berkshire's relationship is built on a \"constancy and clarity of purpose,\" where the company's allegiance is to its country and its shareholders, acknowledging that \"your money is comingled with ours, it does not belong to us\" [page 8].",
+        "sub": 0.5,
+        "judge": 0.75,
+        "lat": 8.521278381347656,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_subtree_text"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "Which Item of Form 10-K covers Risk Factors?",
+        "type": "citation-required",
+        "answer": "",
+        "sub": 0.0,
+        "judge": 0.0,
+        "lat": 0.5531508922576904,
+        "tools": []
+      },
+      {
+        "variant": "v2",
+        "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+        "type": "citation-required",
+        "answer": "To find the location of the Notes to Consolidated Financial Statements, I will check the Table of Contents.\n\nThe Table of Contents indicates that the \"Notes to Consolidated Financial Statements\" begins on page 99.\n\nThe Notes to Consolidated Financial Statements are located in the section starting on page 99 and continuing through page 123 [pages 99-123].",
+        "sub": 0.6666666666666666,
+        "judge": 0.6666666666666666,
+        "lat": 1.398643970489502,
+        "tools": []
+      },
+      {
+        "variant": "v2",
+        "q": "What is Apple Inc.'s 2024 revenue?",
+        "type": "out-of-document",
+        "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information regarding Apple Inc.'s 2024 revenue. The report focuses on Berkshire Hathaway's own financial results and operations for the fiscal year ended December 31, 2023.\n\ninsufficient context.",
+        "sub": 0.5,
+        "judge": 1.0,
+        "lat": 6.601225137710571,
+        "tools": [
+          "find_nodes_mentioning",
+          "find_nodes_mentioning",
+          "get_subtree_text"
+        ]
+      },
+      {
+        "variant": "v2",
+        "q": "Who is the current chairman of the Federal Reserve?",
+        "type": "out-of-document",
+        "answer": "The provided document is the Berkshire Hathaway 2023 Annual Report, which does not contain information about the current chairman of the Federal Reserve.\n\ninsufficient context.",
+        "sub": 0.3333333333333333,
+        "judge": 1.0,
+        "lat": 3.035781145095825,
+        "tools": [
+          "find_nodes_mentioning",
+          "get_page_content"
+        ]
+      }
+    ]
+  },
+  "delta_judge": 0.484375,
+  "delta_sub": 0.2708333333333333,
+  "delta_lat": 2.4480153173208237
+}
