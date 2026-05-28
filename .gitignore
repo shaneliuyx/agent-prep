@@ -22,3 +22,8 @@ traces/
 last30days-x.env
 *.key
 *.pem
+.tokensave
+
+# Run logs + eval stdout dumps (added 2026-05-28)
+**/logs/
+*.output
