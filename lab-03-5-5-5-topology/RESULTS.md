@@ -37,6 +37,34 @@ Two run profiles, both green:
 | 4 | Handoffs (Agent dataclass + handoff protocol, Swarm-style) | 4 | 4/4 PASS | 4/4 PASS |
 | 5 | Voting (3 solvers + majority + LLM-judge aggregator) | 4 | 4/4 PASS | 4/4 PASS |
 
+### Phase 2 hierarchical — manual run measurement (2026-05-28, post reasoning-model fix)
+
+Direct invocation `python code/hierarchical.py` on prompt "Compare regulatory frameworks for AI across EU, US, and UK" against oMLX `gpt-oss-20b` @ :8000, AFTER the 3-layer reasoning-model fix (BCJ Entry 6 — `reasoning_content` fallback + gap-acknowledge prompt + `max_tokens=4096` for TOP synthesize):
+
+| Stage | Wall (s) |
+|---|---:|
+| `plan_decompose` (top-lead emits 2 macros) | 9.05 |
+| Sub-lead 1 (parallel; 2 leaves + sub-synth) | 58.90 |
+| Sub-lead 2 (parallel; 2 leaves + sub-synth) | **68.15** ← `max_sub_wall_s` |
+| Sub-leads batch (`max`, not `sum`) | 68.15 |
+| TOP `synthesize` (combines 2 sub-answers) | 38.25 |
+| **Observed total** | **115.46** |
+| Sequential-equivalent (`plan + sum(subs) + synth`) | 174.35 |
+| **Speedup factor (sub-level parallelism)** | **1.51×** |
+
+Topology: depth=2, agents_total=7 (1 top + 2 sub-leads + 4 leaves).
+
+**Parallelism verified at sub-level.** Observed 115.46s ≈ `plan + max(subs) + synth` (115.45s) within 0.01s. Speedup is less than supervisor's 1.77× (Phase 1) because hierarchical's sequential overhead (plan + synth = 47.30s) is 41% of total — Amdahl's law floor for 2 parallel sub-leads with ~40% serial fraction.
+
+**TOP synthesize NON-EMPTY** (3-layer fix verified working). Produced a full 7-row comparison table covering EU/US/UK with explicit gap acknowledgments. The reasoning-model trap (BCJ Entry 6) is closed.
+
+`★ The fix's partial compliance is worth noting ─`
+- **Gap-acknowledge prompt reduces but does NOT eliminate speculation.** The instruction "do NOT speculate or fill in missing material" produced a UK column populated with the model's own training-data knowledge (*UK AI Strategy 2021*, *Data Protection Act 2018*, ICO, £17M fine cap) — speculation the prompt explicitly forbade. The model ALSO labeled the UK row "(not covered by workers)" AND listed UK as a gap in the "Gaps in the workers' coverage" section. So it's **label-and-fill**, not **label-and-stop**.
+- **The repetition loop is gone, which was the catastrophic failure mode.** Trading "no answer at all" (the empty TOP synthesize trap) for "labeled speculation" is a clear win. But reasoning models don't strictly obey scope-bounding instructions — they fill in what they know while flagging the gap.
+- **Production implication:** if you need STRICT non-speculation (e.g., for fact-grounded RAG), the prompt-level gap-acknowledge instruction is insufficient. You'd need either (a) a smaller non-reasoning model that doesn't have the latent knowledge to speculate from, or (b) a post-processing step that strips out any content not directly traceable to retrieval context. Both are heavier than prompt engineering alone.
+- **The hierarchical speedup (1.51×) is the Amdahl-ceiling for 2-sub-lead parallelism.** 41% sequential overhead caps the speedup. Going to N=3 macros wouldn't help much because the synthesize step grows with N (more sub-answers to combine). The right knob is making each sub-lead's work LONGER (more leaves per sub-lead) so parallelism dominates the sequential plan+synth bookend.
+`─────────────────────────────────────────────────`
+
 ### Phase 1 supervisor — manual run measurement (2026-05-28)
 
 Direct invocation `python code/supervisor.py` on prompt "What changed in multi-agent systems between 2023 and 2026?" against oMLX `gpt-oss-20b` @ :8000:
