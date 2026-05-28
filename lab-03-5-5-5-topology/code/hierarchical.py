@@ -53,7 +53,12 @@ def hierarchical_run(question: str) -> dict:
         for s in sub_results
     ]
     t_syn = time.monotonic()
-    answer = synthesize(question, sub_as_workers)
+    # Bump max_tokens for TOP-lead synthesize — each sub-answer is itself
+    # a synthesized output (table-formatted, multi-paragraph, ~600-1000
+    # tokens), so input is 2-3k tokens. Measured 2026-05-28: 2048 budget
+    # still produced empty TOP synthesize at 54s wall (CoT exhausted entire
+    # budget). 4096 = 2048 CoT + 2048 answer headroom on reasoning models.
+    answer = synthesize(question, sub_as_workers, max_tokens=4096)
     syn_wall = time.monotonic() - t_syn
 
     return {

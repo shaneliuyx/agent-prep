@@ -14,9 +14,14 @@ non-overlapping sub-questions. Each sub-question should be answerable independen
 Return JSON only, no prose:
 {"sub_questions": ["q1", "q2", "q3"]}"""
 
-LEAD_SYNTHESIZE_SYSTEM = """You are a research lead synthesizing 3 workers' answers into ONE coherent
+LEAD_SYNTHESIZE_SYSTEM = """You are a research lead synthesizing workers' answers into ONE coherent
 answer to the original question. Cite which worker contributed which fact. Surface disagreement explicitly
-if workers conflict — do NOT silently pick one side."""
+if workers conflict — do NOT silently pick one side.
+
+CRITICAL: synthesize ONLY what the workers provided. If the original question mentions a topic the workers
+did NOT cover (e.g. question asks about EU/US/UK but workers covered EU/US only), state that gap EXPLICITLY
+in one sentence and continue with what IS covered. Do NOT speculate or fill in missing material — that
+causes reasoning models to loop (W3.5.5.5 BCJ Entry 6). Acknowledge gap, move on."""
 
 WORKER_SYSTEM = """You are a research worker. Answer ONE sub-question with a 3-sentence factual response.
 Stay within scope; don't expand to adjacent topics. If you don't know, say so explicitly."""
@@ -49,21 +54,25 @@ def worker_run(sub_question: str) -> WorkerResult:
         wall_seconds=time.monotonic() - t0,
     )
 
-def synthesize(question: str, results: list[WorkerResult]) -> str:
+def synthesize(question: str, results: list[WorkerResult], max_tokens: int = 2048) -> str:
     """Lead's second LLM call: combine worker answers.
 
-    `max_tokens=2048` bump: synthesize prompts can be large (sum of all
-    worker answers + question + instruction); on reasoning models like
-    gpt-oss-20b the CoT can consume the budget before the final answer
-    emits (the W3.5.8 BCJ Entry 8 trap — finish_reason=length + empty
-    content). 2048 gives 1024 for reasoning + 1024 for the actual answer.
+    `max_tokens` defaults to 2048 (1024 CoT + 1024 answer for supervisor).
+    Hierarchical TOP-lead synthesize should pass HIGHER (e.g. 4096) because
+    its input is 2 sub-syntheses (each already table-formatted, multi-
+    paragraph, ~600-1000 tokens) PLUS the question — easily 2-3k input
+    tokens. Reasoning models reasoning over that need proportionally more
+    output budget. W3.5.8 BCJ Entry 8 trap (`finish_reason=length` + empty
+    content) recurs at each lifecycle layer: supervisor at 1024 budget,
+    hierarchical at 2048 budget — measured 2026-05-28 hierarchical run
+    still emitted empty TOP synthesize at 2048; bumped to 4096 in caller.
     """
     bundle = "\n\n".join(
         f"Worker {i+1} on '{r.sub_question}':\n{r.answer}"
         for i, r in enumerate(results)
     )
     prompt = f"ORIGINAL QUESTION: {question}\n\nWORKER ANSWERS:\n{bundle}\n\nSYNTHESIZE."
-    return chat(prompt, system=LEAD_SYNTHESIZE_SYSTEM, max_tokens=2048)
+    return chat(prompt, system=LEAD_SYNTHESIZE_SYSTEM, max_tokens=max_tokens)
 
 def supervisor_run(question: str) -> dict:
     """End-to-end supervisor topology. Returns answer + timing breakdown."""

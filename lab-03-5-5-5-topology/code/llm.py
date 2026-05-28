@@ -112,11 +112,26 @@ def _chat_openai(prompt: str, system: str | None, max_tokens: int = 1024) -> str
     r = httpx.post(url, json=body, headers=headers, timeout=_timeout_s())
     r.raise_for_status()
     data = r.json()
-    # Defensive: some OpenAI-compat servers return null content when model
-    # emits tool_calls or hits a stop sequence; others return empty string.
-    # Caller expects str; coerce None/missing to empty string.
+    # Defensive: reasoning models (gpt-oss-20b, DeepSeek-R1, o1-class) emit
+    # chain-of-thought into `reasoning_content` and the final answer into
+    # `content`. On heavy prompts the CoT can exhaust max_tokens entirely,
+    # leaving `content=null` + `finish_reason=length` + `reasoning_content`
+    # holding the truncated thinking. Falling back to reasoning_content
+    # salvages SOMETHING for the caller — even if it's just incomplete CoT,
+    # it's better than a silently empty string. See W3.5.5.5 BCJ Entry 6
+    # for the diagnostic probe + full trap analysis.
     try:
-        return data["choices"][0]["message"]["content"] or ""
+        choice = data["choices"][0]
+        msg = choice["message"]
+        content = msg.get("content")
+        if content:
+            return content
+        # Fall back to reasoning_content if final content is empty/null.
+        reasoning = msg.get("reasoning_content")
+        if reasoning:
+            finish_reason = choice.get("finish_reason", "unknown")
+            return f"[reasoning_only — finish_reason={finish_reason}]\n{reasoning}"
+        return ""
     except (KeyError, IndexError, TypeError):
         return ""
 
