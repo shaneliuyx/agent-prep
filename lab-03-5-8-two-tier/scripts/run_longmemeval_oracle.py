@@ -23,6 +23,17 @@ from pathlib import Path
 # so `from src.tiered_memory import ...` resolves.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# .env autoload — required when invoked via subprocess (e.g. by
+# scripts/run_k_sweep.py) where the parent shell's env vars are NOT
+# inherited. Walks from cwd up; finds parent ~/code/agent-prep/.env
+# even when no lab-local .env exists. Must run BEFORE OMLX_*/OPENAI_*
+# reads at TieredMemory init + OpenAI client construction.
+try:
+    from dotenv import find_dotenv, load_dotenv
+    load_dotenv(find_dotenv(usecwd=True))
+except ImportError:
+    pass
+
 from openai import OpenAI
 
 from src.tiered_memory_qdrant import TieredMemory
@@ -69,7 +80,7 @@ Rules:
 Output: CORRECT or INCORRECT"""
 
 
-ATOMISE_SYSTEM = """Extract atomic facts from the conversation excerpts below.
+_ATOMISE_HEADER = """Extract atomic facts from the conversation excerpts below.
 
 Each fact is a triple in the form:  subject | attribute | value
 
@@ -81,12 +92,16 @@ Focus on:
 - Relations between entities
 
 Output ONE triple per line. No commentary, no headers, no Markdown.
-If a session contains no extractable facts, output nothing for that session.
+If a session contains no extractable facts, output nothing for that session."""
+
+_ATOMISE_VOLUME_NOTE = """
 
 NOTE: emit MANY triples (15+ per session is fine). Volume buffers extraction
 error — empirical 2026-05-20: constrained K=5 atomise caused −30pts on Opus
 and −35pts on Qwen3.6-27B due to single-triple anchoring bias in the
-downstream composer. See W3.5.8 §5.3.4 for the Bayesian framing.
+downstream composer. See W3.5.8 §5.3.4 for the Bayesian framing."""
+
+_ATOMISE_EXAMPLE = """
 
 EXAMPLE INPUT:
 - session 1: Bought new Samsung Galaxy S22 today (Feb 20), very excited.
@@ -97,6 +112,31 @@ user | bought | Samsung Galaxy S22
 purchase of Samsung Galaxy S22 | date | Feb 20
 user | received | Dell XPS 13
 arrival of Dell XPS 13 | date | Feb 25"""
+
+ATOMISE_SYSTEM = _ATOMISE_HEADER + _ATOMISE_VOLUME_NOTE + _ATOMISE_EXAMPLE
+
+
+def _atomise_system_for_run() -> str:
+    """Resolve ATOMISE_SYSTEM at call time, honoring optional K_TARGET env.
+
+    K_TARGET (integer N) is the §5.3.4 inflection-sweep control: replaces
+    the volume-buffering NOTE with a fixed-N constraint, instructing the
+    extractor to emit EXACTLY N triples total. Used by scripts/run_k_sweep.py
+    to find the phase-transition boundary in (1, 14] that K_min=8 currently
+    guesses at.
+
+    When K_TARGET is unset / empty: returns the default unconstrained
+    prompt (volume-buffering NOTE present).
+    """
+    k = os.getenv("K_TARGET", "").strip()
+    if not k:
+        return ATOMISE_SYSTEM
+    constraint = (
+        f"\n\nCRITICAL: emit EXACTLY {k} triples TOTAL across all sessions. "
+        f"Pick the {k} most relevant facts. Do NOT emit more than {k}. "
+        f"Do NOT emit fewer than {k}."
+    )
+    return _ATOMISE_HEADER + constraint + _ATOMISE_EXAMPLE
 
 
 COMPOSE_SYSTEM = """You are answering questions about a user's past conversations.
@@ -240,7 +280,7 @@ async def run_one_question(tm: TieredMemory, q: dict, llm: OpenAI, judge_model: 
             atom_resp = llm.chat.completions.create(
                 model=os.getenv("MODEL_HAIKU", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit"),
                 messages=[
-                    {"role": "system", "content": ATOMISE_SYSTEM},
+                    {"role": "system", "content": _atomise_system_for_run()},
                     {"role": "user", "content": ctx},
                 ],
                 **_TEMP_KW,

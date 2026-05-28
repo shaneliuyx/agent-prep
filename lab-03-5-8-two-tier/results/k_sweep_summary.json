@@ -1,0 +1,137 @@
+{
+  "campaign_root": "k-sweep-1779949001",
+  "ks": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12
+  ],
+  "limit_per_k": 10,
+  "total_wall_min": 60.1,
+  "per_k": [
+    {
+      "k": 2,
+      "campaign": "k-sweep-1779949001-k2",
+      "n_questions": 10,
+      "correct": 8,
+      "accuracy": 0.8,
+      "mean_triples_emitted": 1.6,
+      "triples_range": [
+        0,
+        2
+      ],
+      "wall_s": 405.8105158805847,
+      "out_path": "results/k_sweep_k2.json"
+    },
+    {
+      "k": 4,
+      "campaign": "k-sweep-1779949001-k4",
+      "n_questions": 10,
+      "correct": 9,
+      "accuracy": 0.9,
+      "mean_triples_emitted": 2.0,
+      "triples_range": [
+        0,
+        4
+      ],
+      "wall_s": 426.1536991596222,
+      "out_path": "results/k_sweep_k4.json"
+    },
+    {
+      "k": 6,
+      "campaign": "k-sweep-1779949001-k6",
+      "n_questions": 10,
+      "correct": 8,
+      "accuracy": 0.8,
+      "mean_triples_emitted": 3.0,
+      "triples_range": [
+        0,
+        6
+      ],
+      "wall_s": 400.4191401004791,
+      "out_path": "results/k_sweep_k6.json"
+    },
+    {
+      "k": 8,
+      "campaign": "k-sweep-1779949001-k8",
+      "n_questions": 10,
+      "correct": 6,
+      "accuracy": 0.6,
+      "mean_triples_emitted": 4.1,
+      "triples_range": [
+        0,
+        8
+      ],
+      "wall_s": 436.6455819606781,
+      "out_path": "results/k_sweep_k8.json"
+    },
+    {
+      "k": 10,
+      "campaign": "k-sweep-1779949001-k10",
+      "n_questions": 10,
+      "correct": 8,
+      "accuracy": 0.8,
+      "mean_triples_emitted": 2.7,
+      "triples_range": [
+        0,
+        10
+      ],
+      "wall_s": 865.2708127498627,
+      "out_path": "results/k_sweep_k10.json"
+    },
+    {
+      "k": 12,
+      "campaign": "k-sweep-1779949001-k12",
+      "n_questions": 10,
+      "correct": 7,
+      "accuracy": 0.7,
+      "mean_triples_emitted": 2.4,
+      "triples_range": [
+        0,
+        12
+      ],
+      "wall_s": 1072.4016330242157,
+      "out_path": "results/k_sweep_k12.json"
+    }
+  ],
+  "board": [
+    {
+      "k": 2,
+      "accuracy": 0.8,
+      "mean_triples": 1.6,
+      "wall_s": 405.8105158805847
+    },
+    {
+      "k": 4,
+      "accuracy": 0.9,
+      "mean_triples": 2.0,
+      "wall_s": 426.1536991596222
+    },
+    {
+      "k": 6,
+      "accuracy": 0.8,
+      "mean_triples": 3.0,
+      "wall_s": 400.4191401004791
+    },
+    {
+      "k": 8,
+      "accuracy": 0.6,
+      "mean_triples": 4.1,
+      "wall_s": 436.6455819606781
+    },
+    {
+      "k": 10,
+      "accuracy": 0.8,
+      "mean_triples": 2.7,
+      "wall_s": 865.2708127498627
+    },
+    {
+      "k": 12,
+      "accuracy": 0.7,
+      "mean_triples": 2.4,
+      "wall_s": 1072.4016330242157
+    }
+  ]
+}

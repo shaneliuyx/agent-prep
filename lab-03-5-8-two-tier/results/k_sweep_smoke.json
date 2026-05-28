@@ -1,0 +1,32 @@
+{
+  "campaign_root": "k-sweep-1779948876",
+  "ks": [
+    8
+  ],
+  "limit_per_k": 2,
+  "total_wall_min": 1.7,
+  "per_k": [
+    {
+      "k": 8,
+      "campaign": "k-sweep-1779948876-k8",
+      "n_questions": 2,
+      "correct": 1,
+      "accuracy": 0.5,
+      "mean_triples_emitted": 4.0,
+      "triples_range": [
+        0,
+        8
+      ],
+      "wall_s": 102.25176310539246,
+      "out_path": "results/k_sweep_k8.json"
+    }
+  ],
+  "board": [
+    {
+      "k": 8,
+      "accuracy": 0.5,
+      "mean_triples": 4.0,
+      "wall_s": 102.25176310539246
+    }
+  ]
+}
