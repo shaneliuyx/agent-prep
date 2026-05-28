@@ -1,0 +1,377 @@
+{
+  "no_memory": {
+    "backend": "no_memory",
+    "total": 15,
+    "pass": 0,
+    "pass_rate": 0.0,
+    "per_q": [
+      {
+        "query": "where do I live?",
+        "expected": "osaka",
+        "pass": false
+      },
+      {
+        "query": "any food restrictions?",
+        "expected": "vegan",
+        "pass": false
+      },
+      {
+        "query": "what's my profession?",
+        "expected": "engineer",
+        "pass": false
+      },
+      {
+        "query": "what's my hobby?",
+        "expected": "bicycle",
+        "pass": false
+      },
+      {
+        "query": "where do I live?",
+        "expected": "taipei",
+        "pass": false
+      },
+      {
+        "query": "any food I should avoid?",
+        "expected": "peanut",
+        "pass": false
+      },
+      {
+        "query": "tell me more about agent frameworks",
+        "expected": "langgraph",
+        "pass": false
+      },
+      {
+        "query": "my city of residence",
+        "expected": "seoul",
+        "pass": false
+      },
+      {
+        "query": "what project am I building?",
+        "expected": "chatbot",
+        "pass": false
+      },
+      {
+        "query": "what test framework should I use?",
+        "expected": "pytest",
+        "pass": false
+      },
+      {
+        "query": "how do we deploy?",
+        "expected": "terraform",
+        "pass": false
+      },
+      {
+        "query": "when is the auth refactor due?",
+        "expected": "2026-06-15",
+        "pass": false
+      },
+      {
+        "query": "what API framework do we use?",
+        "expected": "fastapi",
+        "pass": false
+      },
+      {
+        "query": "what caused last week's outage?",
+        "expected": "redis",
+        "pass": false
+      },
+      {
+        "query": "what commit format do we use?",
+        "expected": "semantic",
+        "pass": false
+      }
+    ],
+    "wall_s": 0.0
+  },
+  "guild_only": {
+    "backend": "guild_only",
+    "campaign": "bench-w358-1779948100-fda2b9-guild_only",
+    "total": 15,
+    "pass": 15,
+    "pass_rate": 1.0,
+    "per_q": [
+      {
+        "query": "where do I live?",
+        "expected": "osaka",
+        "pass": true
+      },
+      {
+        "query": "any food restrictions?",
+        "expected": "vegan",
+        "pass": true
+      },
+      {
+        "query": "what's my profession?",
+        "expected": "engineer",
+        "pass": true
+      },
+      {
+        "query": "what's my hobby?",
+        "expected": "bicycle",
+        "pass": true
+      },
+      {
+        "query": "where do I live?",
+        "expected": "taipei",
+        "pass": true
+      },
+      {
+        "query": "any food I should avoid?",
+        "expected": "peanut",
+        "pass": true
+      },
+      {
+        "query": "tell me more about agent frameworks",
+        "expected": "langgraph",
+        "pass": true
+      },
+      {
+        "query": "my city of residence",
+        "expected": "seoul",
+        "pass": true
+      },
+      {
+        "query": "what project am I building?",
+        "expected": "chatbot",
+        "pass": true
+      },
+      {
+        "query": "what test framework should I use?",
+        "expected": "pytest",
+        "pass": true
+      },
+      {
+        "query": "how do we deploy?",
+        "expected": "terraform",
+        "pass": true
+      },
+      {
+        "query": "when is the auth refactor due?",
+        "expected": "2026-06-15",
+        "pass": true
+      },
+      {
+        "query": "what API framework do we use?",
+        "expected": "fastapi",
+        "pass": true
+      },
+      {
+        "query": "what caused last week's outage?",
+        "expected": "redis",
+        "pass": true
+      },
+      {
+        "query": "what commit format do we use?",
+        "expected": "semantic",
+        "pass": true
+      }
+    ],
+    "wall_s": 0.59
+  },
+  "semantic_only": {
+    "backend": "semantic_only",
+    "campaign": "bench-w358-1779948100-fda2b9-semantic_only",
+    "total": 15,
+    "pass": 13,
+    "pass_rate": 0.8666666666666667,
+    "per_q": [
+      {
+        "query": "where do I live?",
+        "expected": "osaka",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "any food restrictions?",
+        "expected": "vegan",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what's my profession?",
+        "expected": "engineer",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what's my hobby?",
+        "expected": "bicycle",
+        "n_candidates": 3,
+        "pass": false
+      },
+      {
+        "query": "where do I live?",
+        "expected": "taipei",
+        "n_candidates": 3,
+        "pass": false
+      },
+      {
+        "query": "any food I should avoid?",
+        "expected": "peanut",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "tell me more about agent frameworks",
+        "expected": "langgraph",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "my city of residence",
+        "expected": "seoul",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what project am I building?",
+        "expected": "chatbot",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what test framework should I use?",
+        "expected": "pytest",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "how do we deploy?",
+        "expected": "terraform",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "when is the auth refactor due?",
+        "expected": "2026-06-15",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what API framework do we use?",
+        "expected": "fastapi",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what caused last week's outage?",
+        "expected": "redis",
+        "n_candidates": 3,
+        "pass": true
+      },
+      {
+        "query": "what commit format do we use?",
+        "expected": "semantic",
+        "n_candidates": 3,
+        "pass": true
+      }
+    ],
+    "wall_s": 2.2
+  },
+  "two_tier": {
+    "backend": "two_tier",
+    "campaign": "bench-w358-1779948100-fda2b9-two_tier",
+    "total": 15,
+    "pass": 15,
+    "pass_rate": 1.0,
+    "consolidation": {
+      "scrolls_seen": 15,
+      "scrolls_imprinted": 12,
+      "scrolls_skipped": 3,
+      "errors": 0
+    },
+    "per_q": [
+      {
+        "query": "where do I live?",
+        "expected": "osaka",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "any food restrictions?",
+        "expected": "vegan",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what's my profession?",
+        "expected": "engineer",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what's my hobby?",
+        "expected": "bicycle",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "where do I live?",
+        "expected": "taipei",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "any food I should avoid?",
+        "expected": "peanut",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "tell me more about agent frameworks",
+        "expected": "langgraph",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "my city of residence",
+        "expected": "seoul",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what project am I building?",
+        "expected": "chatbot",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what test framework should I use?",
+        "expected": "pytest",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "how do we deploy?",
+        "expected": "terraform",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "when is the auth refactor due?",
+        "expected": "2026-06-15",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what API framework do we use?",
+        "expected": "fastapi",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what caused last week's outage?",
+        "expected": "redis",
+        "n_semantic": 3,
+        "pass": true
+      },
+      {
+        "query": "what commit format do we use?",
+        "expected": "semantic",
+        "n_semantic": 3,
+        "pass": true
+      }
+    ],
+    "wall_s": 60.42
+  }
+}
