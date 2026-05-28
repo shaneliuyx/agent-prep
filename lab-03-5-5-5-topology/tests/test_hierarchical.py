@@ -4,9 +4,17 @@ import pytest
 from hierarchical import hierarchical_run
 
 def test_hierarchy_depth_and_agent_count():
-    """2-macro × 2-sub-q hierarchy → 7 agents (1 top + 2 sub + 4 leaves)."""
+    """Default 3-macro × 2-sub-q hierarchy → 10 agents (1 top + 3 sub + 6 leaves).
+    The 3-macro top fan matches LEAD_DECOMPOSE_SYSTEM's 'decompose into EXACTLY 3'
+    contract — no top-level macros silently dropped. Use top_fan=2 to cap at 7."""
     out = hierarchical_run("Compare HTTP/2 vs HTTP/3 vs HTTP/3 over QUIC.")
-    assert out["depth"] == 2 and out["agents_total"] == 7
+    assert out["depth"] == 2 and out["agents_total"] == 10
+
+
+def test_hierarchy_top_fan_2_preserves_7_agents():
+    """Backward-compatible 2-macro cap still produces 7 agents."""
+    out = hierarchical_run("Compare HTTP/2 vs HTTP/3 vs HTTP/3 over QUIC.", top_fan=2)
+    assert out["agents_total"] == 7
 
 @pytest.mark.integration
 def test_hierarchy_parallel_at_sub_level():

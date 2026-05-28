@@ -34,14 +34,25 @@ class WorkerResult:
     wall_seconds: float
 
 def plan_decompose(question: str) -> list[str]:
-    """Lead's first LLM call: decompose question into 3 sub-questions."""
+    """Lead's first LLM call: decompose question into 3 sub-questions.
+
+    Defensive JSON extraction handles three observed wire-shapes:
+      1. Bare JSON object: `{"sub_questions": [...]}`
+      2. Markdown fence: ` ```json\n{...}\n``` ` or ` ```\n{...}\n``` `
+      3. Prose preamble: `Here are the sub-questions: {...}` (Qwen-Opus-distill
+         emits explanatory prose despite the 'Return JSON only, no prose'
+         instruction — distilled models are sometimes MORE verbose than the
+         model they were distilled from when instructions conflict with their
+         instruction-following bias).
+    """
+    import re
     raw = chat(question, system=LEAD_DECOMPOSE_SYSTEM)
-    # Strip optional ```json fence
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    parsed = json.loads(raw.strip())
+    # Find the first { ... } JSON object in the response. Greedy match to
+    # the outermost balanced braces (re.DOTALL for multi-line JSON).
+    m = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not m:
+        raise ValueError(f"plan_decompose: no JSON object in LLM response: {raw[:200]!r}")
+    parsed = json.loads(m.group(0))
     return parsed["sub_questions"]
 
 def worker_run(sub_question: str) -> WorkerResult:

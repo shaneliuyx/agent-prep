@@ -19,12 +19,12 @@ class SubLeadResult:
     wall_seconds: float
 
 
-def sub_supervisor(macro_question: str) -> SubLeadResult:
-    """Sub-lead: decompose macro into 2 sub-questions, run 2 leaf workers in
-    parallel, synthesize. Returns full per-agent structure (NOT just timing)."""
+def sub_supervisor(macro_question: str, leaf_fan: int = 2) -> SubLeadResult:
+    """Sub-lead: decompose macro into N sub-questions (default 2), run N
+    leaf workers in parallel, synthesize. Returns full per-agent structure."""
     t0 = time.monotonic()
-    sub_qs = plan_decompose(macro_question)[:2]   # cap at 2 sub-qs per macro
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    sub_qs = plan_decompose(macro_question)[:leaf_fan]
+    with ThreadPoolExecutor(max_workers=len(sub_qs)) as pool:
         leaf_results = list(pool.map(worker_run, sub_qs))
     sub_answer = synthesize(macro_question, leaf_results)
     return SubLeadResult(
@@ -36,15 +36,24 @@ def sub_supervisor(macro_question: str) -> SubLeadResult:
     )
 
 
-def hierarchical_run(question: str) -> dict:
-    """Two-layer hierarchy: top lead → 2 sub-leads → 4 leaf workers."""
+def hierarchical_run(question: str, top_fan: int = 3, leaf_fan: int = 2) -> dict:
+    """Two-layer hierarchy: top lead → top_fan sub-leads → top_fan * leaf_fan leaf workers.
+
+    Default `top_fan=3` matches `LEAD_DECOMPOSE_SYSTEM`'s "decompose into
+    EXACTLY 3" contract — uses all sub-questions the planner returns, so
+    no top-level macros silently dropped. Lower `top_fan` (e.g. 2) caps
+    cost at the expense of dropping the planner's 3rd macro.
+
+    `leaf_fan=2` keeps each sub-lead's internal cost bounded. Total
+    agents = 1 + top_fan + top_fan*leaf_fan (default 1+3+6 = 10).
+    """
     t_total = time.monotonic()
     t_plan = time.monotonic()
-    macros = plan_decompose(question)[:2]   # cap at 2 macros
+    macros = plan_decompose(question)[:top_fan]
     plan_wall = time.monotonic() - t_plan
 
     with ThreadPoolExecutor(max_workers=len(macros)) as pool:
-        sub_results = list(pool.map(sub_supervisor, macros))
+        sub_results = list(pool.map(lambda m: sub_supervisor(m, leaf_fan=leaf_fan), macros))
 
     # Top-lead synthesizes by treating each sub-lead's output as a WorkerResult
     sub_as_workers = [
@@ -79,7 +88,7 @@ def hierarchical_run(question: str) -> dict:
             for s in sub_results
         ],
         "depth": 2,
-        "agents_total": 1 + len(macros) + len(macros) * 2,   # top + sub-leads + leaves
+        "agents_total": 1 + len(macros) + sum(len(s.leaf_results) for s in sub_results),
         "plan_wall_s": round(plan_wall, 2),
         "sub_walls_s": [round(s.wall_seconds, 2) for s in sub_results],
         "max_sub_wall_s": round(max(s.wall_seconds for s in sub_results), 2),

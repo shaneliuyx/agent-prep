@@ -37,70 +37,48 @@ Two run profiles, both green:
 | 4 | Handoffs (Agent dataclass + handoff protocol, Swarm-style) | 4 | 4/4 PASS | 4/4 PASS |
 | 5 | Voting (3 solvers + majority + LLM-judge aggregator) | 4 | 4/4 PASS | 4/4 PASS |
 
-### Phase 2 hierarchical — manual run measurement (2026-05-28, post reasoning-model fix)
+### Phase 2 hierarchical — 3-macro compose-model sweep (2026-05-28, canonical)
 
-Direct invocation `python code/hierarchical.py` on prompt "Compare regulatory frameworks for AI across EU, US, and UK" against oMLX `gpt-oss-20b` @ :8000, AFTER the 3-layer reasoning-model fix (BCJ Entry 6 — `reasoning_content` fallback + gap-acknowledge prompt + `max_tokens=4096` for TOP synthesize):
+Default `top_fan=3`, `leaf_fan=2` → 10 agents (1 top + 3 sub-leads + 6 leaves). Matches `LEAD_DECOMPOSE_SYSTEM`'s "decompose into EXACTLY 3" contract. The earlier 2-macro measurements (`[:2]` hardcoded cap, 7 agents) silently dropped the planner's 3rd macro — BCJ Entry 7 cap-vs-contract bug, fixed before this canonical sweep.
 
-| Stage | Wall (s) |
-|---|---:|
-| `plan_decompose` (top-lead emits 2 macros) | 9.05 |
-| Sub-lead 1 (parallel; 2 leaves + sub-synth) | 58.90 |
-| Sub-lead 2 (parallel; 2 leaves + sub-synth) | **68.15** ← `max_sub_wall_s` |
-| Sub-leads batch (`max`, not `sum`) | 68.15 |
-| TOP `synthesize` (combines 2 sub-answers) | 38.25 |
-| **Observed total** | **115.46** |
-| Sequential-equivalent (`plan + sum(subs) + synth`) | 174.35 |
-| **Speedup factor (sub-level parallelism)** | **1.51×** |
+Same prompt across all 3 models: "Compare regulatory frameworks for AI across EU, US, and UK."
 
-Topology: depth=2, agents_total=7 (1 top + 2 sub-leads + 4 leaves).
+| Model | Provider | total_wall_s | plan | sub_walls | max_sub | sum_subs | synth | sequential | **speedup** | UK macro present? | UK synthesis behavior |
+|---|---|---:|---:|---|---:|---:|---:|---:|---:|---|---|
+| **Sonnet 4.6** | CLIProxyAPI `:8317` (cloud) | **61.31** | 5.21 | [25.28, 32.34, 24.83] | 32.34 | 82.45 | 23.76 | 111.42 | **1.82×** | ✓ | Label-and-STOP-FIRST: gap notice upfront; sub-section gaps inline |
+| **gpt-oss-20b-MXFP4-Q8** | oMLX local | **150.95** | 15.25 | [75.04, 100.19, 81.39] | 100.19 | 256.62 | 35.51 | 307.38 | **2.04×** | ✓ | (3rd sub-lead covers UK; no need for top synth to fill gap) |
+| **Qwen3.5-27B-Opus-distill** | oMLX local (MLX 4bit) | **374.59** | 45.12 | [198.54, 237.57, 216.20] | 237.57 | 652.31 | 91.90 | 789.33 | **2.11×** | ✓ | Strict literal synthesis from 3 sub-answers |
 
-**Parallelism verified at sub-level.** Observed 115.46s ≈ `plan + max(subs) + synth` (115.45s) within 0.01s. Speedup is less than supervisor's 1.77× (Phase 1) because hierarchical's sequential overhead (plan + synth = 47.30s) is 41% of total — Amdahl's law floor for 2 parallel sub-leads with ~40% serial fraction.
-
-**TOP synthesize NON-EMPTY** (3-layer fix verified working). Produced a full 7-row comparison table covering EU/US/UK with explicit gap acknowledgments. The reasoning-model trap (BCJ Entry 6) is closed.
-
-`★ The fix's partial compliance is worth noting ─`
-- **Gap-acknowledge prompt reduces but does NOT eliminate speculation.** The instruction "do NOT speculate or fill in missing material" produced a UK column populated with the model's own training-data knowledge (*UK AI Strategy 2021*, *Data Protection Act 2018*, ICO, £17M fine cap) — speculation the prompt explicitly forbade. The model ALSO labeled the UK row "(not covered by workers)" AND listed UK as a gap in the "Gaps in the workers' coverage" section. So it's **label-and-fill**, not **label-and-stop**.
-- **The repetition loop is gone, which was the catastrophic failure mode.** Trading "no answer at all" (the empty TOP synthesize trap) for "labeled speculation" is a clear win. But reasoning models don't strictly obey scope-bounding instructions — they fill in what they know while flagging the gap.
-- **Production implication:** if you need STRICT non-speculation (e.g., for fact-grounded RAG), the prompt-level gap-acknowledge instruction is insufficient. You'd need either (a) a smaller non-reasoning model that doesn't have the latent knowledge to speculate from, or (b) a post-processing step that strips out any content not directly traceable to retrieval context. Both are heavier than prompt engineering alone.
-- **The hierarchical speedup (1.51×) is the Amdahl-ceiling for 2-sub-lead parallelism.** 41% sequential overhead caps the speedup. Going to N=3 macros wouldn't help much because the synthesize step grows with N (more sub-answers to combine). The right knob is making each sub-lead's work LONGER (more leaves per sub-lead) so parallelism dominates the sequential plan+synth bookend.
-`─────────────────────────────────────────────────`
-
-### Phase 2 hierarchical — compose-model sweep (2026-05-28)
-
-Same hierarchical topology + same prompt ("Compare regulatory frameworks for AI across EU, US, and UK") run against THREE compose models on the same M5 Pro hardware. Isolates model-specific behavior from topology behavior — speedup ratio is architectural, but absolute wall + synthesis quality are model traits.
-
-| Model | Provider | total_wall_s | plan | sub_walls | max_sub | synth | speedup | UK behavior | BCJ Entry 6 trap |
-|---|---|---:|---:|---|---:|---:|---:|---|---|
-| **gpt-oss-20b-MXFP4-Q8** | oMLX local | **115.46** | 9.05 | [58.90, 68.15] | 68.15 | 38.25 | 1.51× | Label-and-FILL: populated UK column with training-data | Triggered originally; needed 3-layer fix |
-| **Qwen3.5-27B-Claude-Opus-distill** | oMLX local (MLX 4bit) | **410.57** | 48.76 | [223.59, 255.81] | 255.81 | 106.00 | 1.55× | **Label-and-STOP**: "Not covered by any worker", no fabrication | Did NOT trigger — clean on first run |
-| **Claude Sonnet 4.6** | CLIProxyAPI `:8317` (cloud) | **55.74** | 4.82 | [23.80, 29.86] | 29.86 | 21.06 | 1.43× | **Label-and-STOP-FIRST**: "Gap notice" UPFRONT before any synthesis; explicit per-section "Gaps not covered by workers" | Did NOT trigger — frontier model, no `reasoning_content` field-separation issue |
-
-Full per-run outputs saved in lab `results/` dir:
-- [`results/hierarchical_gpt-oss-20b.txt`](./results/hierarchical_gpt-oss-20b.txt) (131 lines)
-- [`results/hierarchical_qwen-3.5-27b-claude-opus-distill.txt`](./results/hierarchical_qwen-3.5-27b-claude-opus-distill.txt) (250 lines)
+Full per-run outputs in lab `results/` dir:
 - [`results/hierarchical_sonnet-4-6.txt`](./results/hierarchical_sonnet-4-6.txt) (212 lines)
+- [`results/hierarchical_gpt-oss-20b.txt`](./results/hierarchical_gpt-oss-20b.txt) (131 lines)
+- [`results/hierarchical_qwen-3.5-27b-claude-opus-distill.txt`](./results/hierarchical_qwen-3.5-27b-claude-opus-distill.txt) (244 lines)
 
-**Key findings (3-model head-to-head):**
+**Key findings (3-model head-to-head, 3-macro fan):**
 
-1. **Wall-time ranking is OPPOSITE of intuitive expectation.** Frontier cloud model (Sonnet 4.6 via proxy) is the FASTEST at 55.74s; smallest local model (gpt-oss-20b) is middle at 115.46s; mid-size distilled local (Qwen-3.5-27B-Opus-distill) is SLOWEST at 410.57s. Conventional wisdom predicts "smaller local = faster"; measurement inverts this. The actual ordering reflects: cloud frontier (optimized inference at scale) >> small local reasoning (CoT overhead) >> mid local distilled (literal-instruction-following + Opus-style verbose output).
+1. **Wall-time ranking is OPPOSITE of "smaller local = faster" intuition.** Cloud frontier (Sonnet) fastest at 61.31s. Smallest local reasoning (gpt-oss-20b) at 150.95s. Mid-size local distilled (Qwen-distill) slowest at 374.59s. The actual ordering reflects: cloud-frontier-optimized-inference >> small-local-reasoning >> mid-local-distilled. Conventional wisdom inverted.
 
-2. **Speedup ratio is invariant across models (1.43× / 1.51× / 1.55×).** That's the topology's Amdahl ceiling, not a model property. Switching compose models moves wall time by **7.4× (Sonnet vs Qwen-distill)** but speedup ratio only by 0.12×. **Speedup is an architectural constant; wall is a model constant.** Production rule: design topology first (Amdahl analysis), then pick model for wall + faithfulness budget.
+2. **Speedup jumped from 2-macro fan (1.43-1.55×) to 3-macro fan (1.82-2.11×).** Adding the 3rd parallel sub-lead diluted serial overhead — same plan+synth cost spread across 3 parallel branches instead of 2. **Speedup IS topology-dependent, but it's monotonic with fan width up to Amdahl's law's ceiling.** Doubling parallel branches doesn't double speedup (1.5× → 3×) because plan+synth bookend grows too — measured ceiling for this 1+N+2N hierarchy is ~2-2.5×.
 
-3. **UK-speculation behavior splits 1/2.** gpt-oss-20b (reasoning, label-and-FILL): fabricated UK content from training data while flagging the gap. Qwen-distill (literal): explicit "Not covered by any worker" + empty UK column. **Sonnet (calibrated): GAP-NOTICE UPFRONT** — places "Gap notice: No worker covered the UK regulatory framework" BEFORE the synthesis, sub-section gaps inline ("Gaps not covered by workers"). Sonnet's structural placement of the gap acknowledgment is the most pedagogically defensible — reader sees the boundary before reading the content, not after.
+3. **3-macro fan revealed the UK regulatory framework that 2-macro silently dropped.** All 3 models' 3rd sub-lead branch covered UK explicitly: "How does the United Kingdom regulate AI..." (gpt-oss-20b), "What is the UK's AI regulatory framework..." (Qwen-distill), "What is the UK regulatory framework..." (Sonnet). The PRIOR 2-macro runs had to fabricate UK content at the top-synthesize layer because no sub-lead ever researched it. **Root cause was the `[:2]` cap, not the model — fix preserves planner's full output.**
 
-4. **The BCJ Entry 6 reasoning_content trap is gpt-oss-20b-specific.** Both Qwen-distill and Sonnet returned non-empty `content` immediately, no `reasoning_content` field-separation. The trap is exclusive to the OpenAI-compat reasoning-model family (gpt-oss, DeepSeek-R1, o1-class). Anthropic's API returns content in the standard `content[0].text` shape; the 3-layer fix (BCJ Entry 6) is needed only when targeting reasoning models via OpenAI-compatible endpoints.
+4. **Sonnet's UK synthesis is now grounded.** With UK appearing as its own sub-lead's research output, Sonnet's top synthesize no longer needs to fabricate from training data — it can cite the 3rd sub-lead. The "label-and-stop-first" behavior persists, but now there's actual UK content to synthesize FROM rather than around.
 
-5. **Production decision matrix:**
-   - **Speed + frontier quality (production grounded RAG, batch summarization)** → Sonnet via proxy (55.74s, label-and-stop-first, subscription quota cost). The fastest AND most disciplined option, if proxy reliability is acceptable.
-   - **Local-only + literal grounded synthesis (no fabrication, audit-clean attribution, offline-capable)** → Qwen-distill, accept 7.4× wall vs Sonnet for 0× cloud cost.
-   - **Speed + structured output that may include light speculation** → gpt-oss-20b with BCJ Entry 6 3-layer fix, accept 2× wall vs Sonnet for 0× cloud cost.
-   - **The truly fast AND strict combination requires CLOUD inference** (Sonnet). Local M5 Pro hardware cannot match Anthropic-data-center GPU throughput on 27B-param model class.
+5. **The BCJ Entry 6 reasoning_content trap remained gpt-oss-20b-specific** at 3-macro fan. Both Qwen-distill and Sonnet returned non-empty content first try; only gpt-oss-20b ever hit the empty-content + CoT-loop pattern. Same conclusion as 2-macro sweep.
 
-6. **Sonnet at 55.74s wall makes hierarchical PATTERN newly viable** for interactive use. gpt-oss-20b's 115s and Qwen-distill's 410s pushed hierarchical topology into "batch-only" territory. Sonnet's sub-minute wall on the same 2×2 hierarchy makes "fire a research lead, wait 1 minute, get a structured synthesis" interactive-acceptable. This is the cloud-frontier-model architectural unlock — pattern that's theoretically right but practically slow on local becomes practically right on cloud.
+6. **NEW BCJ Entry 7 — Distilled models can be MORE verbose than the model they were distilled from.** Qwen-distill emitted "Here are 3 sub-questions:" prose preamble BEFORE the JSON in one `plan_decompose` call, despite the explicit "Return JSON only, no prose" instruction. gpt-oss-20b and Sonnet both honored the format. Fix: regex `\{.*\}` extraction at the parse boundary instead of `startswith("```")` check. Distillation transfers behavior selectively — Qwen inherited Opus's thoroughness but didn't fully take its instruction-discipline.
 
-7. **The 60s timeout default in `_chat_anthropic_proxy` is a new gotcha.** First Sonnet run timed out (httpx.ReadTimeout) because `LLM_TIMEOUT_S=60` was inherited from the gpt-oss-20b-shaped curriculum default. Sonnet via proxy adds network IO + Anthropic queuing → 60s insufficient on heavy synthesis. Bumped to 300s via env. Worth a follow-up BCJ entry: `LLM_TIMEOUT_S` should be per-provider (e.g., `ANTHROPIC_TIMEOUT_S` env override > global), not a single constant.
+7. **NEW BCJ Entry 8 — `LLM_TIMEOUT_S=60` default insufficient for Sonnet via proxy.** First Sonnet run hit `httpx.ReadTimeout`. Bumped to 300 via env override. Worth follow-up: per-provider timeout config (e.g., `ANTHROPIC_TIMEOUT_S > LLM_TIMEOUT_S > 60`). The 60s default is gpt-oss-20b-shaped; proxied frontier models need 5× more.
 
-8. **This validates §5.3.5 N=100's commitment-bias finding from a new angle.** Same model rank order on LongMemEval (Qwen-distill 77% > Opus 4.7 68% > Sonnet 60%) reflects commitment-vs-hedging. Here, same trait appears as label-and-fill (gpt-oss-20b, partial speculation) vs label-and-stop (Qwen-distill, Sonnet, strict). Different evals select for opposite polarities of the SAME trait. **Production framing: don't pick a model for "best score on benchmark X" — pick for "right trait for your workload's failure modes."**
+8. **NEW BCJ Entry 9 — Hierarchical cap `[:2]` was bug masquerading as cost-bound feature.** `LEAD_DECOMPOSE_SYSTEM` requires 3 sub-questions; `hierarchical_run` truncated to 2 silently. Two design surfaces disagreed for the entire chapter's lifetime; the EU/US/UK question revealed the discrepancy when a user asked "why only 2 macros?" Fixed: default `top_fan=3` (matches planner contract); `top_fan=2` is now an explicit caller override for cost-bounded use.
+
+9. **Production decision matrix (refined for 3-macro):**
+   - **Interactive grounded synthesis (sub-minute)** → Sonnet via proxy (61.31s, label-and-stop-first, subscription quota). Still the fastest + most disciplined option.
+   - **Local-only literal grounded synthesis (no fabrication, audit-clean)** → Qwen-distill, accept 6.1× wall vs Sonnet (374.59s) for $0 cloud cost.
+   - **Speed + structured output, tolerant of light speculation** → gpt-oss-20b with BCJ Entry 6 3-layer fix, accept 2.5× wall vs Sonnet (150.95s).
+   - **The hierarchical pattern's viability shifts with compose model.** At Sonnet's 61s the pattern is INTERACTIVE-ACCEPTABLE; at 150s borderline batch; at 374s clearly batch-only. Same architecture, three product profiles.
+
+10. **The "speedup is invariant" finding from the 2-macro sweep DOES NOT generalize across fan widths.** 2-macro showed 1.43-1.55× (tight cluster across 3 models). 3-macro shows 1.82-2.11× (also tight cluster). The CLUSTER is invariant per-fan-width because Amdahl's law caps it given the serial fraction. But moving from 2 → 3 macros shifts the cluster up. **Refined production rule: speedup is a TOPOLOGY-AND-FAN-WIDTH constant; wall is a model constant.**
 
 ### Phase 1 supervisor — manual run measurement (2026-05-28)
 

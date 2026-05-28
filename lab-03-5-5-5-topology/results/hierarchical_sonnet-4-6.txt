@@ -1,212 +1,285 @@
 
 ======================================================================
-HIERARCHICAL TOPOLOGY — depth 2, 7 agents, total 55.74s
-  plan 4.82s + max_sub 29.86s + synth 21.06s
+HIERARCHICAL TOPOLOGY — depth 2, 10 agents, total 61.31s
+  plan 5.21s + max_sub 32.34s + synth 23.76s
 ======================================================================
 
-TOP LEAD (plan): decomposed into 2 macros
+TOP LEAD (plan): decomposed into 3 macros
 
-┌─ Sub-lead 1 (wall 23.8s)
+┌─ Sub-lead 1 (wall 25.28s)
 │  macro: What are the key provisions and requirements of the EU AI Act, including risk tiers and compliance obligations?
 │  decomposed into 2 leaf sub-questions:
-│    Leaf 1.1 (wall 6.85s)
-│    ├─ sub-question: What are the four risk tiers defined in the EU AI Act and which AI systems fall under each tier?
+│    Leaf 1.1 (wall 9.88s)
+│    ├─ sub-question: What are the risk tiers (unacceptable, high, limited, minimal) defined in the EU AI Act and which AI systems fall into each category?
 │    └─ answer:
-│       │ The EU AI Act defines four risk tiers:
+│       │ ## EU AI Act Risk Tiers
 │       │ 
-│       │ 1. **Unacceptable Risk (Prohibited):** AI systems banned outright, including social scoring by governments, real-time biometric surveillance in public spaces (with narrow exceptions), subliminal manipulation, and exploitation of vulnerable groups.
+│       │ **Unacceptable Risk (Prohibited):** These AI systems are banned outright due to fundamental threats to rights and safety. Examples include social scoring by governments, real-time remote biometric surveillance in public spaces (with narrow exceptions), AI that exploits vulnerabilities of specific groups, and subliminal manipulation techniques that cause harm.
 │       │ 
-│       │ 2. **High Risk:** Systems requiring strict conformity assessments before deployment, covering areas like biometric identification, critical infrastructure, education, employment, essential services, law enforcement, migration, and administration of justice.
+│       │ **High Risk:** Systems subject to strict obligations before market placement, including conformity assessments, transparency requirements, and human oversight. This category covers AI used in critical infrastructure, education, employment (e.g., CV-sorting tools), essential services (credit scoring, insurance), law enforcement, migration/border control, and administration of justice.
 │       │ 
-│       │ 3. **Limited Risk:** Systems with transparency obligations only — users must be informed they are interacting with AI (e.g., chatbots, deepfakes).
+│       │ **Limited Risk:** Systems with specific transparency obligations but fewer restrictions — users must be informed they are interacting with AI. Chatbots, deepfake-generating systems, and emotion recognition tools fall here, where the main requirement is disclosure so users can make informed decisions.
 │       │ 
-│       │ 4. **Minimal Risk:** The vast majority of AI applications (e.g., spam filters, AI in video games) face no specific obligations, though voluntary codes of conduct are encouraged.
-│    Leaf 1.2 (wall 8.28s)
+│       │ **Minimal Risk:** The vast majority of AI applications (e.g., spam filters, AI in video games, recommendation systems) face no mandatory obligations under the Act, though voluntary codes of conduct are encouraged.
+│    Leaf 1.2 (wall 7.82s)
 │    ├─ sub-question: What are the specific compliance obligations and conformity assessment requirements for high-risk AI systems under the EU AI Act?
 │    └─ answer:
-│       │ Under the EU AI Act, high-risk AI systems (listed in Annexes II and III) must undergo a conformity assessment before market placement, which for most categories can be conducted as an internal self-assessment by the provider, but for certain high-risk applications (such as biometric identification systems and AI used in critical infrastructure) requires third-party assessment by a notified body. Providers must also implement a quality management system, maintain comprehensive technical documentation, ensure human oversight measures, achieve appropriate levels of accuracy/robustness/cybersecurity, register the system in the EU database, and affix CE marking upon successful conformity assessment. Post-market, providers must conduct ongoing monitoring, report serious incidents or malfunctions to national authorities within defined timeframes (typically 15 days for serious incidents), and keep logs for at least six months (or longer for some use cases).
+│       │ Under the EU AI Act, high-risk AI systems (listed in Annexes II and III) must undergo a conformity assessment before market placement, which depending on the system type is either a self-assessment by the provider or a third-party assessment by a notified body — the latter being mandatory for biometric identification systems and AI used in critical infrastructure. Providers must implement a quality management system, conduct a fundamental rights impact assessment, register the system in the EU database, and ensure technical documentation, logs, transparency measures, human oversight mechanisms, accuracy, robustness, and cybersecurity standards are all met before affixing CE marking. Ongoing obligations include post-market monitoring, incident reporting to national authorities, and cooperation with market surveillance authorities, while importers and distributors carry secondary compliance duties to verify that providers have fulfilled these requirements.
 │
 │  Sub-synthesis:
-│    │ ## EU AI Act: Key Provisions and Risk Tiers
+│    │ ## EU AI Act: Key Provisions, Risk Tiers, and Compliance Obligations
 │    │ 
-│    │ ### Four Risk Tiers (Worker 1)
+│    │ ### Risk Tiers
 │    │ 
-│    │ **1. Unacceptable Risk — Prohibited**
-│    │ Outright bans on:
+│    │ **Unacceptable Risk — Prohibited** (Worker 1)
+│    │ Outright bans on AI systems posing fundamental threats to rights and safety, including:
 │    │ - Government social scoring systems
-│    │ - Real-time biometric surveillance in public spaces (narrow exceptions apply)
-│    │ - Subliminal manipulation of users
-│    │ - Exploitation of vulnerable groups
+│    │ - Real-time remote biometric surveillance in public spaces (narrow exceptions apply)
+│    │ - AI exploiting vulnerabilities of specific groups
+│    │ - Subliminal manipulation techniques causing harm
 │    │ 
-│    │ **2. High Risk — Strict Compliance Required**
-│    │ Covers AI in: biometric identification, critical infrastructure, education, employment, essential services, law enforcement, migration, and administration of justice. See compliance obligations below.
+│    │ **High Risk — Strict Obligations** (Worker 1)
+│    │ Systems requiring conformity assessment before market placement. Sectors covered:
+│    │ - Critical infrastructure
+│    │ - Education and employment (e.g., CV-sorting tools)
+│    │ - Essential services (credit scoring, insurance)
+│    │ - Law enforcement, migration/border control
+│    │ - Administration of justice
 │    │ 
-│    │ **3. Limited Risk — Transparency Only**
-│    │ Users must be informed they are interacting with AI (applies to chatbots, deepfakes, etc.).
+│    │ **Limited Risk — Transparency Obligations** (Worker 1)
+│    │ Fewer restrictions, but users must be informed they are interacting with AI. Covers chatbots, deepfake-generating systems, and emotion recognition tools.
 │    │ 
-│    │ **4. Minimal Risk — No Specific Obligations**
-│    │ The vast majority of AI systems (spam filters, AI in games). Voluntary codes of conduct are encouraged.
-│    │ 
-│    │ ---
-│    │ 
-│    │ ### High-Risk Compliance Obligations (Worker 2)
-│    │ 
-│    │ Before market placement, high-risk systems (listed in Annexes II and III) must:
-│    │ 
-│    │ - **Conformity assessment:** Internal self-assessment suffices for most categories; third-party assessment by a notified body is required for biometric identification and critical infrastructure AI
-│    │ - **Quality management system** implemented by the provider
-│    │ - **Technical documentation** maintained comprehensively
-│    │ - **Human oversight measures** built in
-│    │ - **Accuracy, robustness, and cybersecurity** at appropriate levels
-│    │ - **EU database registration** completed
-│    │ - **CE marking** affixed upon successful assessment
-│    │ 
-│    │ Post-market obligations include:
-│    │ - Ongoing monitoring
-│    │ - Serious incident reporting to national authorities (typically within **15 days**)
-│    │ - Log retention for at least **6 months** (longer for some use cases)
+│    │ **Minimal Risk — No Mandatory Obligations** (Worker 1)
+│    │ The vast majority of AI (spam filters, recommendation systems, AI in video games). Voluntary codes of conduct are encouraged but not required.
 │    │ 
 │    │ ---
 │    │ 
-│    │ ### Gap Notice
+│    │ ### Compliance Obligations for High-Risk Systems
 │    │ 
-│    │ The workers covered the risk tier structure and high-risk compliance in detail. Neither worker addressed enforcement mechanisms, penalties/fines, obligations for general-purpose AI (GPAI) models, or the Act's implementation timeline and phase-in periods. Those topics are not covered here.
+│    │ *Pre-market requirements* (Worker 2):
+│    │ - **Conformity assessment**: Self-assessment for most systems; mandatory third-party assessment by a notified body for biometric identification systems and critical infrastructure AI
+│    │ - **Quality management system** implementation
+│    │ - **Fundamental rights impact assessment**
+│    │ - **EU database registration**
+│    │ - **Technical documentation**, logging, transparency measures, human oversight mechanisms, and standards for accuracy, robustness, and cybersecurity
+│    │ - **CE marking** once all requirements are met
+│    │ 
+│    │ *Ongoing post-market obligations* (Worker 2):
+│    │ - Post-market monitoring
+│    │ - Incident reporting to national authorities
+│    │ - Cooperation with market surveillance authorities
+│    │ 
+│    │ *Secondary duties* (Worker 2): Importers and distributors must verify that providers have fulfilled their requirements.
+│    │ 
+│    │ ---
+│    │ 
+│    │ ### Gap Note
+│    │ The workers did not address GPAI (general-purpose AI) model obligations, enforcement penalties, or implementation timelines under the Act. Those topics are not covered here.
 └─────────────────────────────────────────────────────────────
 
-┌─ Sub-lead 2 (wall 29.86s)
+┌─ Sub-lead 2 (wall 32.34s)
 │  macro: What is the current US federal regulatory approach to AI, including executive orders, agency guidelines, and proposed legislation?
 │  decomposed into 2 leaf sub-questions:
-│    Leaf 2.1 (wall 8.58s)
-│    ├─ sub-question: What executive orders has the US federal government issued specifically addressing AI regulation and governance?
+│    Leaf 2.1 (wall 10.44s)
+│    ├─ sub-question: What executive orders has the US federal government issued regarding AI regulation and what do they mandate?
 │    └─ answer:
-│       │ ## Key US Federal Executive Orders on AI Regulation and Governance
+│       │ ## Key US Federal AI Executive Orders
 │       │ 
-│       │ **Executive Order 13859 (February 2019)** — "Maintaining American Leadership in Artificial Intelligence," signed by President Trump, initiated the American AI Initiative, directing federal agencies to prioritize AI R&D investment, improve access to federal data for AI training, and develop technical standards guidance through NIST.
+│       │ **Executive Order 14110 (October 2023) — "Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence"** (Biden administration): This was the most comprehensive federal AI EO to date, mandating that developers of powerful AI systems share safety test results with the government before public release, directing federal agencies to establish AI safety standards, and requiring the National Institute of Standards and Technology (NIST) to develop guidelines for AI risk management.
 │       │ 
-│       │ **Executive Order 14110 (October 2023)** — "Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence," signed by President Biden, was the most comprehensive federal AI governance order to date, requiring developers of powerful AI systems to share safety test results with the government, directing agencies to develop AI safety standards, and establishing guidelines around privacy, civil rights, and national security implications of AI.
+│       │ **Executive Order 14179 (January 2025) — "Removing Barriers to American Leadership in Artificial Intelligence"** (Trump administration): This order revoked EO 14110, directing agencies to repeal or revise rules deemed to "unduly burden" AI development, and instructed the development of a new national AI action plan prioritizing American AI dominance and reducing regulatory constraints.
 │       │ 
-│       │ **Executive Order 14179 (January 2025)** — "Removing Barriers to American Leadership in Artificial Intelligence," signed by President Trump upon returning to office, revoked EO 14110, directing agencies to develop a new AI Action Plan focused on removing regulatory barriers to AI development rather than the safety-focused framework of the Biden administration.
-│    Leaf 2.2 (wall 10.42s)
-│    ├─ sub-question: Which US federal agencies have issued AI-specific guidelines, frameworks, or policies, and what do they require?
+│       │ **Executive Order 13960 (December 2020) — "Promoting the Use of Trustworthy Artificial Intelligence in the Federal Government"** (Trump first term): This earlier order mandated that federal agencies follow specific principles when using AI (transparency, non-discrimination, accountability), though it applied only to government use of AI rather than private-sector development.
+│       │ 
+│       │ **Current status**: As of early 2025, EO 14179 is the operative federal AI executive order, emphasizing AI competitiveness over safety regulation, with a new AI action plan in development through the White House Office of Science and Technology Policy.
+│    Leaf 2.2 (wall 12.5s)
+│    ├─ sub-question: Which US federal agencies have issued AI-specific guidelines or frameworks and what are their key requirements?
 │    └─ answer:
-│       │ ## US Federal Agencies with AI-Specific Guidelines
+│       │ Several US federal agencies have issued AI-specific guidelines or frameworks. Here are the key ones:
 │       │ 
-│       │ Several US federal agencies have issued AI-specific guidelines. **NIST** published the AI Risk Management Framework (AI RMF 1.0) in January 2023, providing voluntary guidance for organizations to manage AI risks across four core functions: Govern, Map, Measure, and Manage. **The White House/OMB** issued Memorandum M-24-10 (March 2024), requiring federal agencies to designate Chief AI Officers, conduct AI use-case inventories, and implement minimum risk management practices for rights- and safety-impacting AI. **The Department of Defense** released its AI Ethics Principles (2020) and a subsequent implementation framework requiring AI systems to be responsible, equitable, traceable, reliable, and governable.
+│       │ **NIST (National Institute of Standards and Technology)**
+│       │ Released the **AI Risk Management Framework (AI RMF 1.0)** in January 2023. It organizes AI risk management into four core functions: Govern, Map, Measure, and Manage. It is voluntary but widely adopted as a baseline standard across both public and private sectors.
 │       │ 
-│       │ Additional agencies include **the FDA**, which has issued guidance on AI/ML-based Software as a Medical Device (SaMD), requiring predetermined change control plans and transparency; **the FTC**, which has issued guidance warning that AI-based deception or unfair practices violate Section 5 of the FTC Act; and **EEOC and DOJ**, which have issued joint guidance clarifying that AI tools used in hiring must comply with existing anti-discrimination laws (ADA, Title VII). These frameworks range from voluntary (NIST) to binding requirements (OMB M-24-10 for federal agencies).
+│       │ **Office of Management and Budget (OMB)**
+│       │ Issued **Memorandum M-24-10** (March 2024) under Executive Order 14110, requiring federal agencies to appoint Chief AI Officers, conduct AI use case inventories, and implement minimum risk practices for rights- and safety-impacting AI systems by December 2024.
+│       │ 
+│       │ **FDA (Food and Drug Administration)**
+│       │ Published an **AI/ML-Based Software as a Medical Device (SaMD) Action Plan** and associated guidance requiring predetermined change control plans, algorithmic transparency, and real-world performance monitoring for AI used in medical diagnostics and treatment.
+│       │ 
+│       │ **Department of Defense (DoD)**
+│       │ Adopted **five AI Ethical Principles** (responsible, equitable, traceable, reliable, governable) in 2020 and issued a **Responsible AI Strategy and Implementation Pathway** requiring human judgment in lethal autonomous weapons decisions and algorithmic accountability mechanisms.
+│       │ 
+│       │ **FTC (Federal Trade Commission)**
+│       │ Issued guidance (not a formal framework) stating that AI tools must be transparent, explainable, and fair, warning that biased or deceptive AI constitutes an unfair business practice under Section 5 of the FTC Act.
+│       │ 
+│       │ These frameworks share common themes: risk-tiering, transparency, human oversight, and accountability, though most remain voluntary outside of specific regulated sectors like healthcare and defense.
 │
 │  Sub-synthesis:
 │    │ ## US Federal Regulatory Approach to AI
 │    │ 
 │    │ ### Executive Orders (Worker 1)
 │    │ 
-│    │ Three key executive orders trace the federal trajectory:
+│    │ The current operative framework stems from two opposing EOs:
 │    │ 
-│    │ - **EO 13859 (Trump, Feb 2019):** Launched the American AI Initiative — prioritizing R&D, federal data access, and NIST standards development. Focused on competitiveness.
-│    │ - **EO 14110 (Biden, Oct 2023):** The most comprehensive federal AI governance action to date. Required developers of powerful AI to share safety test results with government; directed agencies to develop safety standards; addressed privacy, civil rights, and national security.
-│    │ - **EO 14179 (Trump, Jan 2025):** Revoked EO 14110. Directed agencies to develop a new AI Action Plan explicitly oriented toward removing regulatory barriers rather than the Biden-era safety framework.
+│    │ - **EO 14179 (Trump, Jan 2025)** is the active order. It revoked Biden's EO 14110, directing agencies to repeal rules that "unduly burden" AI development and calling for a new national AI action plan prioritizing US competitiveness. A new action plan is in development through OSTP.
 │    │ 
-│    │ The shift from EO 14110 to EO 14179 represents an explicit policy reversal — from safety-focused governance toward deregulation — and is a live disagreement embedded in the federal posture itself.
+│    │ - **EO 14110 (Biden, Oct 2023)** — now revoked — had mandated pre-release safety testing disclosure, agency safety standards, and tasked NIST with risk management guidelines. Its revocation represents a significant policy shift away from precautionary regulation.
+│    │ 
+│    │ - **EO 13960 (Trump first term, Dec 2020)** remains relevant context: it established transparency and accountability principles for *government use* of AI, but did not regulate the private sector.
 │    │ 
 │    │ ### Agency Guidelines and Frameworks (Worker 2)
 │    │ 
-│    │ Multiple agencies have issued guidance, ranging from voluntary to binding:
+│    │ Despite the EO shift, agency-level frameworks remain in place, though most are voluntary:
 │    │ 
-│    │ | Agency | Action | Binding? |
-│    │ |---|---|---|
-│    │ | NIST | AI RMF 1.0 (Jan 2023) — Govern/Map/Measure/Manage framework | Voluntary |
-│    │ | OMB | M-24-10 (Mar 2024) — Requires Chief AI Officers, use-case inventories, risk management for rights/safety-impacting AI | Binding (federal agencies) |
-│    │ | DoD | AI Ethics Principles (2020) + implementation framework (responsible, equitable, traceable, reliable, governable) | Internal binding |
-│    │ | FDA | Guidance on AI/ML Software as Medical Device — change control plans, transparency requirements | Binding (medical context) |
-│    │ | FTC | Guidance that AI-based deception/unfair practices violate FTC Act Section 5 | Binding (enforcement authority) |
-│    │ | EEOC/DOJ | Joint guidance: AI hiring tools must comply with ADA and Title VII | Binding (existing law) |
+│    │ | Agency | Framework | Status |
+│    │ |--------|-----------|--------|
+│    │ | **NIST** | AI RMF 1.0 (Jan 2023) — Govern/Map/Measure/Manage | Voluntary; widely adopted |
+│    │ | **OMB** | M-24-10 — Chief AI Officers, use case inventories, minimum risk practices for rights-impacting AI | Issued under EO 14110; status under EO 14179 is uncertain |
+│    │ | **FDA** | AI/ML Software as Medical Device guidance — change control plans, transparency, real-world monitoring | Sector-specific; binding in regulated scope |
+│    │ | **DoD** | Five AI Ethical Principles + Responsible AI Implementation Pathway — human oversight for lethal systems | Internal policy |
+│    │ | **FTC** | Guidance under Section 5 FTC Act — biased/deceptive AI as unfair business practice | Enforcement-based, not a formal rule |
 │    │ 
-│    │ ### Gap: Proposed Legislation
+│    │ **Key tension**: OMB M-24-10 was issued under the now-revoked EO 14110. The workers did not clarify whether it has been rescinded or modified under EO 14179 — this is a gap to verify.
 │    │ 
-│    │ Neither worker covered proposed federal AI legislation (e.g., congressional bills). That aspect of the original question is not addressed by the available worker answers.
+│    │ ### Proposed Legislation
+│    │ 
+│    │ **Neither worker covered proposed legislation.** The original question asks about this, but no worker addressed congressional bills or legislative proposals. That dimension remains unaddressed here.
 │    │ 
 │    │ ### Summary
 │    │ 
-│    │ The current federal approach is bifurcated: a deregulatory executive posture under EO 14179, running alongside a patchwork of agency-level frameworks — some voluntary (NIST), some binding for federal agencies (OMB M-24-10), and some enforced through existing statutory authority (FTC, EEOC/DOJ). No unified federal AI statute exists based on what workers reported.
+│    │ The federal posture as of early 2025 has shifted from precautionary oversight (Biden EO) toward competitiveness-first deregulation (Trump EO 14179), while agency-level frameworks — mostly voluntary — continue to operate. Binding requirements remain concentrated in specific sectors (healthcare, defense). The legislative picture requires additional research.
+└─────────────────────────────────────────────────────────────
+
+┌─ Sub-lead 3 (wall 24.83s)
+│  macro: What is the UK's AI regulatory framework, including the roles of sector-specific regulators and the AI Safety Institute's mandate?
+│  decomposed into 2 leaf sub-questions:
+│    Leaf 3.1 (wall 6.81s)
+│    ├─ sub-question: What is the UK government's overall AI regulatory approach and policy framework as outlined in its AI regulation white paper or strategy documents?
+│    └─ answer:
+│       │ The UK government's AI regulatory approach, as outlined in its 2023 AI Regulation White Paper ("A pro-innovation approach to AI regulation"), adopts a principles-based, sector-led framework rather than creating a single overarching AI regulator or binding AI-specific legislation. Instead, it assigns responsibility to existing regulators (such as the FCA, ICO, and CMA) to apply five cross-cutting principles — safety, security and robustness; transparency and explainability; fairness; accountability and governance; and contestability and redress — within their respective domains. This "light-touch" approach is explicitly designed to avoid stifling innovation while remaining adaptable, with the government reserving the option to introduce legislation if voluntary measures prove insufficient.
+│    Leaf 3.2 (wall 8.99s)
+│    ├─ sub-question: What are the specific roles and responsibilities of UK sector-specific regulators (such as the FCA, ICO, CMA, and Ofcom) in overseeing AI within their respective domains?
+│    └─ answer:
+│       │ **UK Sector-Specific Regulators and Their AI Oversight Roles**
+│       │ 
+│       │ The **Financial Conduct Authority (FCA)** oversees AI in financial services by ensuring firms using AI in trading, credit decisions, and customer services comply with existing principles around fairness, transparency, and consumer protection, and has established an AI Lab to test AI-related regulatory questions through its sandbox framework. The **Information Commissioner's Office (ICO)** regulates AI through the lens of data protection law (UK GDPR and the Data Protection Act 2018), requiring organisations to conduct Data Protection Impact Assessments for high-risk AI processing, ensure lawful bases for data use, and uphold rights around automated decision-making under Article 22. The **Competition and Markets Authority (CMA)** scrutinises AI's impact on market competition and consumer protection—publishing its AI Foundation Models review (2024) to assess whether AI could entrench market power—while **Ofcom** regulates AI-driven algorithmic systems used by online platforms and broadcasters, including under the Online Safety Act 2023, which requires platforms to conduct risk assessments on algorithmic recommendation systems that may amplify harmful content.
+│
+│  Sub-synthesis:
+│    │ ## UK AI Regulatory Framework: Synthesized Answer
+│    │ 
+│    │ ### Overall Approach (Worker 1)
+│    │ 
+│    │ The UK's framework, established by the **2023 AI Regulation White Paper** ("A pro-innovation approach to AI regulation"), is **principles-based and sector-led** — deliberately avoiding a single AI regulator or binding AI-specific legislation. Existing regulators apply five cross-cutting principles within their own domains:
+│    │ 
+│    │ 1. Safety, security and robustness
+│    │ 2. Transparency and explainability
+│    │ 3. Fairness
+│    │ 4. Accountability and governance
+│    │ 5. Contestability and redress
+│    │ 
+│    │ This "light-touch" design prioritises innovation, with the government reserving the right to legislate if voluntary measures prove insufficient.
+│    │ 
+│    │ ### Sector-Specific Regulators (Worker 2)
+│    │ 
+│    │ | Regulator | Domain | Key AI Role |
+│    │ |-----------|--------|-------------|
+│    │ | **FCA** | Financial services | Oversees AI in trading, credit, and customer services; runs an AI Lab and sandbox for regulatory testing |
+│    │ | **ICO** | Data protection | Applies UK GDPR/Data Protection Act 2018; requires DPIAs for high-risk AI, governs automated decision-making rights (Article 22) |
+│    │ | **CMA** | Competition & consumer protection | Published AI Foundation Models review (2024) assessing whether AI entrences market power |
+│    │ | **Ofcom** | Online platforms & broadcasting | Regulates algorithmic recommendation systems under the Online Safety Act 2023, requiring risk assessments for harmful-content amplification |
+│    │ 
+│    │ ### Explicit Gap
+│    │ 
+│    │ Neither worker addressed the **AI Safety Institute's mandate**. That topic is not covered in the provided worker answers and cannot be synthesized here.
+│    │ 
+│    │ ---
+│    │ 
+│    │ **Key tension to note:** Workers 1 and 2 are consistent and complementary — no conflicts were identified.
 └─────────────────────────────────────────────────────────────
 
 ──────────────────────────────────────────────────────────────────────
-TOP LEAD (synthesize): combined 2 sub-answers:
+TOP LEAD (synthesize): combined 3 sub-answers:
 ──────────────────────────────────────────────────────────────────────
   ## Comparative AI Regulatory Frameworks: EU, US, and UK
   
-  **Gap notice:** No worker covered the UK regulatory framework. The synthesis below covers EU and US only, based on what workers provided.
+  ---
+  
+  ### Overview
+  
+  | Dimension | EU | US | UK |
+  |-----------|----|----|-----|
+  | **Legal form** | Binding legislation (AI Act) | Executive orders + voluntary agency frameworks | Principles-based; no binding AI-specific law |
+  | **Central mechanism** | Risk-tiered compliance obligations | Sector-specific regulation + EO direction | Sector-led regulators applying cross-cutting principles |
+  | **Regulatory posture** | Precautionary / rights-protective | Competitiveness-first (as of Jan 2025) | Pro-innovation, light-touch |
+  | **Single AI regulator?** | No (national authorities enforce) | No | No |
   
   ---
   
-  ## European Union: The EU AI Act
+  ### EU AI Act (Worker 1 & Worker 2)
   
-  ### Risk Tier Structure (Worker 1)
+  The EU has the most structurally complete framework. The AI Act establishes four risk tiers:
   
-  The EU AI Act organizes AI systems into four tiers:
+  - **Prohibited**: Social scoring, real-time public biometric surveillance, subliminal manipulation, exploitation of vulnerable groups.
+  - **High-risk**: Systems in critical infrastructure, education, employment, essential services, law enforcement, migration, and justice. These require conformity assessment, a quality management system, fundamental rights impact assessment, EU database registration, technical documentation, human oversight mechanisms, CE marking, and post-market monitoring and incident reporting. Third-party assessment by a notified body is mandatory for biometric identification and critical infrastructure AI specifically.
+  - **Limited risk**: Transparency obligations only — users must be told they are interacting with AI (covers chatbots, deepfakes, emotion recognition).
+  - **Minimal risk**: No mandatory obligations; voluntary codes encouraged.
   
-  | Tier | Examples | Obligation |
-  |---|---|---|
-  | Unacceptable Risk | Social scoring, real-time biometric surveillance, subliminal manipulation | **Prohibited outright** |
-  | High Risk | Biometrics, critical infrastructure, employment, law enforcement, justice | **Strict pre-market compliance** |
-  | Limited Risk | Chatbots, deepfakes | **Transparency disclosure only** |
-  | Minimal Risk | Spam filters, AI in games | **No specific obligations** |
+  Secondary duties fall on importers and distributors to verify provider compliance.
   
-  ### High-Risk Compliance Requirements (Worker 1)
-  
-  Before market placement, high-risk systems must complete:
-  - Conformity assessment (self-assessment for most; notified-body review for biometrics and critical infrastructure)
-  - Quality management system implementation
-  - Technical documentation
-  - Built-in human oversight measures
-  - EU database registration and CE marking
-  
-  Post-market obligations include incident reporting within **15 days** and log retention for at least **6 months**.
-  
-  **Gaps not covered by workers:** Penalties/fines, enforcement mechanisms, obligations for general-purpose AI (GPAI) models, and the Act's phase-in timeline.
+  **Gap (Worker 1 & 2):** GPAI model obligations, enforcement penalties, and implementation timelines were not covered by the workers and are not addressed here.
   
   ---
   
-  ## United States: Sectoral and Executive-Driven Governance
+  ### US Federal Approach (Worker 1 & Worker 2)
   
-  ### Executive Order Trajectory (Worker 2)
+  The US has no binding federal AI law. The framework is shaped by executive orders and voluntary agency guidelines, with a significant policy shift in early 2025:
   
-  Three executive orders define the federal arc — and reveal an explicit policy reversal:
+  - **EO 14179 (Trump, Jan 2025)** — active — revoked Biden's EO 14110, directing agencies to repeal rules that "unduly burden" AI development and prioritizing US competitiveness. A new national AI action plan is in development through OSTP.
+  - **EO 14110 (Biden, Oct 2023)** — revoked — had required pre-release safety testing disclosure, agency safety standards, and tasked NIST with risk management guidelines.
   
-  1. **EO 13859 (Trump, 2019):** Competitiveness-focused; directed NIST standards development.
-  2. **EO 14110 (Biden, Oct 2023):** Most comprehensive federal action; mandated safety test result sharing by powerful AI developers; directed agency safety standards.
-  3. **EO 14179 (Trump, Jan 2025):** Revoked EO 14110; reoriented federal posture toward removing regulatory barriers. Worker 2 flags this as a **live policy reversal**, not a settled position.
+  Agency-level frameworks persist but are mostly voluntary:
   
-  ### Agency-Level Frameworks (Worker 2)
+  - **NIST AI RMF 1.0** (Govern/Map/Measure/Manage) — voluntary, widely adopted.
+  - **OMB M-24-10** — Chief AI Officers, use-case inventories, minimum risk practices for rights-impacting AI. Issued under the revoked EO 14110; whether it has been rescinded under EO 14179 is unresolved — this is a gap to verify independently.
+  - **FDA** AI/ML medical device guidance — binding within its regulated scope.
+  - **DoD** ethical principles and responsible AI pathway — internal policy with human oversight requirements for lethal systems.
+  - **FTC** — treats biased or deceptive AI as an unfair business practice under Section 5; enforcement-based, not a formal rule.
   
-  No unified federal AI statute exists. Governance is a patchwork:
-  
-  | Agency | Instrument | Binding? |
-  |---|---|---|
-  | NIST | AI Risk Management Framework 1.0 | Voluntary |
-  | OMB | M-24-10 (Chief AI Officers, use-case inventories) | Binding for federal agencies |
-  | FDA | AI/ML Software as Medical Device guidance | Binding (medical context) |
-  | FTC | AI deception/unfair practices under FTC Act §5 | Binding via enforcement |
-  | EEOC/DOJ | AI hiring tools under ADA and Title VII | Binding via existing law |
-  | DoD | AI Ethics Principles + implementation framework | Internal binding |
-  
-  **Gap noted by Worker 2:** Proposed congressional AI legislation was not covered.
+  **Gap (no worker covered this):** The workers provided no information on proposed congressional legislation. That dimension of the original question is unaddressed.
   
   ---
   
-  ## Key Contrasts: EU vs. US
+  ### UK Framework (Worker 1, Worker 2, Worker 3)
   
-  | Dimension | EU | US |
-  |---|---|---|
-  | Statutory basis | Comprehensive, purpose-built AI statute | No federal AI statute; reliance on existing law and executive action |
-  | Structure | Unified risk-tiered framework | Sectoral patchwork across agencies |
-  | Binding force | Legally binding on all market participants | Mixed: voluntary (NIST), binding only for federal agencies (OMB), or through existing statutory authority |
-  | Policy trajectory | Regulatory consolidation | Active deregulatory shift under EO 14179; internally contested |
-  | Conformity mechanism | CE marking, EU database registration | No equivalent unified mechanism |
+  The UK's 2023 AI Regulation White Paper established a principles-based, sector-led approach with no single AI regulator and no binding AI-specific legislation. Five cross-cutting principles apply across domains:
+  
+  1. Safety, security and robustness
+  2. Transparency and explainability
+  3. Fairness
+  4. Accountability and governance
+  5. Contestability and redress
+  
+  Existing regulators implement these within their sectors:
+  
+  - **FCA** — AI in financial services; runs an AI Lab and regulatory sandbox.
+  - **ICO** — Applies UK GDPR; requires DPIAs for high-risk AI; governs automated decision-making rights under Article 22.
+  - **CMA** — Published an AI Foundation Models review (2024) assessing AI's impact on market concentration.
+  - **Ofcom** — Regulates algorithmic recommendation systems under the Online Safety Act 2023.
+  
+  The government has reserved the right to legislate if voluntary measures prove insufficient.
+  
+  **Gap (no worker covered this):** The AI Safety Institute's mandate was not addressed by any worker and cannot be synthesized here.
   
   ---
   
-  **UK:** Not covered by any worker. A gap statement is the only appropriate response — the UK's post-Brexit approach (the FCA/ICO sectoral model and the AI Safety Institute) was not addressed in the provided worker answers.
+  ### Cross-Cutting Observations
+  
+  **Conflicts between workers:** None identified. Workers were consistent and complementary within each jurisdiction.
+  
+  **Structural divergence across jurisdictions:**
+  The EU and UK represent opposite regulatory architectures — the EU centralizes obligations in a single binding statute with defined risk tiers; the UK distributes responsibility across existing sectoral regulators with no mandatory baseline. The US sits in a different dimension entirely: its framework is primarily executive and administrative, subject to reversal by successive administrations, with binding rules confined to specific sectors (healthcare, defense).
+  
+  **Shared gaps in this synthesis:** US proposed legislation, EU GPAI model rules and penalties, and the UK AI Safety Institute's mandate were not covered by the workers and require additional research.
 
 ======================================================================
 
