@@ -37,6 +37,32 @@ Two run profiles, both green:
 | 4 | Handoffs (Agent dataclass + handoff protocol, Swarm-style) | 4 | 4/4 PASS | 4/4 PASS |
 | 5 | Voting (3 solvers + majority + LLM-judge aggregator) | 4 | 4/4 PASS | 4/4 PASS |
 
+### Phase 1 supervisor — manual run measurement (2026-05-28)
+
+Direct invocation `python code/supervisor.py` on prompt "What changed in multi-agent systems between 2023 and 2026?" against oMLX `gpt-oss-20b` @ :8000:
+
+| Stage | Wall (s) |
+|---|---:|
+| `plan_decompose` (lead emits 3 sub-questions as JSON) | 6.03 |
+| Worker 1 (parallel) | 14.69 |
+| Worker 2 (parallel) | **18.80** ← `max_worker_wall_s` |
+| Worker 3 (parallel) | 12.49 |
+| Worker batch (`max`, not `sum`) | 18.80 |
+| `synthesize` (lead combines 3 worker outputs) | 10.32 |
+| **Observed total** | **35.14** |
+| Sequential-equivalent (`plan + sum_workers + synth`) | 62.33 |
+| **Speedup factor** | **1.77×** |
+
+**Parallelism verified empirically.** Observed total (35.14s) ≈ `plan + max(workers) + synth` (35.15s) within 0.01s rounding. If workers had serialized under the hood, total would be ≈ 62.33s — the `sum_worker_walls_s / max_worker_wall_s = 2.45` ratio confirms 3 workers ran genuinely concurrent on I/O-bound LLM calls (GIL releases on httpx wait). Worker 2's 18.80s upper bound dominates the wall; this is the right shape — synthesis CAN'T finish until the slowest worker returns.
+
+**The supervisor produced a structured answer** combining ACL 3.0 + RFC 9123/9124 + 6G URLLC (Worker 2 = comms standards), MARL + GNN + federated learning (Worker 1 = algorithmic), and autonomous vehicles + smart grid + supply chain (Worker 3 = applications) — three distinct sub-domains that a single agent would either drop coverage on or take 60s to research sequentially. The disagreement-surfacing prompt produced an honest "no direct contradictions, but deployment-scale varies" note — the synthesis prompt's failure-mode defense working as designed.
+
+`★ Insight ─────────────────────────────────────`
+- **1.77× speedup is the practical ceiling for 3 workers**, not the theoretical 3×. Two reasons: (a) plan + synthesize are sequential overhead (16.35s of the 35.14s = 47%); (b) Amdahl's law dominates when sequential phases are large relative to workers. To approach 3× you'd need either more workers (5-6) or longer worker phases (~30-60s each). Anthropic's Research paper hits ~6× because their workers run for minutes each — the parallel fraction is much larger.
+- **Worker walls are uneven (12.49 / 14.69 / 18.80)** — the wall is bounded by the slowest, not the average. Production tuning would aim to BALANCE worker-prompt difficulty (e.g., split the comms-standards sub-question into two if it's reliably slowest). Pareto-front move: more, smaller workers > fewer, bigger workers, until the synthesis cost of combining many outputs starts dominating.
+- **`sum_worker_walls_s / max_worker_wall_s = 2.45` is the parallelism receipt** — a number ≥ N-1 (for N workers) indicates genuine concurrency. If this number dropped to ~1.0, workers were serializing somewhere (likely a global lock, shared HTTP session, or rate limiter). Always log both and assert the ratio in your integration test — this is what `test_supervisor_parallel_wins` empirically verifies via `total_wall < (parallel + sequential) / 2`.
+`─────────────────────────────────────────────────`
+
 `★ The 95s number is load-bearing ─────────────`
 - **Real LLM latency is what makes the parallel-wall tests measurable.** Mock provider returns instantly (0.03s suite-wide), so `test_supervisor_parallel_wins` and `test_hierarchy_parallel_at_sub_level` cannot validate that `total_wall ≈ plan + max(workers) + synth` rather than `plan + sum(workers) + synth` — there's no wall-time signal. The 95s real-LLM run is where parallelism is empirically verified.
 - **The marker-based integration gating is the methodological lesson.** Old pattern (`if os.getenv("LLM_PROVIDER") == "mock": pytest.skip(...)`) didn't work because conftest's autouse fixture overrode `LLM_PROVIDER` to `mock` for all unmarked tests — even `export LLM_PROVIDER=openai` got overwritten. Real fix: `@pytest.mark.integration` lets the conftest fixture leave the env alone for marked tests. Default `pytest` stays free + fast; `pytest -m integration` (or any pre-set `LLM_PROVIDER=openai`) exercises real-LLM parallelism verification end-to-end.
