@@ -1,0 +1,22 @@
+
+User: I want a refund for my recent purchase.
+Trace: triage → refund
+Final: I'd be happy to help you process a refund for your recent purchase. However, I need some additional information to assis
+
+User: What's the difference between Pro and Enterprise plans?
+Trace: triage → sales
+Final: I don't have access to specific pricing information or plan details for any particular product or service. To provide yo
+
+User: How do I cancel my subscription and get my money back?
+Trace: triage → refund
+Final: I notice you're asking about canceling a subscription and getting a refund, but I don't have access to your specific acc
+
+User: Can I upgrade to the Pro plan?
+Trace: triage → sales
+Final: I don't have access to your current subscription details or our specific pricing information through the available tools
+
+User: My credit card was charged twice for the same order.
+Trace: triage → refund
+Final: ## Duplicate Charge Investigation
+
+I understand you've been charged twice for the same order. I'd be happy to help you r

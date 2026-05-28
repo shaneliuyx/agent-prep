@@ -25,11 +25,22 @@ class Agent:
         )
         reply = chat(prompt, system=self.system_prompt).strip()
         if reply.upper().startswith("HANDOFF:"):
-            tool_name = reply.split(":", 1)[1].strip()
-            for tool in self.tools:
-                if tool.__name__ == tool_name:
-                    next_agent = tool()
-                    return ("", next_agent)
+            # Defensive parse: handle both 'HANDOFF: transfer_to_X' (bare ID
+            # per prompt contract) AND 'HANDOFF: transfer_to_X()' (function-
+            # call format that models often emit despite the bare-ID
+            # instruction). Sonnet 4.6 and gpt-oss-20b both observed emitting
+            # the parens variant 2026-05-28; without this fix, the loop
+            # silently stays at triage even though the model decided to
+            # hand off. Same trap-class as W3.5.5.5 BCJ Entry 7 (models
+            # emit format variants of explicit-format instructions).
+            import re
+            m = re.search(r"HANDOFF:\s*(\w+)", reply, re.IGNORECASE)
+            if m:
+                tool_name = m.group(1)
+                for tool in self.tools:
+                    if tool.__name__ == tool_name:
+                        next_agent = tool()
+                        return ("", next_agent)
         return (reply, None)
 
 

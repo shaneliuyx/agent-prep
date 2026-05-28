@@ -1,0 +1,12 @@
+
+Q: What is 137 * 23?
+Majority: {'method': 'majority', 'answer': '3151', 'votes': {'3151': 3}, 'confidence': 1.0}
+LLM-judge: {'method': 'majority', 'answer': '3151', 'votes': {'3151': 3}, 'confidence': 1.0}
+
+Q: Is the Eiffel Tower in Paris? Yes or No.
+Majority: {'method': 'majority', 'answer': 'yes', 'votes': {'yes': 3}, 'confidence': 1.0}
+LLM-judge: {'method': 'llm-judge', 'answer': 'yes', 'judge_reply': '**Evaluation of Solvers:**\n\nAll three solvers provide the correct answer: **Yes**, the Eiffel Tower is in Paris.\n\nLet me compare the quality of their reasoning:\n\n| Solver | Historical Context | Location Details | Accuracy |\n|--------|-------------------|------------------|----------|\n| 0 | 1889 World\'s Fair, French Revolution anniversary | 7th arrondissement, Champ de Mars, **near the Seine River** | ✓ |\n| 1 | None | 7th arrondissement, Champ de Mars | ✓ |\n| 2 | 1889 World\'s Fair, French Revolution anniversary | 7th arrondissement, Champ de Mars | ✓ |\n\n**Analysis:**\n- All three solvers correctly identify the Eiffel Tower\'s location in Paris\n- All three correctly place it in the 7th arrondissement on the Champ de Mars\n- Solver 0 and 2 provide historical context (1889 World\'s Fair)\n- **Solver 0** includes the additional accurate detail that the tower is "near the Seine River"\n\n**Conclusion:**\nAll three answers are factually correct. However, Solver 0 provides the most comprehensive response by including both historical context AND the additional geographical detail about the Seine River, making it the most thorough while maintaining accuracy.\n\n---\n\nBEST: 0\nREASON: All three solvers provide the correct answer with accurate information, but Solver 0 offers the most comprehensive response by including both historical context and the additional geographical detail about the Seine River.', 'winning_solver': 0}
+
+Q: What year was Python first released?
+Majority: {'method': 'majority', 'answer': '1991', 'votes': {'1991**': 1, '1991': 2}, 'confidence': 0.6666666666666666}
+LLM-judge: {'method': 'llm-judge', 'answer': '1991', 'judge_reply': '**BEST: 0**\n\n**REASON:** SOLVER 0 provides the correct answer (1991) with accurate supporting details—correctly stating that development began in December 1989 and version 0.9.0 was released in February 1991—while SOLVER 2 contains significant factual errors (incorrectly claiming the first release was in 1994) despite arriving at the same final answer.', 'winning_solver': 0}

@@ -110,6 +110,62 @@ Full per-run transcripts in lab `results/group_chat_{sonnet-4-6,gpt-oss-20b,qwen
 - **The round-robin "no convergence detection" finding REPLICATES across models.** Sonnet hit max cap at 9; gpt-oss-20b lucked into 3 rounds because coder's third-turn response happened to contain TERMINATE; Qwen-distill needed 6 rounds (closer to Sonnet shape because the rule-pinned cycle forced collaborators to speak before coder could TERMINATE on round 2). **Production rule from cross-model evidence: round-robin needs explicit max-cap + post-hoc convergence check; don't trust agents to self-terminate cyclically.**
 `─────────────────────────────────────────────────`
 
+### Phase 4 handoffs — 3-model compose sweep (2026-05-28)
+
+Same 5 triage messages (refund / sales / refund / sales / refund) across 3 compose models. Two metrics: (1) **routing accuracy** — did the triage agent correctly hand off to refund-specialist vs sales-specialist? (2) **specialist persona faithfulness** — did the specialist respond IN-CHARACTER per its system prompt?
+
+| Model | Routing | Specialist persona | Notes |
+|---|:-:|:-:|---|
+| **Sonnet 4.6** (cloud via proxy) | **5/5** | **0/5** (BROKEN) | Every refund/sales agent responded "I'm Claude Code, an AI assistant for software engineering tasks..." — BCJ Entry 19 cloak-injection trap. Proxy re-injects Claude Code system prompt on EVERY agent invocation, drowning the specialist's `system_prompt`. The user-only-payload bypass in `_chat_anthropic_proxy` works for top-level synthesis but NOT for nested agent role-playing. |
+| **gpt-oss-20b** (local) | **5/5** | **5/5** (clean) | Local oMLX has no cloak-injection. Refund agent responds "I'm sorry to hear you'd like a refund. To process it quickly..."; sales agent responds "Pro vs Enterprise — What's the Difference?". Both in-character with helpful detail. |
+| **Qwen3.5-27B-Opus-distill** (local) | **5/5** | **5/5** (clean, hedging) | Routing perfect. Specialist persona intact but responses LEAN TOWARD "I don't have access to specific..." — distilled model's calibrated knowledge-gap admission carries into the specialist role. Opus-trait transfer: same trait that wins LongMemEval (commit-with-evidence) makes the persona MORE honest about its limitations as a roleplay specialist. |
+
+Full per-run outputs: `results/handoffs_{sonnet-4-6,gpt-oss-20b,qwen-3.5-27b-claude-opus-distill}.txt`.
+
+**TWO BUGS FOUND DURING THIS SWEEP:**
+
+1. **BCJ Entry 11 — Handoff parser couldn't strip parens from `HANDOFF: transfer_to_X()`**. Initial run: Sonnet emitted `HANDOFF: transfer_to_refunds()` 4/5 times; gpt-oss-20b emitted parens variant on 2/5 sales messages. Original parser used `reply.split(":", 1)[1].strip()` which kept `()`; `tool.__name__ == "transfer_to_refunds()"` mismatched against the bare-identifier function name. **Result: loop silently stayed at triage despite model deciding to hand off.** Fix: regex `\w+` extract — `re.search(r"HANDOFF:\s*(\w+)", reply)` captures only the bare identifier, ignoring parens / whitespace / trailing punctuation. Same trap-class as BCJ Entry 7 (models emit format variants of explicit-format instructions); production rule: **at every output-parsing boundary, regex extract the structured payload — never use `startswith`/`split` for structured data**.
+
+2. **BCJ Entry 19 (W3.5.8) cloak-injection STILL bites at the nested-agent layer.** The `_chat_anthropic_proxy` user-only-payload workaround (fold `system` into user message as `[INSTRUCTIONS]` header) works for top-level synthesis tasks (we verified this on hierarchical TOP synthesize). BUT for handoffs — where each new agent (refund / sales specialist) gets a FRESH `chat(prompt, system=specialist_prompt)` call — the proxy re-injects its Claude Code system prompt EVERY call. Our `[INSTRUCTIONS]` block in the user message becomes informational; the proxy's injected system prompt is authoritative. **Production rule for proxy-cloaked Anthropic deployments: proxy cloaking is INCOMPATIBLE with multi-agent specialist patterns; use direct Anthropic API with subscription billing OR local models for nested-agent topologies.** Cloak-via-proxy works for the synthesis layer of multi-agent systems (single-call) but breaks the specialist layer (multi-call agent role-playing).
+
+---
+
+### Phase 5 voting — 3-model compose sweep (2026-05-28)
+
+3 questions × 2 aggregators (majority + llm-judge) × 3 compose models. Voting is the most resilient topology — no multi-turn loop, no nested agent invocation, no synthesis layer. Solver quality is the only model-dependent variable.
+
+| Model | Q1: 137×23 | Q2: Eiffel Tower? | Q3: Python year |
+|---|---|---|---|
+| **Sonnet 4.6** | Majority 2/3 conf **0.67** (1 solver emitted "3,151" with comma) | 3/3 conf 1.0 | 3/3 conf 1.0 |
+| **gpt-oss-20b** | **3/3 conf 1.0** | 3/3 conf 1.0 | 3/3 conf 1.0 |
+| **Qwen-distill** | **3/3 conf 1.0** | 3/3 conf 1.0 | 2/3 conf **0.67** (1 solver emitted "**1991**" markdown-bold) |
+
+All 9 answers were correct (3151, yes, 1991). The 2/3 confidence reductions come from **format inconsistency between solvers within the same model** — same model, same prompt, but one of 3 solvers (random sampling under temp=0) emitted a different surface-format that the answer-extractor saw as a different vote.
+
+| Model | Format-failure surface |
+|---|---|
+| Sonnet 4.6 | Comma-formatted numbers (`3,151` ≠ `3151`) |
+| gpt-oss-20b | No observed format-failures across 3 Qs |
+| Qwen-distill | Markdown-bold formatting (`**1991**` ≠ `1991`) — Opus-trait transfer |
+
+**Aggregator note:** llm-judge sometimes fell back to majority output on numeric questions (Q1 with gpt-oss-20b, Q1 with Qwen-distill both showed `method: majority` in the llm-judge result field). The judge response either didn't match the `BEST: N` parser regex OR voting.py has a fallback path on parse-failure. Not investigated; majority answer is correct on all 9 cells.
+
+Full per-run outputs: `results/voting_{sonnet-4-6,gpt-oss-20b,qwen-3.5-27b-claude-opus-distill}.txt`.
+
+`★ The Phase 4 + 5 sweep crystallizes "topology-model fit is per-pattern" ─`
+- **Voting is the only topology unaffected by ANY of the 11 surfaced traps.** No reasoning_content trap (no synthesis), no premature-TERMINATE (no multi-turn loop), no specialist-cloak (no nested invocation), no parser-format issues (3 solver calls + simple aggregator). Mechanically simplest topology AND most reliable. **Production rule: when you have a hard decision with reliability requirements, the architectural answer is voting + judge — pay the 3-5× cost, eliminate the topology-level failure surface.**
+- **Handoffs surfaces THREE distinct traps per layer.** Routing layer: parser-format (Entry 11) bites every model. Specialist layer: cloak-injection (Entry 19) bites Sonnet-via-proxy specifically. Specialist response layer: model-trait-mismatch (commit-bias hedging on Qwen-distill, reasoning-CoT-leak on gpt-oss-20b's edge cases). Each layer has its own failure mode → defense-in-depth required.
+- **The "Sonnet routing 5/5, persona 0/5" finding is the most production-load-bearing.** Anyone shipping CLIProxyAPI Sonnet into a multi-agent specialist pattern will get routing-decisions-via-Sonnet + personas-overridden-by-Claude-Code-system-prompt. The result LOOKS correct at the routing log (every handoff trace shows correct destination) but the user-visible response is "I'm Claude Code, an AI assistant..." Production rule: **for proxy-cloaked Sonnet, the architectural boundary is "top-level synthesis OK, nested-agent personas NOT OK."** Use direct Anthropic API (subscription billing path) for specialist patterns, or local models.
+- **Format-consistency-within-model is the voting failure surface.** Q1 Sonnet 2/3 (comma-format), Q3 Qwen-distill 2/3 (markdown-bold) — same model, same prompt, 3 solver calls sampled, ONE solver chose a different surface-format. Reasoning models (gpt-oss-20b) seem most format-consistent (3/3 on all Qs). Calibrated models (Sonnet) and distilled-from-thorough models (Qwen-Opus-distill) each have their own "favorite formatting" that occasionally leaks. **Production fix: post-process solver outputs through a normalizer (strip markdown, normalize numbers via regex) before majority-counting.** The aggregator pattern is bullet-proof; the answer-extraction step is the seam where format variation hurts confidence.
+- **3-model trait fingerprint after Phase 1-5 sweep:**
+  - **Sonnet (cloud)**: calibrated, hedge-and-iterate, format-variant on numbers, cloak-injection on nested specialists
+  - **gpt-oss-20b (local reasoning)**: format-strict, reasoning-content trap on heavy synthesis, early-terminate on cyclic loops
+  - **Qwen-distill (local literal)**: commit-bias (wins LongMemEval, breaks collaboration), prose-preamble on JSON, markdown-bold format leak
+  - **Each trait has different polarity per topology.** No model is universally "best"; pick per-pattern.
+`─────────────────────────────────────────────────`
+
+---
+
 ### Phase 1 supervisor — manual run measurement (2026-05-28)
 
 Direct invocation `python code/supervisor.py` on prompt "What changed in multi-agent systems between 2023 and 2026?" against oMLX `gpt-oss-20b` @ :8000:
