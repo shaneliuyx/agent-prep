@@ -52,8 +52,34 @@ def chat(prompt: str, system: str | None = None, max_tokens: int = 1024) -> str:
 
 
 def _chat_anthropic_proxy(prompt: str, system: str | None, max_tokens: int = 1024) -> str:
-    """Claude-Sonnet-4.6 via local :8317 proxy. User-only payload avoids the
-    proxy's system-field overwrite (see W3.5.8 BCJ Entry 19)."""
+    """Claude-Sonnet-4.6 via local :8317 proxy. User-only payload (no system
+    role sent) per W3.5.8 BCJ Entry 19's cloak-bypass technique.
+
+    KNOWN LIMITATION (W3.5.5.5 BCJ Entry 12, measured 2026-05-28):
+    CLIProxyAPI's `applyCloaking()` injects 'You are Claude Code...' as system
+    prompt on EVERY call, drowning the caller's `system` for OAuth/billing-
+    fingerprint coherence. This bypass works for TOP-LEVEL SYNTHESIS (one
+    call between system and Anthropic — measured working on hierarchical TOP
+    synthesize) but BROKEN for NESTED-AGENT SPECIALIST PATTERNS (every
+    handoffs.py specialist call gets re-cloaked; refund/sales agents respond
+    'I'm Claude Code, an AI assistant for software engineering tasks...'
+    regardless of any user-message-level role-override attempt).
+
+    Attempted fixes that DID NOT WORK:
+      (a) Aggressive 'DISREGARD ALL PRIOR INSTRUCTIONS' prefix — Sonnet's
+          prompt-injection defense recognized as attack, doubled down on
+          Claude Code persona. Made handoffs STRICTLY WORSE (5/5 → 0/5).
+      (b) Gentler '=== ROLE FOR THIS RESPONSE ===' framing — restored
+          routing (5/5) but specialist persona still 0/5. Proxy's ~5K-token
+          injected system prompt is too authoritative; no user-message-level
+          override beats it.
+
+    Production rules:
+      - Cloak-proxy is FINE for top-level synthesis (single call).
+      - For nested-agent specialist patterns, use:
+          (i) Direct Anthropic API (subscription billing, no cloak proxy), OR
+          (ii) Local models (oMLX gpt-oss-20b / Qwen-distill — both work).
+    """
     url = os.getenv("ANTHROPIC_BASE_URL", "http://localhost:8317") + "/v1/messages"
     body = {
         "model": os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
