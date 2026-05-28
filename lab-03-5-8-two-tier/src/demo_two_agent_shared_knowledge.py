@@ -10,7 +10,8 @@ imprint metadata; guild's MCP session itself is anonymous.
 import asyncio
 
 from src.consolidation import consolidate
-from src.tiered_memory import TieredMemory
+#from src.tiered_memory import TieredMemory
+from src.tiered_memory_qdrant import TieredMemory
 
 
 CAMPAIGN = "demo-w358-two-agent"
