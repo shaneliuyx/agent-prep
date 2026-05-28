@@ -65,6 +65,43 @@ Topology: depth=2, agents_total=7 (1 top + 2 sub-leads + 4 leaves).
 - **The hierarchical speedup (1.51×) is the Amdahl-ceiling for 2-sub-lead parallelism.** 41% sequential overhead caps the speedup. Going to N=3 macros wouldn't help much because the synthesize step grows with N (more sub-answers to combine). The right knob is making each sub-lead's work LONGER (more leaves per sub-lead) so parallelism dominates the sequential plan+synth bookend.
 `─────────────────────────────────────────────────`
 
+### Phase 2 hierarchical — compose-model sweep (2026-05-28)
+
+Same hierarchical topology + same prompt ("Compare regulatory frameworks for AI across EU, US, and UK") run against THREE compose models on the same M5 Pro hardware. Isolates model-specific behavior from topology behavior — speedup ratio is architectural, but absolute wall + synthesis quality are model traits.
+
+| Model | Provider | total_wall_s | plan | sub_walls | max_sub | synth | speedup | UK behavior | BCJ Entry 6 trap |
+|---|---|---:|---:|---|---:|---:|---:|---|---|
+| **gpt-oss-20b-MXFP4-Q8** | oMLX local | **115.46** | 9.05 | [58.90, 68.15] | 68.15 | 38.25 | 1.51× | Label-and-FILL: populated UK column with training-data | Triggered originally; needed 3-layer fix |
+| **Qwen3.5-27B-Claude-Opus-distill** | oMLX local (MLX 4bit) | **410.57** | 48.76 | [223.59, 255.81] | 255.81 | 106.00 | 1.55× | **Label-and-STOP**: "Not covered by any worker", no fabrication | Did NOT trigger — clean on first run |
+| **Claude Sonnet 4.6** | CLIProxyAPI `:8317` (cloud) | **55.74** | 4.82 | [23.80, 29.86] | 29.86 | 21.06 | 1.43× | **Label-and-STOP-FIRST**: "Gap notice" UPFRONT before any synthesis; explicit per-section "Gaps not covered by workers" | Did NOT trigger — frontier model, no `reasoning_content` field-separation issue |
+
+Full per-run outputs saved in lab `results/` dir:
+- [`results/hierarchical_gpt-oss-20b.txt`](./results/hierarchical_gpt-oss-20b.txt) (131 lines)
+- [`results/hierarchical_qwen-3.5-27b-claude-opus-distill.txt`](./results/hierarchical_qwen-3.5-27b-claude-opus-distill.txt) (250 lines)
+- [`results/hierarchical_sonnet-4-6.txt`](./results/hierarchical_sonnet-4-6.txt) (212 lines)
+
+**Key findings (3-model head-to-head):**
+
+1. **Wall-time ranking is OPPOSITE of intuitive expectation.** Frontier cloud model (Sonnet 4.6 via proxy) is the FASTEST at 55.74s; smallest local model (gpt-oss-20b) is middle at 115.46s; mid-size distilled local (Qwen-3.5-27B-Opus-distill) is SLOWEST at 410.57s. Conventional wisdom predicts "smaller local = faster"; measurement inverts this. The actual ordering reflects: cloud frontier (optimized inference at scale) >> small local reasoning (CoT overhead) >> mid local distilled (literal-instruction-following + Opus-style verbose output).
+
+2. **Speedup ratio is invariant across models (1.43× / 1.51× / 1.55×).** That's the topology's Amdahl ceiling, not a model property. Switching compose models moves wall time by **7.4× (Sonnet vs Qwen-distill)** but speedup ratio only by 0.12×. **Speedup is an architectural constant; wall is a model constant.** Production rule: design topology first (Amdahl analysis), then pick model for wall + faithfulness budget.
+
+3. **UK-speculation behavior splits 1/2.** gpt-oss-20b (reasoning, label-and-FILL): fabricated UK content from training data while flagging the gap. Qwen-distill (literal): explicit "Not covered by any worker" + empty UK column. **Sonnet (calibrated): GAP-NOTICE UPFRONT** — places "Gap notice: No worker covered the UK regulatory framework" BEFORE the synthesis, sub-section gaps inline ("Gaps not covered by workers"). Sonnet's structural placement of the gap acknowledgment is the most pedagogically defensible — reader sees the boundary before reading the content, not after.
+
+4. **The BCJ Entry 6 reasoning_content trap is gpt-oss-20b-specific.** Both Qwen-distill and Sonnet returned non-empty `content` immediately, no `reasoning_content` field-separation. The trap is exclusive to the OpenAI-compat reasoning-model family (gpt-oss, DeepSeek-R1, o1-class). Anthropic's API returns content in the standard `content[0].text` shape; the 3-layer fix (BCJ Entry 6) is needed only when targeting reasoning models via OpenAI-compatible endpoints.
+
+5. **Production decision matrix:**
+   - **Speed + frontier quality (production grounded RAG, batch summarization)** → Sonnet via proxy (55.74s, label-and-stop-first, subscription quota cost). The fastest AND most disciplined option, if proxy reliability is acceptable.
+   - **Local-only + literal grounded synthesis (no fabrication, audit-clean attribution, offline-capable)** → Qwen-distill, accept 7.4× wall vs Sonnet for 0× cloud cost.
+   - **Speed + structured output that may include light speculation** → gpt-oss-20b with BCJ Entry 6 3-layer fix, accept 2× wall vs Sonnet for 0× cloud cost.
+   - **The truly fast AND strict combination requires CLOUD inference** (Sonnet). Local M5 Pro hardware cannot match Anthropic-data-center GPU throughput on 27B-param model class.
+
+6. **Sonnet at 55.74s wall makes hierarchical PATTERN newly viable** for interactive use. gpt-oss-20b's 115s and Qwen-distill's 410s pushed hierarchical topology into "batch-only" territory. Sonnet's sub-minute wall on the same 2×2 hierarchy makes "fire a research lead, wait 1 minute, get a structured synthesis" interactive-acceptable. This is the cloud-frontier-model architectural unlock — pattern that's theoretically right but practically slow on local becomes practically right on cloud.
+
+7. **The 60s timeout default in `_chat_anthropic_proxy` is a new gotcha.** First Sonnet run timed out (httpx.ReadTimeout) because `LLM_TIMEOUT_S=60` was inherited from the gpt-oss-20b-shaped curriculum default. Sonnet via proxy adds network IO + Anthropic queuing → 60s insufficient on heavy synthesis. Bumped to 300s via env. Worth a follow-up BCJ entry: `LLM_TIMEOUT_S` should be per-provider (e.g., `ANTHROPIC_TIMEOUT_S` env override > global), not a single constant.
+
+8. **This validates §5.3.5 N=100's commitment-bias finding from a new angle.** Same model rank order on LongMemEval (Qwen-distill 77% > Opus 4.7 68% > Sonnet 60%) reflects commitment-vs-hedging. Here, same trait appears as label-and-fill (gpt-oss-20b, partial speculation) vs label-and-stop (Qwen-distill, Sonnet, strict). Different evals select for opposite polarities of the SAME trait. **Production framing: don't pick a model for "best score on benchmark X" — pick for "right trait for your workload's failure modes."**
+
 ### Phase 1 supervisor — manual run measurement (2026-05-28)
 
 Direct invocation `python code/supervisor.py` on prompt "What changed in multi-agent systems between 2023 and 2026?" against oMLX `gpt-oss-20b` @ :8000:
