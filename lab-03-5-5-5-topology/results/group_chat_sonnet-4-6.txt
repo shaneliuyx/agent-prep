@@ -1,0 +1,232 @@
+
+======================================================================
+GROUP-CHAT (selector=round-robin, rounds=9, selector_calls=9, terminated_by=TERMINATE token)
+======================================================================
+
+[turn 0] USER
+────────────────────────────────────────────────────────────
+  Write a Python function `is_palindrome(s: str) -> bool`. Reviewer + tester collaborate.
+
+[turn 1] REVIEWER
+────────────────────────────────────────────────────────────
+  Show me the implementation first — I haven't seen any code yet. What does your `is_palindrome` function look like?
+
+[turn 2] TESTER
+────────────────────────────────────────────────────────────
+  I need to see the implementation before proposing a test case. Can you share the `is_palindrome` code?
+
+[turn 3] CODER
+────────────────────────────────────────────────────────────
+  ```python
+  def is_palindrome(s: str) -> bool:
+      s = s.lower().replace(" ", "")
+      return s == s[::-1]
+  ```
+  
+  Handles case-insensitivity and spaces. Ready for review and testing.
+
+[turn 4] REVIEWER
+────────────────────────────────────────────────────────────
+  Good start, but a few issues:
+  
+  1. **Punctuation not stripped** — `"A man, a plan, a canal: Panama"` will return `False` incorrectly.
+  2. **Type safety** — no guard against non-string input (e.g., `None`).
+  3. **Spec unclear** — does "palindrome" include only alphanumeric chars, or just spaces/case?
+  
+  Please clarify the spec and strip punctuation (or alphanumerics-only filter) accordingly.
+
+[turn 5] TESTER
+────────────────────────────────────────────────────────────
+  **Test case — punctuation handling:**
+  
+  ```python
+  assert is_palindrome("A man, a plan, a canal: Panama") == True
+  ```
+  
+  Current implementation returns `False` (commas/colon not stripped). Confirms the reviewer's bug #1.
+
+[turn 6] CODER
+────────────────────────────────────────────────────────────
+  ```python
+  import re
+  
+  def is_palindrome(s: str) -> bool:
+      if not isinstance(s, str):
+          raise TypeError("Input must be a string")
+      cleaned = re.sub(r'[^a-z0-9]', '', s.lower())
+      return cleaned == cleaned[::-1]
+  ```
+  
+  Strips all non-alphanumeric characters, case-insensitive. Raises `TypeError` for non-string input.
+
+[turn 7] REVIEWER
+────────────────────────────────────────────────────────────
+  Two concerns:
+  
+  1. **Empty string behavior** — `is_palindrome("")` and `is_palindrome("!!!")` both return `True` (empty `cleaned`). Is that intentional? Vacuously true may surprise callers.
+  2. **`TypeError` vs silent handling** — raising on `None` is reasonable, but document it in a docstring so callers know to expect it.
+  
+  Please confirm empty-string policy and add a docstring.
+
+[turn 8] TESTER
+────────────────────────────────────────────────────────────
+  **Test case — all non-alphanumeric input:**
+  
+  ```python
+  assert is_palindrome("!!!") == True
+  ```
+  
+  `cleaned` becomes `""`, which equals its reverse. Confirms reviewer's concern #1 — vacuous truth may be unintended behavior worth an explicit decision.
+
+[turn 9] CODER ← TERMINATE
+────────────────────────────────────────────────────────────
+  ```python
+  import re
+  
+  def is_palindrome(s: str) -> bool:
+      """
+      Check if s is a palindrome (alphanumeric chars only, case-insensitive).
+  
+      Raises TypeError for non-string input.
+      Returns False for empty or non-alphanumeric-only strings.
+      """
+      if not isinstance(s, str):
+          raise TypeError("Input must be a string")
+      cleaned = re.sub(r'[^a-z0-9]', '', s.lower())
+      return len(cleaned) > 0 and cleaned == cleaned[::-1]
+  ```
+  
+  Empty/non-alphanumeric strings now return `False`. Docstring added.
+  
+  TERMINATE
+
+======================================================================
+
+
+======================================================================
+GROUP-CHAT (selector=llm-selected, rounds=4, selector_calls=4, terminated_by=TERMINATE token)
+======================================================================
+
+[turn 0] USER
+────────────────────────────────────────────────────────────
+  Write a Python function `is_palindrome(s: str) -> bool`. Reviewer + tester collaborate.
+
+[turn 1] CODER
+────────────────────────────────────────────────────────────
+  ```python
+  def is_palindrome(s: str) -> bool:
+      s = s.lower().replace(" ", "")
+      return s == s[::-1]
+  ```
+  
+  Handles case-insensitivity and spaces. Ready for review and tests.
+
+[turn 2] REVIEWER
+────────────────────────────────────────────────────────────
+  Good start, but a few concerns:
+  
+  1. **Edge cases**: Only strips spaces — what about punctuation? `"A man, a plan, a canal: Panama"` would return `False` incorrectly.
+  2. **Input validation**: No handling for non-string input — should it raise `TypeError` or is that guaranteed by the type hint?
+  3. **Spec clarity**: The original spec doesn't define punctuation behavior — coder should clarify intent before I sign off.
+
+[turn 3] TESTER
+────────────────────────────────────────────────────────────
+  **Test case: punctuation in classic palindrome**
+  
+  ```python
+  assert is_palindrome("A man, a plan, a canal: Panama") == True
+  ```
+  
+  This exposes the reviewer's concern — commas and colons aren't stripped, so `s != s[::-1]` and the function incorrectly returns `False`.
+
+[turn 4] CODER ← TERMINATE
+────────────────────────────────────────────────────────────
+  ```python
+  import re
+  
+  def is_palindrome(s: str) -> bool:
+      s = re.sub(r'[^a-z0-9]', '', s.lower())
+      return s == s[::-1]
+  ```
+  
+  Strips all non-alphanumeric characters. Now handles punctuation, spaces, and mixed case. `is_palindrome("A man, a plan, a canal: Panama")` returns `True`.
+  
+  TERMINATE
+
+======================================================================
+
+
+======================================================================
+GROUP-CHAT (selector=custom, rounds=7, selector_calls=7, terminated_by=TERMINATE token)
+======================================================================
+
+[turn 0] USER
+────────────────────────────────────────────────────────────
+  Write a Python function `is_palindrome(s: str) -> bool`. Reviewer + tester collaborate.
+
+[turn 1] CODER
+────────────────────────────────────────────────────────────
+  ```python
+  def is_palindrome(s: str) -> bool:
+      s = s.lower().replace(" ", "")
+      return s == s[::-1]
+  ```
+
+[turn 2] TESTER
+────────────────────────────────────────────────────────────
+  **Test case:** Empty string
+  
+  ```python
+  assert is_palindrome("") == True
+  ```
+  
+  An empty string reversed is still empty, so it should return `True`. Verifies the function handles edge cases without errors.
+
+[turn 3] REVIEWER
+────────────────────────────────────────────────────────────
+  **Review:**
+  
+  The logic is correct and clean. However, the function only strips spaces — it won't handle punctuation (e.g., `"A man, a plan, a canal: Panama"` returns `False`). Is that intentional? If not, ask the coder to also strip non-alphanumeric characters. Also worth noting: no docstring or type validation, but acceptable if out of scope.
+
+[turn 4] CODER
+────────────────────────────────────────────────────────────
+  Good point. Updated to handle punctuation:
+  
+  ```python
+  def is_palindrome(s: str) -> bool:
+      cleaned = ''.join(c.lower() for c in s if c.isalnum())
+      return cleaned == cleaned[::-1]
+  ```
+  
+  This strips all non-alphanumeric characters and lowercases, so `"A man, a plan, a canal: Panama"` returns `True`. Empty string still returns `True`.
+
+[turn 5] TESTER
+────────────────────────────────────────────────────────────
+  **Test case:** Punctuation-heavy palindrome
+  
+  ```python
+  assert is_palindrome("A man, a plan, a canal: Panama") == True
+  ```
+  
+  Validates the updated logic strips punctuation and handles mixed case correctly — the core motivation for the recent change.
+
+[turn 6] REVIEWER
+────────────────────────────────────────────────────────────
+  **Review:**
+  
+  Logic is correct and handles the key cases well. One minor style note: the variable name `cleaned` is clear — no issues there. Consider whether Unicode alphanumerics (e.g., accented characters) are in scope — `isalnum()` includes them, which may or may not be desired. Otherwise, the implementation is solid. No further changes needed unless Unicode behavior needs clarification.
+
+[turn 7] CODER ← TERMINATE
+────────────────────────────────────────────────────────────
+  The Unicode behavior of `isalnum()` is likely the desired behavior for most use cases. Solution is complete:
+  
+  ```python
+  def is_palindrome(s: str) -> bool:
+      cleaned = ''.join(c.lower() for c in s if c.isalnum())
+      return cleaned == cleaned[::-1]
+  ```
+  
+  TERMINATE
+
+======================================================================
+

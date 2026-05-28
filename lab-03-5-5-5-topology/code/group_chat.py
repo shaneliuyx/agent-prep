@@ -1,7 +1,6 @@
 # code/group_chat.py
 from __future__ import annotations
-from dataclasses import dataclass, field
-from itertools import cycle
+from dataclasses import dataclass
 from typing import Callable, Literal
 
 from llm import chat
@@ -117,13 +116,35 @@ def group_chat_run(
     }
 
 
+def print_group_chat(out: dict) -> None:
+    """Pretty-print the group-chat discussion process with per-agent turns.
+
+    Shared-memory note: every entry in `out['pool']` is visible to every agent
+    on every turn (see GroupAgent.respond — full pool fed as transcript).
+    The pool IS the shared memory; topology = blackboard pattern.
+    """
+    sel = out["selector"]
+    print(f"\n{'=' * 70}")
+    print(f"GROUP-CHAT (selector={sel}, rounds={out['rounds_used']}, "
+          f"selector_calls={out['selector_calls']}, "
+          f"terminated_by={out['terminated_by']})")
+    print(f"{'=' * 70}")
+    for i, msg in enumerate(out["pool"]):
+        speaker = msg["speaker"]
+        content = msg["content"]
+        # Highlight terminator
+        marker = " ← TERMINATE" if "TERMINATE" in content.upper() and speaker != "user" else ""
+        print(f"\n[turn {i}] {speaker.upper()}{marker}")
+        print(f"{'─' * 60}")
+        for line in content.splitlines() or [""]:
+            print(f"  {line}")
+    print(f"\n{'=' * 70}\n")
+
+
 if __name__ == "__main__":
-    import json
     for sel in ("round-robin", "llm-selected", "custom"):
         out = group_chat_run(
             "Write a Python function `is_palindrome(s: str) -> bool`. Reviewer + tester collaborate.",
             selector=sel,
         )
-        print(f"\n=== selector={sel} ===")
-        print(f"rounds={out['rounds_used']}  selector_calls={out['selector_calls']}  "
-              f"terminated_by={out['terminated_by']}")
+        print_group_chat(out)
