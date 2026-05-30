@@ -1,16 +1,13 @@
 
 User: I want a refund for my recent purchase.
 Trace: triage → refund
-Final: I’m sorry to hear you’d like a refund. To process it quickly, could you please provide the following details?
+Final: I’m happy to help you with a refund. To process it quickly, could you please provide the following details?
 
-1. **Orde
+1. **Order 
 
 User: What's the difference between Pro and Enterprise plans?
 Trace: triage → sales
-Final: **Pro vs. Enterprise – What’s the Difference?**
-
-| Feature | Pro Plan | Enterprise Plan |
-|---------|----------|--------
+Final: Here’s a quick side‑by‑side snapshot of what most SaaS vendors (and ours, in particular) typically offer in their **Pro*
 
 User: How do I cancel my subscription and get my money back?
 Trace: triage → refund
@@ -20,12 +17,13 @@ Final: I’m happy to help you cancel your subscription and get a refund. Here�
 
 User: Can I upgrade to the Pro plan?
 Trace: triage → sales
-Final: Absolutely! You can upgrade to the Pro plan at any time. Here’s how:
+Final: Absolutely! Upgrading to the Pro plan is quick and easy. Here’s what you need to do:
 
-1. **Log in** to your account on our website or ap
+1. **Log in to your account**  
+  
 
 User: My credit card was charged twice for the same order.
 Trace: triage → refund
 Final: I’m sorry to hear that you were charged twice for the same order. Let’s get this sorted out right away.
 
-**What I’ll do 
+**What I’ll do:

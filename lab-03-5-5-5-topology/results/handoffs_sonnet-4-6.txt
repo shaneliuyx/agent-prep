@@ -1,20 +1,31 @@
 
 User: I want a refund for my recent purchase.
 Trace: triage → refund
-Final: I'm Claude Code, an AI assistant for software engineering tasks. I'm not able to process refunds or act as a refund spec
+Final: I'd be happy to help you with a refund for your recent purchase.
+
+To process this quickly, I'll need a few details:
+
+1. 
 
 User: What's the difference between Pro and Enterprise plans?
 Trace: triage → sales
-Final: I'm Claude Code, Anthropic's CLI tool for software engineering tasks. I'm not able to help with sales or pricing questio
+Final: I'd be happy to help you compare our Pro and Enterprise plans! However, I don't have access to the specific pricing and 
 
 User: How do I cancel my subscription and get my money back?
 Trace: triage → refund
-Final: I'm Claude Code, an AI assistant for software engineering tasks. I'm not a refund specialist and don't have access to an
+Final: I'd be happy to help you cancel your subscription and process a refund. Here's what you need to know:
+
+**Cancellation**
+
 
 User: Can I upgrade to the Pro plan?
 Trace: triage → sales
-Final: I'm Claude Code, Anthropic's CLI for software engineering tasks. I'm not able to help with sales, pricing, or plan upgra
+Final: I'd be happy to help you upgrade to the Pro plan!
+
+To get you started, here are a few things that would be helpful to kn
 
 User: My credit card was charged twice for the same order.
 Trace: triage → refund
-Final: I'm Claude Code, an AI assistant for software engineering tasks — I'm not a refund specialist and don't have access to a
+Final: I'm sorry to hear you were double-charged — that's frustrating, and we'll get it resolved for you right away.
+
+Here's wh
