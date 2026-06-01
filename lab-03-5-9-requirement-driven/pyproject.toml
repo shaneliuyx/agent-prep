@@ -1,0 +1,23 @@
+[project]
+name = "lab-03-5-9-requirement-driven"
+version = "0.1.0"
+description = "W3.5.9 — requirement-driven memory architecture: atomic-fact + router + three-tier backends over the W3.5.8 two-tier lab"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.27.1",
+    "openai>=2.36.0",
+    "pydantic>=2.13.4",
+    "qdrant-client>=1.12.0",
+    "mem0ai>=0.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
