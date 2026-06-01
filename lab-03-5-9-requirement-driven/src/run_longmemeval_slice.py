@@ -113,6 +113,31 @@ def _qd_tm(user_id: str) -> TieredMemory:
     return TieredMemory(user_id=user_id, agent_id="lme-eval", config=cfg)
 
 
+# ── Backend dispatch (W3.5.9) ────────────────────────────────────────
+# Baseline driver had 'qdrant' (W3.5.8 §7.7) and 'evercore' (§7.1, HTTP).
+# Phase 3 adds 'mem0'; Phase 4 adds 'atomic_fact' + 'hybrid' (the router).
+# EverCore is an HTTP service handled inline in _run_backend, so it is NOT
+# built here. qdrant uses the lab's TieredMemory; the W3.5.9 backends are
+# duck-typed twins (same imprint(content, metadata) / query_context(query, k)).
+OBJECT_BACKENDS = ("qdrant", "mem0", "atomic_fact", "hybrid")
+ALL_BACKENDS = ("qdrant", "evercore", "mem0", "atomic_fact", "hybrid")
+
+
+def _build_backend(backend: str, user_id: str):
+    if backend == "qdrant":
+        return _qd_tm(user_id)                                  # W3.5.8 2-tier (Qdrant variant)
+    if backend == "mem0":
+        from src.mem0_backend_adapter import Mem0Adapter        # Phase 3
+        return Mem0Adapter(user_id=user_id)
+    if backend == "atomic_fact":
+        from src.atomic_fact_memory import AtomicFactMemory     # Phase 4
+        return AtomicFactMemory(user_id=user_id)
+    if backend == "hybrid":
+        from src.router_memory import RouterMemory              # Phase 4 — question-type router
+        return RouterMemory(user_id=user_id)
+    raise ValueError(f"unknown object-backend: {backend!r}")
+
+
 def _session_to_scroll(session: list[dict]) -> str:
     """Concat session turns into a single text blob suitable for
     ``summarize_scroll``. Format mirrors a task-scroll shape: each turn
@@ -186,11 +211,22 @@ def _run_backend(backend: str, q: dict) -> dict:
                 imprint_walls.append(time.perf_counter() - t0)
                 imprint_meta.append(meta)
             time.sleep(EVERCORE_ASYNC_WAIT_S)
-        else:  # qdrant
-            tm = _qd_tm(user_id)
+        else:  # object-backends: qdrant / mem0 / atomic_fact / hybrid
+            tm = _build_backend(backend, user_id)
             for idx, session in enumerate(q["haystack_sessions"]):
                 t0 = time.perf_counter()
-                imprinted, info = _qd_imprint_session(tm, qid, idx, session)
+                if backend == "qdrant":
+                    # 2-tier write path: summarize the session scroll, then imprint.
+                    imprinted, info = _qd_imprint_session(tm, qid, idx, session)
+                else:
+                    # W3.5.9 backends extract internally (atomic facts / messages /
+                    # routed), so imprint the raw session scroll directly.
+                    info = tm.imprint(
+                        _session_to_scroll(session),
+                        metadata={"quest_id": f"{qid}-sess{idx}",
+                                  "subject": f"LongMemEval session {idx}"},
+                    )
+                    imprinted = True
                 imprint_walls.append(time.perf_counter() - t0)
                 imprint_meta.append({"imprinted": imprinted, "info": str(info)[:80]})
 
@@ -228,10 +264,10 @@ def _run_backend(backend: str, q: dict) -> dict:
                 "wall_imprint": sum(imprint_walls)}
 
 
-def run_one(q: dict) -> dict:
+def run_one(q: dict, backends: tuple[str, ...] = ("qdrant", "evercore")) -> dict:
     record = {"question_id": q["question_id"], "question_type": q["question_type"],
               "question": q["question"], "gold": str(q["answer"])}
-    for backend in ("qdrant", "evercore"):
+    for backend in backends:
         print(f"  [{backend}] running...")
         result = _run_backend(backend, q)
         if result["status"] == "ok":
@@ -255,7 +291,15 @@ def main() -> None:
                     help="run only first N questions (for wiring validation)")
     ap.add_argument("--skip-evercore", action="store_true",
                     help="skip EverCore backend (run Qdrant only)")
+    ap.add_argument("--backend", choices=[*ALL_BACKENDS, "all"], default="all",
+                    help="run a single backend, or 'all' for the full comparison "
+                         "(qdrant, evercore, mem0, atomic_fact, hybrid)")
     args = ap.parse_args()
+
+    backends = ALL_BACKENDS if args.backend == "all" else (args.backend,)
+    if args.skip_evercore:
+        backends = tuple(b for b in backends if b != "evercore")
+    print(f">>> backends: {backends}")
 
     qs = json.loads(SLICE_PATH.read_text())
     if args.smoke:
@@ -282,7 +326,7 @@ def main() -> None:
     t_total = time.perf_counter()
     for i, q in enumerate(qs, 1):
         print(f"\n[{i}/{len(qs)}] qid={q['question_id']} type={q['question_type']}")
-        record = run_one(q)
+        record = run_one(q, backends)
         with RESULTS_PATH.open("a") as f:
             f.write(json.dumps(record) + "\n")
 
