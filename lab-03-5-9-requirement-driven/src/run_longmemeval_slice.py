@@ -119,8 +119,8 @@ def _qd_tm(user_id: str) -> TieredMemory:
 # EverCore is an HTTP service handled inline in _run_backend, so it is NOT
 # built here. qdrant uses the lab's TieredMemory; the W3.5.9 backends are
 # duck-typed twins (same imprint(content, metadata) / query_context(query, k)).
-OBJECT_BACKENDS = ("qdrant", "mem0", "atomic_fact", "hybrid")
-ALL_BACKENDS = ("qdrant", "evercore", "mem0", "atomic_fact", "hybrid")
+OBJECT_BACKENDS = ("qdrant", "mem0", "atomic_fact", "hybrid", "three_tier")
+ALL_BACKENDS = ("qdrant", "evercore", "mem0", "atomic_fact", "hybrid", "three_tier")
 
 
 def _build_backend(backend: str, user_id: str):
@@ -135,6 +135,9 @@ def _build_backend(backend: str, user_id: str):
     if backend == "hybrid":
         from src.router_memory import RouterMemory              # Phase 4 — question-type router
         return RouterMemory(user_id=user_id)
+    if backend == "three_tier":
+        from src.three_tier_memory import ThreeTierMemory       # Phase 7 — L1+L2+L3 (HyperMem)
+        return ThreeTierMemory(user_id=user_id)
     raise ValueError(f"unknown object-backend: {backend!r}")
 
 
@@ -211,8 +214,9 @@ def _run_backend(backend: str, q: dict) -> dict:
                 imprint_walls.append(time.perf_counter() - t0)
                 imprint_meta.append(meta)
             time.sleep(EVERCORE_ASYNC_WAIT_S)
-        else:  # object-backends: qdrant / mem0 / atomic_fact / hybrid
+        else:  # object-backends: qdrant / mem0 / atomic_fact / hybrid / three_tier
             tm = _build_backend(backend, user_id)
+            assert tm is not None  # built above — narrows the hoisted Optional
             for idx, session in enumerate(q["haystack_sessions"]):
                 t0 = time.perf_counter()
                 if backend == "qdrant":
