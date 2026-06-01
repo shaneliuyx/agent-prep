@@ -28,6 +28,10 @@ from typing import Any, Literal, Protocol
 
 from src.audit import AuditEntry, record_audit
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:  # avoid runtime import; ThreeTierMemory only used as a type hint
+    from src.three_tier_memory import ThreeTierMemory
+
 
 class TieredMemoryLike(Protocol):
     """Structural type covering both EverCore (src.tiered_memory.TieredMemory)
@@ -123,6 +127,9 @@ class ConsolidationResult:
     facts_deleted: int = 0        # action="delete" — old fact was false
     facts_superseded: int = 0     # action="supersede" — state evolved (old kept, marked)
     facts_coexisted: int = 0      # action="coexist" — scoped variant; both true
+    # L3 hyperedge counters (Phase 8 — written alongside L2 by consolidate_with_l3).
+    edges_imprinted: int = 0      # typed hyperedges POSTed to HyperMem (L3)
+    edges_skipped_dedup: int = 0  # edges already seen (idempotency-key hit)
 
 
 def _ensure_dedup_table(db_path: Path | None = None) -> sqlite3.Connection:
@@ -516,4 +523,116 @@ async def consolidate(
             result.errors.append(f"{quest_id}: {type(e).__name__}: {e}")
 
     dedup.close()
+    return result
+
+
+# ── Phase 8: L3 (HyperMem) hyperedge extension ───────────────────────
+# Extends the L2 consolidate() above with typed-hyperedge extraction written
+# to the L3 HyperMem tier. NOTE the adaptation vs the chapter sketch: the real
+# consolidate() is async and pulls closed quests from guild itself (no scrolls
+# arg), so consolidate_with_l3() awaits it for the L2 path and takes an explicit
+# `scrolls` list only for L3 edge extraction. Edge writes are idempotent via a
+# dedup table (mirrors _ensure_dedup_table's `imprinted` pattern).
+import hashlib
+
+EDGE_EXTRACT_PROMPT = """Extract typed entity-relations from this scroll.
+Each relation is a hyperedge connecting >=2 typed entities.
+
+Entity types: user, project, topic, tech, person, system, event
+Relations: worked-on, uses, depends-on, mentions, after, before, related-to
+
+Output JSON array of {nodes: [{type, id}, ...], relation: <verb>}.
+Output ONLY the JSON array. If no extractable relations, output [].
+
+SCROLL: {scroll_text}"""
+
+
+def _ensure_edge_dedup_table(db_path: Path | None = None) -> sqlite3.Connection:
+    """Edge idempotency table (twin of _ensure_dedup_table's `imprinted`)."""
+    if db_path is None:
+        db_path = DEDUP_DB
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE IF NOT EXISTS edges_imprinted (edge_key TEXT PRIMARY KEY)")
+    return conn
+
+
+def _edge_already_imprinted(key: str, db_path: Path | None = None) -> bool:
+    conn = _ensure_edge_dedup_table(db_path)
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM edges_imprinted WHERE edge_key = ?", (key,)
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def _record_edge_imprint(key: str, db_path: Path | None = None) -> None:
+    conn = _ensure_edge_dedup_table(db_path)
+    try:
+        conn.execute("INSERT OR IGNORE INTO edges_imprinted (edge_key) VALUES (?)", (key,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _edge_idempotency_key(scroll_id: str, edge: dict) -> str:
+    """Idempotent hash: scroll_id + relation + canonicalized sorted entity list."""
+    canonical_nodes = sorted(f"{n['type']}:{n['id']}" for n in edge["nodes"])
+    payload = f"{scroll_id}|{edge['relation']}|{'|'.join(canonical_nodes)}"
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def extract_typed_edges(scroll_text: str) -> list[dict]:
+    """One LLM call -> JSON array of typed hyperedges (same client pattern as
+    summarize_scroll). Returns [] on empty/parse failure."""
+    client = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
+    resp = client.chat.completions.create(
+        model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+        messages=[{"role": "user", "content": EDGE_EXTRACT_PROMPT.format(scroll_text=scroll_text)}],
+        temperature=0.0,
+        max_tokens=800,
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+async def consolidate_with_l3(
+    tm: "ThreeTierMemory",
+    scrolls: list[dict],
+    promotion_threshold: float | None = None,
+) -> ConsolidationResult:
+    """Phase 8 extended consolidate: L2 imprints (via the async consolidate())
+    PLUS L3 typed hyperedges POSTed to HyperMem.
+
+    `scrolls` is a list of {"quest_id": str, "text": str} for the L3 edge pass.
+    L3 writes are deduped by _edge_idempotency_key so re-runs are idempotent.
+    """
+    # L2 path — unchanged behavior; consolidate() pulls its own closed quests.
+    result = await consolidate(tm, promotion_threshold=promotion_threshold)
+
+    # L3 extension — extract + write typed hyperedges per supplied scroll.
+    edges_imprinted = 0
+    edges_skipped_dedup = 0
+    for scroll in scrolls:
+        for edge in extract_typed_edges(scroll["text"]):
+            key = _edge_idempotency_key(scroll["quest_id"], edge)
+            if _edge_already_imprinted(key):
+                edges_skipped_dedup += 1
+                continue
+            tm._hypermem.post("/api/v1/edges", json={
+                **edge,
+                "user_id": tm.user_id,
+                "provenance_scroll": scroll["quest_id"],
+                "idempotency_key": key,
+            })
+            _record_edge_imprint(key)
+            edges_imprinted += 1
+
+    result.edges_imprinted = edges_imprinted
+    result.edges_skipped_dedup = edges_skipped_dedup
     return result
