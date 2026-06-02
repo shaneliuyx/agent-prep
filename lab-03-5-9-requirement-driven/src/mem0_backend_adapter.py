@@ -40,6 +40,10 @@ class Mem0Adapter:
                     "model": os.getenv("MODEL_EMBED", "bge-m3-mlx-fp16"),
                     "openai_base_url": os.getenv("OMLX_BASE_URL"),
                     "api_key": os.getenv("OMLX_API_KEY", "dummy"),
+                    # bge-m3 = 1024-dim. mem0 derives the Qdrant collection dim
+                    # from the embedder; without this it defaults to OpenAI's
+                    # 1536 and Qdrant rejects the 1024 vectors on add().
+                    "embedding_dims": 1024,
                 },
             },
             "vector_store": {
@@ -78,7 +82,8 @@ class Mem0Adapter:
         (each result has at minimum a `content` field readable by the
         eval driver's reader-prompt builder).
         """
-        hits = self._client.search(query=query, user_id=self.user_id, limit=k)
+        # mem0 >= 2.x: user_id must go in filters=, not as a top-level kwarg.
+        hits = self._client.search(query=query, filters={"user_id": self.user_id}, limit=k)
         # Mem0 may return list-of-dicts OR {'results': [...]} depending on version
         if isinstance(hits, dict):
             hits = hits.get("results", []) or []
