@@ -29,7 +29,7 @@ class Mem0Adapter:
             "llm": {
                 "provider": "openai",
                 "config": {
-                    "model": os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+                    "model": os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
                     "openai_base_url": os.getenv("OMLX_BASE_URL"),
                     "api_key": os.getenv("OMLX_API_KEY", "dummy"),
                 },

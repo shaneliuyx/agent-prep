@@ -157,7 +157,7 @@ def summarize_scroll(scroll_text: str) -> str | None:
         api_key=os.getenv("OMLX_API_KEY"),
     )
     resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
         messages=[
             {"role": "system", "content": SUMMARIZE_PROMPT},
             {"role": "user", "content": scroll_text},
@@ -225,7 +225,7 @@ def extract_atomic_facts(scroll_text: str) -> list[dict]:
         api_key=os.getenv("OMLX_API_KEY"),
     )
     resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
         messages=[
             {"role": "system", "content": ATOMIZE_PROMPT},
             {"role": "user", "content": content},
@@ -588,7 +588,7 @@ def extract_typed_edges(scroll_text: str) -> list[dict]:
     summarize_scroll). Returns [] on empty/parse failure."""
     client = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
     resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
         messages=[{"role": "user", "content": EDGE_EXTRACT_PROMPT.format(scroll_text=scroll_text)}],
         temperature=0.0,
         max_tokens=800,

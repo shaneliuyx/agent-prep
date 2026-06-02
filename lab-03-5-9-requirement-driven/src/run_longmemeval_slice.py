@@ -8,7 +8,7 @@ results to ``data/results_w358.jsonl`` (line-by-line for incremental
 checkpoint).
 
 Architecture decisions (locked in §8.7.3 design pass, 2026-05-25):
-    1. Reader LLM   = ``gpt-oss-20b`` via local oMLX (same model for both
+    1. Reader LLM   = ``gemma-4-26B-A4B`` via local oMLX (MODEL_READER; same model for both
                       backends — fair comparison)
     2. EverCore     = one POST per LongMemEval session, distinct
                       ``session_id`` per session; flush each; single 60s

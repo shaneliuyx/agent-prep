@@ -176,7 +176,7 @@ def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
         now=now_iso,
     )
     resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8"),
+        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
         max_tokens=800,
