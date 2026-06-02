@@ -9,8 +9,7 @@ dependencies = [
     "openai>=2.36.0",
     "pydantic>=2.13.4",
     "qdrant-client>=1.12.0",
-    "mem0ai[nlp]>=0.1.0",  # [nlp] = spaCy lemmatizer (also: python -m spacy download en_core_web_sm)
-    "fastembed>=0.3.0",     # BM25 keyword search for mem0 hybrid retrieval
+    "mem0ai[nlp]>=0.1.0",  # [nlp] = spaCy lemmatizer (also: python -m spacy download en_core_web_sm). fastembed/BM25 omitted: its Qdrant/bm25 model is undownloadable on this box (HF Xet CDN); mem0 runs semantic-only.
     "python-dotenv>=1.0.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.30.0",
