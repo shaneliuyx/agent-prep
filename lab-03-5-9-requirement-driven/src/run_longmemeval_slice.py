@@ -46,9 +46,13 @@ EVERCORE = "http://localhost:1995"
 # ~85s. With 3 evidence sessions per LongMemEval question, EverCore imprint wall
 # alone is ~300s before the 60s async-extraction wait. Cap at 600s leaves room
 # for 4-session questions plus retrieve/read overhead.
-PER_QUESTION_CAP_S = 600.0
-EVERCORE_ASYNC_WAIT_S = 60.0
-EVERCORE_HTTP_TIMEOUT_S = 180.0  # FLUSH does synchronous LLM extraction
+# All three are env-overridable. EverCore's /memories/flush runs SYNCHRONOUS LLM
+# extraction on oMLX; a large LongMemEval session + oMLX contention routinely
+# exceeds the old 180s HTTP timeout, so the default is raised to 600s and the
+# per-question cap to 1200s. Lower them via env for fast local iteration.
+PER_QUESTION_CAP_S = float(os.getenv("PER_QUESTION_CAP_S", "1200"))
+EVERCORE_ASYNC_WAIT_S = float(os.getenv("EVERCORE_ASYNC_WAIT_S", "60"))
+EVERCORE_HTTP_TIMEOUT_S = float(os.getenv("EVERCORE_HTTP_TIMEOUT_S", "600"))
 TOP_K = 5
 READER_MODEL = os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8")
 
