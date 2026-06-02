@@ -104,13 +104,15 @@ class AtomicFactMemory:
         self, query: str, k: int = 5, **_kwargs: Any
     ) -> list[dict[str, Any]]:
         vector = self._embed(query)
-        hits = self._qdrant.search(
+        # qdrant-client >= 1.12 removed .search(); query_points() is the
+        # replacement and returns a response object with a .points list.
+        resp = self._qdrant.query_points(
             collection_name=self.collection,
-            query_vector=vector,
+            query=vector,
             limit=k,
             with_payload=True,
         )
         return [
             {"content": h.payload["content"], "score": h.score, "metadata": h.payload}
-            for h in hits
+            for h in resp.points
         ]

@@ -48,6 +48,10 @@ class Mem0Adapter:
                     "host": "localhost",
                     "port": 6333,
                     "collection_name": f"mem0_{user_id}",
+                    # bge-m3 emits 1024-dim vectors; mem0 defaults to 1536
+                    # (OpenAI text-embedding-3) and creates the collection at
+                    # that dim, causing "expected dim 1536, got 1024" on add().
+                    "embedding_model_dims": 1024,
                 },
             },
         }
