@@ -66,7 +66,13 @@ RESULTS_PATH = LAB_ROOT / "data" / "results_w358.jsonl"
 
 READER_PROMPT = """You are answering a question using ONLY the retrieved memories below.
 
-If the memories contain the answer, respond with a single short answer (one short sentence, or a single number/name). If they don't, respond with: I don't know.
+Read EVERY memory before answering — the answer may be spread across several of them.
+- If the question asks "how many", a count, or a list: identify each DISTINCT
+  matching item across all memories, then give the total. Do not undercount —
+  the same item may be phrased differently in different memories, and different
+  items may appear in different memories.
+- Otherwise: answer with a single short sentence, number, or name.
+- Only respond "I don't know" if NONE of the memories are relevant to the question.
 
 QUESTION: {question}
 
