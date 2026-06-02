@@ -58,7 +58,7 @@ PER_QUESTION_CAP_S = float(os.getenv("PER_QUESTION_CAP_S", "1200"))
 EVERCORE_ASYNC_WAIT_S = float(os.getenv("EVERCORE_ASYNC_WAIT_S", "60"))
 EVERCORE_HTTP_TIMEOUT_S = float(os.getenv("EVERCORE_HTTP_TIMEOUT_S", "600"))
 TOP_K = 5
-READER_MODEL = os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8")
+READER_MODEL = os.getenv("MODEL_READER", os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"))
 
 LAB_ROOT = pathlib.Path(__file__).resolve().parent.parent
 SLICE_PATH = LAB_ROOT / "data" / "longmemeval_slice_w358.json"
