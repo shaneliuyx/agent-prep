@@ -38,6 +38,30 @@ Output: []
 MESSAGE: {message}"""
 
 
+def _parse_fact_array(raw: str) -> list[str]:
+    """Robustly parse an LLM's JSON fact array. Models often wrap the array in a
+    ```json fence or add prose; a bare json.loads then fails (the bug that made
+    every non-gpt-oss model look 'broken'). Strip fences, else extract the first
+    [...] array. Returns [] only on genuine non-array output."""
+    import re
+
+    s = raw.strip()
+    s = re.sub(r"^```(?:json)?\s*", "", s)
+    s = re.sub(r"\s*```$", "", s)
+    candidates = [s]
+    m = re.search(r"\[.*\]", s, re.S)
+    if m:
+        candidates.append(m.group(0))
+    for c in candidates:
+        try:
+            facts = json.loads(c)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(facts, list):
+            return [str(f).strip() for f in facts if str(f).strip()]
+    return []
+
+
 class AtomicFactMemory:
     """1-tier atomic-fact backend conforming to the lab's TieredMemory interface."""
 
@@ -50,7 +74,13 @@ class AtomicFactMemory:
             api_key=os.getenv("OMLX_API_KEY", "dummy"),
         )
         self._embed_model = os.getenv("MODEL_EMBED", "bge-m3-mlx-fp16")
-        self._chat_model = os.getenv("MODEL_HAIKU", "gpt-oss-20b-MXFP4-Q8")
+        # Dedicated extraction model (benchmarked): gemma-4-26B-A4B gives the best
+        # fact recall here and is ~5x faster than gpt-oss-20b. Separate from
+        # MODEL_HAIKU so swapping the extraction model doesn't disturb mem0/reader.
+        self._chat_model = os.getenv(
+            "MODEL_EXTRACT",
+            os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
+        )
         self._qdrant = QdrantClient(host="localhost", port=6333)
         self._ensure_collection()
 
@@ -68,36 +98,40 @@ class AtomicFactMemory:
             model=self._chat_model,
             messages=[{"role": "user", "content": ATOMIC_EXTRACT_PROMPT.format(message=message)}],
             temperature=0.0,
-            max_tokens=600,
+            max_tokens=1200,  # avoid truncating the JSON array when a message is fact-dense
         )
         raw = (resp.choices[0].message.content or "").strip()
-        try:
-            facts = json.loads(raw)
-            return [str(f).strip() for f in facts if str(f).strip()]
-        except (json.JSONDecodeError, TypeError):
-            return []  # parse failure → no facts extracted (pessimistic floor)
+        return _parse_fact_array(raw)
 
     def _embed(self, text: str) -> list[float]:
         resp = self._llm.embeddings.create(model=self._embed_model, input=text)
         return list(resp.data[0].embedding)
 
     def imprint(self, content: str, metadata: dict[str, Any] | None = None) -> str:
-        """Extract atomic facts, embed each, upsert one Qdrant point per fact.
-        Returns space-joined fact IDs (for the eval driver's loose return contract)."""
-        facts = self._extract_facts(content)
-        if not facts:
-            return ""
-        points = []
-        ids = []
-        for fact in facts:
-            pid = str(uuid.uuid4())
-            ids.append(pid)
-            vector = self._embed(fact)
-            payload = {"content": fact, "user_id": self.user_id, "agent_id": self.agent_id}
-            if metadata:
-                payload.update(metadata)
-            points.append(PointStruct(id=pid, vector=vector, payload=payload))
-        self._qdrant.upsert(collection_name=self.collection, points=points)
+        """Extract atomic facts PER MESSAGE, embed each, upsert one Qdrant point
+        per fact. Returns space-joined fact IDs.
+
+        Per-message extraction (the chapter's design) is the recall fix: one
+        extraction call on a whole ~12K-char session scroll yields ~2 facts and
+        misses the needles; extracting from each message captures far more (the
+        'pick up X' / 'return Y' mentions a count question depends on). The scroll
+        arrives as one-message-per-line ('[USER] ...' / '[ASSISTANT] ...'); split
+        on lines and extract from each non-trivial one."""
+        messages = [ln.strip() for ln in content.splitlines() if len(ln.strip()) > 15]
+        if not messages:
+            messages = [content]
+        points: list[PointStruct] = []
+        ids: list[str] = []
+        for msg in messages:
+            for fact in self._extract_facts(msg):
+                pid = str(uuid.uuid4())
+                ids.append(pid)
+                payload = {"content": fact, "user_id": self.user_id, "agent_id": self.agent_id}
+                if metadata:
+                    payload.update(metadata)
+                points.append(PointStruct(id=pid, vector=self._embed(fact), payload=payload))
+        if points:
+            self._qdrant.upsert(collection_name=self.collection, points=points)
         return " ".join(ids)
 
     def query_context(
