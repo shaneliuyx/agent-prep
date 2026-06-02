@@ -35,6 +35,10 @@ import time
 import traceback
 import urllib.request
 
+from dotenv import load_dotenv
+
+load_dotenv()  # read lab .env (OMLX_BASE_URL/KEY, MODEL_*, EVERCORE_*/cap overrides)
+
 from openai import OpenAI
 
 from src.consolidation import summarize_scroll
