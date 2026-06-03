@@ -70,9 +70,11 @@ class TieredMemory:
             base_url=self.config.qdrant_base_url,
             timeout=self.config.qdrant_timeout_s,
         )
+        # Embeddings only (this backend summarizes via consolidation, not here)
+        # → local oMLX embed endpoint; the LLM endpoint hosts no embed model.
         self._llm = OpenAI(
-            base_url=os.getenv("OMLX_BASE_URL"),
-            api_key=os.getenv("OMLX_API_KEY"),
+            base_url=os.getenv("EMBED_BASE_URL", os.getenv("OMLX_BASE_URL")),
+            api_key=os.getenv("EMBED_API_KEY", os.getenv("OMLX_API_KEY")),
         )
         self._embed_model = os.getenv("MODEL_EMBED", "bge-m3-mlx-fp16")
         self._ensure_collection()

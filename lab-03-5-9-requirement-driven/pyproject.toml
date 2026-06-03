@@ -9,7 +9,8 @@ dependencies = [
     "openai>=2.36.0",
     "pydantic>=2.13.4",
     "qdrant-client>=1.12.0",
-    "mem0ai[nlp]>=0.1.0",  # [nlp] = spaCy lemmatizer (also: python -m spacy download en_core_web_sm). fastembed/BM25 omitted: its Qdrant/bm25 model is undownloadable on this box (HF Xet CDN); mem0 runs semantic-only.
+    "mem0ai[nlp]>=0.1.0",  # [nlp] = spaCy lemmatizer (also: python -m spacy download en_core_web_sm)
+    "fastembed>=0.8.0",    # mem0 hybrid dense+BM25. Qdrant/bm25 won't download from HF Xet CDN on this box; pre-fetched to ~/.cache/fastembed. REQUIRES env FASTEMBED_CACHE_PATH=<abs path to ~/.cache/fastembed> (set in .env) so mem0's internal SparseTextEmbedding loads from cache (0.3s, no network).
     "python-dotenv>=1.0.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.30.0",

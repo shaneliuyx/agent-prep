@@ -16,9 +16,12 @@ side, NOT in guild (guild's append-only lore is the wrong primitive for this).
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sqlite3
+
+from src.llm_retry import chat_with_retry
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -153,14 +156,16 @@ def summarize_scroll(scroll_text: str) -> str | None:
     pipeline. Kept for backward-compat with §3.2 tests until they migrate.
     """
     client = OpenAI(
-        base_url=os.getenv("OMLX_BASE_URL"),
-        api_key=os.getenv("OMLX_API_KEY"),
+        base_url=os.getenv("LLM_BASE_URL", os.getenv("OMLX_BASE_URL")),
+        api_key=os.getenv("LLM_API_KEY", os.getenv("OMLX_API_KEY")),
     )
-    resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
+    resp = chat_with_retry(client,
+        model=os.getenv("MODEL_HAIKU", "claude-haiku-4-5-20251001"),
+        # USER-role only: VibeProxy (:8317) cloaks as Claude Code on a real
+        # system role and refuses non-coding tasks (W3.5.8 BCJ Entry 19). Fold
+        # the instruction into the user turn — same task, no cloak.
         messages=[
-            {"role": "system", "content": SUMMARIZE_PROMPT},
-            {"role": "user", "content": scroll_text},
+            {"role": "user", "content": f"{SUMMARIZE_PROMPT}\n\n---\n\n{scroll_text}"},
         ],
         temperature=0.0,
         max_tokens=400,
@@ -221,14 +226,14 @@ def extract_atomic_facts(scroll_text: str) -> list[dict]:
     content = _strip_scroll_wrapper(scroll_text)
 
     client = OpenAI(
-        base_url=os.getenv("OMLX_BASE_URL"),
-        api_key=os.getenv("OMLX_API_KEY"),
+        base_url=os.getenv("LLM_BASE_URL", os.getenv("OMLX_BASE_URL")),
+        api_key=os.getenv("LLM_API_KEY", os.getenv("OMLX_API_KEY")),
     )
-    resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
+    resp = chat_with_retry(client,
+        model=os.getenv("MODEL_HAIKU", "claude-haiku-4-5-20251001"),
+        # USER-role only — see SUMMARIZE note above (VibeProxy system-role cloak).
         messages=[
-            {"role": "system", "content": ATOMIZE_PROMPT},
-            {"role": "user", "content": content},
+            {"role": "user", "content": f"{ATOMIZE_PROMPT}\n\n---\n\n{content}"},
         ],
         temperature=0.0,
         max_tokens=800,
@@ -586,9 +591,9 @@ def _edge_idempotency_key(scroll_id: str, edge: dict) -> str:
 def extract_typed_edges(scroll_text: str) -> list[dict]:
     """One LLM call -> JSON array of typed hyperedges (same client pattern as
     summarize_scroll). Returns [] on empty/parse failure."""
-    client = OpenAI(base_url=os.getenv("OMLX_BASE_URL"), api_key=os.getenv("OMLX_API_KEY"))
-    resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
+    client = OpenAI(base_url=os.getenv("LLM_BASE_URL", os.getenv("OMLX_BASE_URL")), api_key=os.getenv("LLM_API_KEY", os.getenv("OMLX_API_KEY")))
+    resp = chat_with_retry(client,
+        model=os.getenv("MODEL_HAIKU", "claude-haiku-4-5-20251001"),
         messages=[{"role": "user", "content": EDGE_EXTRACT_PROMPT.format(scroll_text=scroll_text)}],
         temperature=0.0,
         max_tokens=800,

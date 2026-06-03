@@ -73,7 +73,9 @@ def judge(question: str, gold_answer: str, predicted_answer: str) -> dict:
     user_payload = _JUDGE_TEMPLATE.format(
         question=question, gold=gold_answer, predicted=predicted_answer
     )
-    resp = _client().chat.completions.create(
+    from src.llm_retry import chat_with_retry  # judge is on VibeProxy → ride 503 cooldowns
+    resp = chat_with_retry(
+        _client(),
         model=_MODEL,
         messages=[{"role": "user", "content": user_payload}],
         temperature=0.0,

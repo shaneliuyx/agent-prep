@@ -35,6 +35,26 @@ class ThreeTierMemory(TieredMemory):
     ) -> None:
         super().__init__(user_id=user_id, agent_id=agent_id, config=config)
         self._hypermem = httpx.Client(base_url=hypermem_url, timeout=30.0)
+        # L2 = atomic-fact store (same engine as the `atomic_fact` backend), NOT
+        # the inherited raw-scroll embed. TieredMemory.imprint embeds whole
+        # content as ONE point; fed a session scroll it stores a ~4 KB blob, and
+        # the reader truncates each memory to 400 chars — so only the session
+        # opening survives (measured: three_tier returned just the blazer → 1).
+        # Delegating L2 to AtomicFactMemory gives per-fact, user-turn-filtered
+        # memories in a per-user `af_{user_id}` collection (no shared-namespace
+        # residue). L3 (HyperMem, below) keeps its real job: multi-entity
+        # relation intersection via query_relations().
+        from src.atomic_fact_memory import AtomicFactMemory
+        self._l2 = AtomicFactMemory(user_id=user_id, agent_id=agent_id)
+
+    def imprint(self, content: str, metadata: dict[str, Any] | None = None) -> str:
+        """L2 write — atomic facts (user-turn extraction), not a raw-scroll blob."""
+        return self._l2.imprint(content, metadata)
+
+    def query_context(self, query: str, k: int = 5, **_kwargs: Any) -> list[dict[str, Any]]:
+        """L2 read — cosine top-k over atomic facts. Multi-entity relation
+        queries go through query_relations() (L3), not this path."""
+        return self._l2.query_context(query, k=k)
 
     def query_relations(
         self,

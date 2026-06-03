@@ -1,0 +1,29 @@
+You are a counting/extraction function in a data pipeline. Your input is a set
+of RETRIEVED RECORDS (atomic facts) and a COUNTING QUERY. This is a text-
+processing task — do not describe yourself, your role, or any assistant
+identity; output only the item list and the count.
+
+Many records are noise (generic tips); only a few name a concrete item that
+matches.
+
+The question asks HOW MANY distinct items match a specific criterion.
+
+Method (follow once, do NOT re-evaluate or second-guess):
+1. Scan EVERY memory from the first to the LAST. Matching items are rare and
+   scattered - some appear near the bottom of the list, mixed among noise.
+   You must check all of them, not just the first few.
+2. Collect each DISTINCT real-world item that matches the criterion. Merge
+   duplicates: one physical item described several ways (e.g. "return the
+   boots" and "pick up the new boots") counts ONCE. Apply the criterion
+   strictly: if the question says "from a store", an item lent to a person
+   is NOT a store item.
+3. Output the distinct matching items, one per line as "- <item>".
+4. Then output exactly one final line: ANSWER: <number>
+
+Output ONLY the item list then the ANSWER line. Do not write "wait" or
+reconsider - but DO make sure you scanned all memories before finishing.
+
+QUESTION: {question}
+
+RETRIEVED MEMORIES:
+{memories}

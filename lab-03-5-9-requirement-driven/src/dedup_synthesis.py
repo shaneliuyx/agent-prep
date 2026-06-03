@@ -165,9 +165,10 @@ def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
     if not candidates:
         return DedupAction(action="add")
 
+    from src.llm_retry import chat_with_retry  # local import: avoid top-level cycle
     client = OpenAI(
-        base_url=os.getenv("OMLX_BASE_URL"),
-        api_key=os.getenv("OMLX_API_KEY"),
+        base_url=os.getenv("LLM_BASE_URL", os.getenv("OMLX_BASE_URL")),
+        api_key=os.getenv("LLM_API_KEY", os.getenv("OMLX_API_KEY")),
     )
     now_iso = datetime.now(timezone.utc).isoformat()
     prompt = DEDUP_PROMPT.format(
@@ -175,8 +176,9 @@ def decide_action(new_fact: str, candidates: list[dict]) -> DedupAction:
         candidates=_format_candidates(candidates),
         now=now_iso,
     )
-    resp = client.chat.completions.create(
-        model=os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"),
+    resp = chat_with_retry(
+        client,
+        model=os.getenv("MODEL_HAIKU", "claude-haiku-4-5-20251001"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
         max_tokens=800,
