@@ -1,0 +1,11 @@
+[project]
+name = "lab-03-5-96-gbrain"
+version = "0.1.0"
+description = "W3.5.96 — a memory-augmented agent that uses GBrain as its memory layer over MCP"
+requires-python = ">=3.11"
+dependencies = [
+    "smolagents[mcp]>=1.26.0",  # agent framework + MCP extra (mcpadapt) for ToolCollection.from_mcp
+    "mcp>=1.2.0",          # Model Context Protocol (stdio transport)
+    "openai>=1.40.0",      # OpenAIServerModel backend (oMLX / VibeProxy, OpenAI-compatible)
+    "python-dotenv>=1.0.0",
+]
