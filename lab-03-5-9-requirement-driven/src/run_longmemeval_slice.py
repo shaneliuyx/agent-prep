@@ -57,6 +57,9 @@ EVERCORE = "http://localhost:1995"
 # per-question cap to 1200s. Lower them via env for fast local iteration.
 PER_QUESTION_CAP_S = float(os.getenv("PER_QUESTION_CAP_S", "1200"))
 EVERCORE_ASYNC_WAIT_S = float(os.getenv("EVERCORE_ASYNC_WAIT_S", "60"))
+# Set by --skip-imprint: reuse already-persisted stores (read-only re-run) so
+# read-side operator iteration is ~2 min instead of a ~25 min re-imprint.
+SKIP_IMPRINT = False
 EVERCORE_HTTP_TIMEOUT_S = float(os.getenv("EVERCORE_HTTP_TIMEOUT_S", "600"))
 TOP_K = 5
 READER_MODEL = os.getenv("MODEL_READER", os.getenv("MODEL_HAIKU", "gemma-4-26B-A4B-it-heretic-4bit"))
@@ -129,6 +132,83 @@ RETRIEVED RECORDS:
 {memories}
 
 ANSWER:"""
+
+# Component 1 (read-side operators). Single-session axes were defaulting to
+# TOP_K=5 — too shallow; the answer fact sits at rank 5-20 (measured: a
+# single-session-assistant answer at rank 6). Pull a deeper window. Temporal
+# ORDERING questions ("which did I do FIRST, A or B?") are the temporal-reasoning
+# failure shape: solvable by the SAME [sN] recency tags as KU but EARLIEST-wins.
+SS_TOP_K = int(os.getenv("SS_TOP_K", "20"))            # single-session-* depth
+TEMPORAL_TOP_K = int(os.getenv("TEMPORAL_TOP_K", "30"))  # ordering needs both events
+TEMPORAL_MAX_TOKENS = int(os.getenv("TEMPORAL_MAX_TOKENS", "300"))
+
+_ORDER_WORDS = ("first", "before", "after", "earlier", "earliest", "prior", "initially", "originally")
+
+
+def _is_ordering_question(question: str) -> bool:
+    """Temporal-ORDER question ('which event did I attend first', 'before X')."""
+    ql = f" {question.lower()} "
+    return any(f" {w}" in ql for w in _ORDER_WORDS)
+
+
+TEMPORAL_READER_PROMPT = """You are an information-extraction function in a data pipeline. Your input is RETRIEVED RECORDS and a TEMPORAL-ORDER QUERY. This is a text-processing task — do not describe yourself or your role; output only the answer.
+
+IMPORTANT: each record is tagged [sN] = the conversation session it came from; a LOWER N is EARLIER in time. The question asks about ORDER (which happened FIRST/earlier, or what came BEFORE/AFTER something). Identify the session [sN] of each candidate event; the event in the LOWER [sN] session happened FIRST/earlier. If asked "which did I do first, A or B", output the one whose record has the lower [sN]. Output only the answer (the event/item name), not the session number.
+
+QUERY: {question}
+
+RETRIEVED RECORDS:
+{memories}
+
+ANSWER:"""
+
+
+PREFERENCE_MAX_TOKENS = int(os.getenv("PREFERENCE_MAX_TOKENS", "160"))
+
+# single-session-preference asks for a RECOMMENDATION; the gold is the user's
+# latent preference the answer should ALIGN with ("prefers Sony-compatible
+# accessories"). The extraction reader returns "I don't know" (no literal fact
+# answers "suggest a hotel"). This operator instead GENERATES a suggestion
+# consistent with the user's stated preferences in the records.
+PREFERENCE_READER_PROMPT = """You are a recommendation function in a data pipeline. Your input is RETRIEVED RECORDS about a user (their stated preferences, context, and past statements) and a REQUEST for a suggestion/recommendation. This is a text-processing task — do not describe yourself or your role.
+
+Infer the user's PREFERENCES from the records and produce a concrete recommendation that is CONSISTENT with what they prefer (their tools, brands, level, constraints, tastes evident in the records). Do NOT answer "I don't know" — give a preference-aligned suggestion grounded in the records.
+
+REQUEST: {question}
+
+RECORDS:
+{memories}
+
+ANSWER:"""
+
+
+def _parse_lme_date(s: str):
+    """Parse a LongMemEval haystack_date ('2023/04/10 (Mon) 17:50') → datetime,
+    or None if unparseable."""
+    import datetime as _dt
+    import re as _re
+    s = _re.sub(r"\s*\([^)]*\)", "", str(s)).strip()
+    for fmt in ("%Y/%m/%d %H:%M", "%Y/%m/%d"):
+        try:
+            return _dt.datetime.strptime(s, fmt)
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
+def _chrono_sessions(q: dict) -> list:
+    """Return haystack_sessions reordered CHRONOLOGICALLY by haystack_dates.
+    LongMemEval's session list order is NOT always chronological (measured ~17%
+    of slice questions have index order != date order), so imprinting in index
+    order makes the [sN]/seq recency signal wrong cross-session. Sorting by the
+    real per-session timestamp fixes that; undated sessions keep original order."""
+    import datetime as _dt
+    sessions = q.get("haystack_sessions", [])
+    dates = q.get("haystack_dates", [])
+    parsed = [(_parse_lme_date(dates[i]) if i < len(dates) else None, i)
+              for i in range(len(sessions))]
+    parsed.sort(key=lambda p: (p[0] is None, p[0] or _dt.datetime.min, p[1]))
+    return [sessions[i] for _, i in parsed]
 
 
 def _session_recency(meta: dict) -> int:
@@ -267,6 +347,62 @@ def _reader_client() -> OpenAI:
     )
 
 
+# Abstention grounding gate (opt-in via ABSTAIN_GATE=1). The answer operators
+# (count/KU/temporal) are built to ALWAYS produce an answer (the cloak-fix made
+# the reader never abstain), so on abstention questions — where the answer is NOT
+# in memory — they FABRICATE ("5 engineers", "ANSWER: 2"). This gate runs a
+# SEPARATE strict grounding check FIRST and abstains when the records don't
+# answer the question. It's a distinct pass (the answer path is unchanged), so
+# the only regression vector is the gate false-abstaining on an answerable
+# question — which is exactly what we measure. Opt-in so the default behaviour
+# (and all prior measurements) are untouched.
+ABSTAIN_GATE = os.getenv("ABSTAIN_GATE", "0") == "1"
+ABSTENTION_ANSWER = "The information provided is not enough to answer this question."
+# TOPIC-PRESENCE gate (replaces a binary GROUNDED/UNGROUNDED check, which
+# over-refused: it conflated "answer not verbatim" with "unanswerable" and killed
+# 9 answerable questions). LongMemEval abstention golds are "you did not mention
+# X" — TOPIC ABSENCE, not answer-incompleteness. So the right question is "is the
+# question's SUBJECT present in the records AT ALL?" (a far more reliable judgment
+# than answer-groundedness), biased to PRESENT, with few-shot calibration. Refs:
+# AbstentionBench (2506.09038), Decision-aware Answer/Ask/Abstain (2604.04565).
+TOPIC_PRESENCE_PROMPT = """You are a topic-presence classifier in a data pipeline. Given RETRIEVED RECORDS and a QUESTION, identify the SPECIFIC subject the question asks about (the named entity, event, item, or attribute), then decide whether that subject is mentioned in the records AT ALL.
+
+Reply with exactly one word:
+- PRESENT: the subject appears in the records, EVEN IF the exact answer detail is not explicit, is implied, or is spread across several records.
+- ABSENT: the subject is entirely missing from every record.
+
+Bias strongly to PRESENT. Reply ABSENT only when the subject is genuinely not mentioned anywhere. Different phrasing, a missing detail, or needing to combine records is still PRESENT.
+
+Examples:
+QUESTION: How many museums did I visit in December? RECORDS: (talk only about restaurants, a concert, a hike) -> ABSENT
+QUESTION: Which did I get first, the phone or the laptop? RECORDS: (mention buying a phone and a laptop in different sessions) -> PRESENT
+QUESTION: What dessert shop did you recommend in Orlando? RECORDS: (list several Orlando dessert shops) -> PRESENT
+
+QUESTION: {question}
+
+RETRIEVED RECORDS:
+{memories}
+
+VERDICT:"""
+
+
+def _subject_present(question: str, body: str) -> bool:
+    """Topic-presence pre-check for the abstention gate. Returns True (subject
+    present → answer normally) unless the classifier says the subject is entirely
+    ABSENT. Biased to PRESENT to avoid false-abstention on answerable questions."""
+    try:
+        resp = chat_with_retry(
+            _reader_client(), model=READER_MODEL,
+            messages=[{"role": "user", "content": TOPIC_PRESENCE_PROMPT.format(
+                question=question, memories=body)}],
+            temperature=0.0, max_tokens=8,
+        )
+        verdict = (resp.choices[0].message.content or "").strip().upper()
+        return "ABSENT" not in verdict  # default PRESENT on any ambiguity
+    except Exception:  # noqa: BLE001 — gate must never crash the answer path
+        return True  # on error, don't abstain
+
+
 def _read_answer(question: str, memories: list[dict], question_type: str = "") -> str:
     """Format memories + question, ask reader LLM for an answer.
 
@@ -277,12 +413,22 @@ def _read_answer(question: str, memories: list[dict], question_type: str = "") -
     enumeration on the multi-session counting questions."""
     is_ku = (question_type == "knowledge-update")
     is_count = _is_count_question(question)
+    is_order = (question_type == "temporal-reasoning") and _is_ordering_question(question)
+    is_single = question_type.startswith("single-session")
     if is_ku:                       # latest-value-wins path (recency-tagged)
         cap, prompt_tmpl, max_tokens = KU_TOP_K, KU_READER_PROMPT, KU_MAX_TOKENS
+    elif is_order:                  # temporal-ORDER path (earliest-[sN]-wins)
+        cap, prompt_tmpl, max_tokens = TEMPORAL_TOP_K, TEMPORAL_READER_PROMPT, TEMPORAL_MAX_TOKENS
     elif is_count:                  # enumerate-then-count path
         cap, prompt_tmpl, max_tokens = COUNT_TOP_K, COUNT_READER_PROMPT, COUNT_MAX_TOKENS
+    elif question_type == "single-session-preference":  # generate preference-aligned suggestion
+        cap, prompt_tmpl, max_tokens = SS_TOP_K, PREFERENCE_READER_PROMPT, PREFERENCE_MAX_TOKENS
+    elif is_single:                 # single-session lookup — deeper than terse (k=5 too shallow)
+        cap, prompt_tmpl, max_tokens = SS_TOP_K, READER_PROMPT, READ_MAX_TOKENS
     else:                           # terse single-shot lookup
         cap, prompt_tmpl, max_tokens = TOP_K, READER_PROMPT, READ_MAX_TOKENS
+    # [sN] recency tags are load-bearing for the order-by-session operators.
+    tag_recency = is_ku or is_order
     if not memories:
         body = "(no memories retrieved)"
     else:
@@ -291,12 +437,29 @@ def _read_answer(question: str, memories: list[dict], question_type: str = "") -
             content = (m.get("content") or m.get("summary")
                        or m.get("episode") or "").strip()
             tag = ""
-            if is_ku:               # surface recency so latest-wins is resolvable
-                s = _session_recency(m.get("metadata", {}))
+            if tag_recency:         # surface order so latest/earliest-wins resolves
+                meta = m.get("metadata", {}) or {}
+                # PER-OPERATOR recency granularity (measured 6a1eabeb regression):
+                #  - temporal ORDERING wants FINE per-fact `seq` (resolves intra-
+                #    session order: the gpt4_2487a7cb fix).
+                #  - KU latest-wins wants COARSE session `[sN]`: fine seq re-exposes
+                #    an old value re-mentioned in a later turn (a "personal best"
+                #    superlative) and latest-wins picks it; coarse session order
+                #    collapses that. Chrono-sort still applies to BOTH (correct
+                #    cross-session). seq falls back to [sN] when absent.
+                if is_order:
+                    s = meta.get("seq", _session_recency(meta))
+                else:               # is_ku
+                    s = _session_recency(meta)
                 tag = f"|s{s}" if s >= 0 else ""
             lines.append(f"[{i}{tag}] {content[:400]}")
         # Knowledge-update: order by recency so the reader sees newest last.
         body = "\n".join(lines)
+    # Abstention gate (opt-in): strict grounding pre-check; abstain if the records
+    # don't contain the answer. Runs BEFORE the answer operators so they can't
+    # fabricate on unanswerable questions. Skipped when no memories (handled below).
+    if ABSTAIN_GATE and memories and not _subject_present(question, body):
+        return ABSTENTION_ANSWER
     prompt = prompt_tmpl.format(question=question, memories=body)
     # ROOT FIX for the VibeProxy "Claude-Code persona" cloak: the prompt is framed
     # as a data-extraction task (see READER_PROMPT / reader_count.txt), so the
@@ -349,40 +512,47 @@ def _run_backend(backend: str, q: dict) -> dict:
 
     try:
         if backend == "evercore":
-            for idx, session in enumerate(q["haystack_sessions"]):
-                t0 = time.perf_counter()
-                meta = _ec_imprint_session(user_id, f"{qid}-{idx}", session)
-                imprint_walls.append(time.perf_counter() - t0)
-                imprint_meta.append(meta)
-            time.sleep(EVERCORE_ASYNC_WAIT_S)
+            if not SKIP_IMPRINT:    # --skip-imprint: reuse the persisted store
+                for idx, session in enumerate(_chrono_sessions(q)):  # chronological → idx/seq track time
+                    t0 = time.perf_counter()
+                    meta = _ec_imprint_session(user_id, f"{qid}-{idx}", session)
+                    imprint_walls.append(time.perf_counter() - t0)
+                    imprint_meta.append(meta)
+                time.sleep(EVERCORE_ASYNC_WAIT_S)
         else:  # object-backends: qdrant / mem0 / atomic_fact / hybrid / three_tier
-            tm = _build_backend(backend, user_id)
+            tm = _build_backend(backend, user_id)  # always built — retrieve needs it
             assert tm is not None  # built above — narrows the hoisted Optional
-            for idx, session in enumerate(q["haystack_sessions"]):
-                t0 = time.perf_counter()
-                if backend == "qdrant":
-                    # 2-tier write path: summarize the session scroll, then imprint.
-                    imprinted, info = _qd_imprint_session(tm, qid, idx, session)
-                else:
-                    # W3.5.9 backends extract internally (atomic facts / messages /
-                    # routed), so imprint the raw session scroll directly.
-                    info = tm.imprint(
-                        _session_to_scroll(session),
-                        metadata={"quest_id": f"{qid}-sess{idx}",
-                                  "subject": f"LongMemEval session {idx}"},
-                    )
-                    imprinted = True
-                imprint_walls.append(time.perf_counter() - t0)
-                imprint_meta.append({"imprinted": imprinted, "info": str(info)[:80]})
+            if not SKIP_IMPRINT:    # --skip-imprint: stores already populated; read-only re-run
+                for idx, session in enumerate(_chrono_sessions(q)):  # chronological → idx/seq track time
+                    t0 = time.perf_counter()
+                    if backend == "qdrant":
+                        # 2-tier write path: summarize the session scroll, then imprint.
+                        imprinted, info = _qd_imprint_session(tm, qid, idx, session)
+                    else:
+                        # W3.5.9 backends extract internally (atomic facts / messages /
+                        # routed), so imprint the raw session scroll directly.
+                        info = tm.imprint(
+                            _session_to_scroll(session),
+                            metadata={"quest_id": f"{qid}-sess{idx}",
+                                      "subject": f"LongMemEval session {idx}"},
+                        )
+                        imprinted = True
+                    imprint_walls.append(time.perf_counter() - t0)
+                    imprint_meta.append({"imprinted": imprinted, "info": str(info)[:80]})
 
         wall_imprint = sum(imprint_walls)
 
         # Retrieval — count questions pull a deeper window so the scattered
         # answer items all land in context (k=5 can't gather them).
-        if q.get("question_type") == "knowledge-update":
+        qtype = q.get("question_type", "")
+        if qtype == "knowledge-update":
             ret_k = KU_TOP_K            # deep enough that old+new value both appear
+        elif qtype == "temporal-reasoning" and _is_ordering_question(q["question"]):
+            ret_k = TEMPORAL_TOP_K      # ordering needs both candidate events in context
         elif _is_count_question(q["question"]):
             ret_k = COUNT_TOP_K
+        elif qtype.startswith("single-session"):
+            ret_k = SS_TOP_K            # k=5 too shallow — answer fact at rank 5-20
         else:
             ret_k = TOP_K
         # Component 2 — role-aware retrieval (atomic_fact). Provenance policy by
@@ -462,6 +632,9 @@ def main() -> None:
                     help="run only first N questions (for wiring validation)")
     ap.add_argument("--skip-evercore", action="store_true",
                     help="skip EverCore backend (run Qdrant only)")
+    ap.add_argument("--skip-imprint", action="store_true",
+                    help="reuse already-persisted stores (read-only re-run) — fast "
+                         "iteration on read-side operators. Stores must already exist.")
     ap.add_argument("--backend", choices=[*ALL_BACKENDS, "all"], default="all",
                     help="run a single backend, or 'all' for the full comparison "
                          "(qdrant, evercore, mem0, atomic_fact, hybrid)")
@@ -480,6 +653,8 @@ def main() -> None:
                          "separate dir per slice (e.g. data/results_6axis) so "
                          "aggregate.py doesn't merge questions across slices.")
     args = ap.parse_args()
+    global SKIP_IMPRINT
+    SKIP_IMPRINT = args.skip_imprint
 
     backends = ALL_BACKENDS if args.backend == "all" else (args.backend,)
     if args.skip_evercore:

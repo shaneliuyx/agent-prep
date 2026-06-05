@@ -25,7 +25,9 @@ CODER = GroupAgent(
     name="coder",
     system_prompt=(
         "You are a Python coder. Propose code. Keep messages short (≤80 words). "
-        "End with TERMINATE only when the team has converged on a complete solution."
+        "End with TERMINATE ONLY after AT LEAST 3 turns have happened AND "
+        "reviewer + tester have both responded. Until then, write code and ask "
+        "for review/tests but do NOT emit TERMINATE."
     ),
 )
 REVIEWER = GroupAgent(
@@ -88,8 +90,15 @@ def group_chat_run(
     task: str,
     selector: SelectorFlavor = "round-robin",
     max_rounds: int = 9,
+    min_rounds: int = 3,
 ) -> dict:
-    """Run group chat until TERMINATE or max_rounds."""
+    """Run group chat until TERMINATE (after min_rounds) or max_rounds.
+
+    `min_rounds` guards against premature-TERMINATE on commit-biased models
+    (W3.5.5.5 BCJ Entry 10 — Qwen-Opus-distill emitted TERMINATE in round 1
+    before any collaboration occurred). TERMINATE is only honored after
+    round_n >= min_rounds; earlier TERMINATE tokens are ignored.
+    """
     pool: list[dict] = [{"speaker": "user", "content": task}]
     agents = list(AGENTS.values())
     pick_fn = SELECTORS[selector]
@@ -99,7 +108,7 @@ def group_chat_run(
         selector_calls += 1
         msg = speaker.respond(pool)
         pool.append({"speaker": speaker.name, "content": msg})
-        if "TERMINATE" in msg.upper():
+        if "TERMINATE" in msg.upper() and round_n >= min_rounds:
             return {
                 "selector": selector,
                 "rounds_used": round_n,

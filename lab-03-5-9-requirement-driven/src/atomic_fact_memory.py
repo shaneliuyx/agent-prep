@@ -65,6 +65,21 @@ def _parse_fact_array(raw: str) -> list[str]:
     return []
 
 
+def _qd_retry(fn, *args, **kwargs):
+    """Retry a Qdrant client call on the transient `UnexpectedResponse` (an API
+    hiccup under concurrent collection load). Covers ALL qdrant entry points
+    (get_collections / create_collection / upsert / query_points) — the earlier
+    upsert-only retry left collection-setup and query un-retried, and those
+    crashed cells under the 14B run's load (measured: 75832dbd, gpt4_70e84552_abs)."""
+    for attempt in range(3):
+        try:
+            return fn(*args, **kwargs)
+        except Exception:  # noqa: BLE001 — transient Qdrant error; retry with backoff
+            if attempt == 2:
+                raise
+            time.sleep(1.5 * (attempt + 1))
+
+
 def _chunk_text(text: str, max_chars: int = 700) -> list[str]:
     """Split a turn into <=max_chars windows on paragraph/sentence boundaries.
 
@@ -120,15 +135,20 @@ class AtomicFactMemory:
             os.getenv("MODEL_HAIKU", "claude-haiku-4-5-20251001"),
         )
         self._qdrant = QdrantClient(host="localhost", port=6333)
+        # Monotonic per-fact insert sequence. We imprint sessions in chronological
+        # order (driver date-sorts) and turns/chunks in dialogue order, so `seq`
+        # increases with true time at BOTH granularities — unlike the per-session
+        # [sN] tag, which is identical for every fact in a session (no intra-session
+        # order). Persists across the per-session imprint() calls on this instance.
+        self._seq = 0
         self._ensure_collection()
 
     def _ensure_collection(self) -> None:
-        cols = {c.name for c in self._qdrant.get_collections().collections}
+        cols = {c.name for c in _qd_retry(self._qdrant.get_collections).collections}
         if self.collection not in cols:
-            self._qdrant.create_collection(
-                collection_name=self.collection,
-                vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
-            )
+            _qd_retry(self._qdrant.create_collection,
+                      collection_name=self.collection,
+                      vectors_config=VectorParams(size=1024, distance=Distance.COSINE))
 
     def _extract_facts(self, message: str) -> list[str]:
         """One LLM call → JSON array of atomic-fact strings."""
@@ -207,10 +227,12 @@ class AtomicFactMemory:
                 for fact in self._extract_facts(chunk):
                     pid = str(uuid.uuid4())
                     ids.append(pid)
-                    payload = {"content": fact, "user_id": self.user_id,
-                               "agent_id": self.agent_id, "role": role}
+                    payload: dict[str, Any] = {"content": fact, "user_id": self.user_id,
+                                               "agent_id": self.agent_id, "role": role}
                     if metadata:
                         payload.update(metadata)
+                    payload["seq"] = self._seq   # after metadata.update so it can't be clobbered
+                    self._seq += 1
                     points.append(PointStruct(id=pid, vector=self._embed(fact), payload=payload))
         if points:
             # Qdrant occasionally throws a transient UnexpectedResponse during
@@ -221,14 +243,7 @@ class AtomicFactMemory:
             # atomic_fact 1×, on questions both backends actually answer right).
             # Mirror the 3× backoff the mem0 adapter already uses. ensemble fans
             # imprint to this method, so one fix hardens both backends.
-            for attempt in range(3):
-                try:
-                    self._qdrant.upsert(collection_name=self.collection, points=points)
-                    break
-                except Exception:  # noqa: BLE001 — transient Qdrant error; retry
-                    if attempt == 2:
-                        raise
-                    time.sleep(1.5 * (attempt + 1))
+            _qd_retry(self._qdrant.upsert, collection_name=self.collection, points=points)
         return " ".join(ids)
 
     def query_context(
@@ -246,7 +261,8 @@ class AtomicFactMemory:
         )
         # qdrant-client >= 1.12 removed .search(); query_points() is the
         # replacement and returns a response object with a .points list.
-        resp = self._qdrant.query_points(
+        resp = _qd_retry(
+            self._qdrant.query_points,
             collection_name=self.collection,
             query=vector,
             limit=k,
