@@ -268,3 +268,20 @@ Design note: chose deterministic indexed chunks over a `{file: last_line}` offse
 chunk-file existence is an atomic checkpoint (can't be half-written), reuses the
 per-file resume mechanism, and "many files" + "one huge file" collapse to one
 concept (a chunk; a small file = 1 chunk).
+
+## Verify-then-mark — write checkpoint can't claim a page that isn't there (2026-06-05)
+
+The write checkpoint marked a whole batch right after `agent.run` returned —
+trusting the agent loop. A silently-failed `put_page` (agent catches the error,
+still returns) would mark a slug whose page never landed → resume skips it → page
+lost. Tightened the invariant you'd want: **a slug is checkpointed IFF its page is
+verified present in GBrain.**
+
+`_verify_written(slugs)` queries `pages` (deleted_at IS NULL) — existence == a
+successful embed+upsert. The write loop marks only the verified subset; un-landed
+pages stay un-checkpointed and retry on resume. Gate tested:
+```
+_verify_written([real_slug, "people/__does_not_exist__"]) -> [real_slug]
+```
+Order + judgment now both correct: stage file exists but slug absent from
+checkpoint ⇒ (re-)embed; only a confirmed-present page enters the checkpoint.

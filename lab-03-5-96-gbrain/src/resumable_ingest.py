@@ -27,8 +27,11 @@ context" is handled, and resume works at chunk granularity.
 
 Two checkpoints, both on disk, so resume re-does no expensive work:
   - EXTRACTION: a file CHUNK with a stage JSON (`<file>#<idx>.json`) is skipped.
-  - WRITES: ~/brain/.ingest_written.json records written canonical slugs, so a
-    resumed run re-embeds ONLY un-written pages — "embed once" survives a crash.
+  - WRITES: ~/brain/.ingest_written.json records written canonical slugs — but a
+    slug is recorded only after its page is VERIFIED present in GBrain
+    (verify-then-mark), so a silently-failed write stays un-checkpointed and is
+    retried on resume. A resumed run re-embeds ONLY un-written pages — "embed
+    once" survives a crash; the checkpoint can never claim a page that isn't there.
 Oversized pages (> BIG_PAGE_CHARS) are written driver-side (no 30s sandbox) since
 one such page's single embed could approach the agent's per-step limit.
 
@@ -96,6 +99,25 @@ def _gbrain_put(slug: str, content: str) -> None:
     embed could approach the agent's per-step limit."""
     subprocess.run([_GBRAIN, "put", slug], input=content, capture_output=True,
                    text=True, env=_server_env())
+
+
+def _verify_written(slugs: list[str]) -> list[str]:
+    """Return the subset of `slugs` that ACTUALLY landed in GBrain. Existence in
+    `pages` (deleted_at IS NULL) is the proof of a successful put_page (embed +
+    upsert); only verified slugs get checkpointed, so a silently-failed write
+    stays un-checkpointed → retried on resume. The invariant: a slug is in the
+    write checkpoint IFF its page is really in the store."""
+    if not slugs:
+        return []
+    cont = subprocess.run(["docker", "ps", "--format", "{{.Names}}"],
+                          capture_output=True, text=True).stdout
+    name = next((n for n in cont.splitlines() if "gbrain-pg" in n), "gbrain-pg")
+    arr = "{" + ",".join(slugs) + "}"   # slugs are kebab + '/', safe in a PG array literal
+    sql = f"select slug from pages where deleted_at is null and slug = any('{arr}');"
+    out = subprocess.run(["docker", "exec", "-i", name, "psql", "-U", "postgres",
+                          "-d", "gbrain", "-tAc", sql], capture_output=True, text=True).stdout
+    got = {s.strip() for s in out.splitlines() if s.strip()}
+    return [s for s in slugs if s in got]
 
 
 # ── per-file extraction → DISK staging (no embedding) ───────────────────────
@@ -226,14 +248,21 @@ def main() -> None:
         small = [p for p in pending if len(p["content"]) <= BIG_PAGE_CHARS]
         for p in big:
             _gbrain_put(p["slug"], p["content"])
-            _mark_written([p["slug"]])
+            _mark_written(_verify_written([p["slug"]]))  # checkpoint ONLY if it landed
             print(f">>> big page driver-side: {p['slug']} ({len(p['content'])} chars)")
         for i in range(0, len(small), BATCH):
             batch = small[i:i + BATCH]
             _CURRENT = batch
             print(f">>> write batch {i // BATCH + 1} ({len(batch)} pages) -> "
                   + str(agent.run(WRITE_TASK)))
-            _mark_written([p["slug"] for p in batch])   # checkpoint AFTER the batch lands
+            # Verify-then-mark: checkpoint ONLY slugs confirmed present in GBrain.
+            # A silently-failed put_page stays un-checkpointed → retried on resume.
+            landed = _verify_written([p["slug"] for p in batch])
+            _mark_written(landed)
+            if len(landed) < len(batch):
+                missing = sorted(set(p["slug"] for p in batch) - set(landed))
+                print(f">>> WARNING: {len(missing)} page(s) did not land, left un-checkpointed "
+                      f"(retry on resume): {missing}")
 
         # 4. RECONCILE links, then the agent queries its memory.
         print(">>> reconcile graph: " + reconcile_graph())
