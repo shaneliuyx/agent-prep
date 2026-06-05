@@ -84,8 +84,9 @@ def read_sources() -> str:
     each prefixed with its relative path as a header."""
     parts = []
     for f in sorted(SOURCES.rglob("*")):
-        if not f.is_file() or f.name.startswith("."):
-            continue  # skip dirs + dotfiles (.DS_Store etc. are not source text)
+        # skip non-files AND anything under a dotted path part (.DS_Store, .omc-state/…)
+        if not f.is_file() or any(part.startswith(".") for part in f.relative_to(SOURCES).parts):
+            continue
         try:
             text = f.read_text()
         except UnicodeDecodeError:
