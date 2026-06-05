@@ -397,5 +397,8 @@ excluded from live recall · new has `supersedes` · old retrievable via
 — zero new regressions vs the pre-change baseline (23 failed are pre-existing
 service/LLM-config drift).** The new test passes when embed env is provided (verified).
 
-Out of scope (separate code path, still hard-delete): the `memory_supersede` §9
-demo helper — flagged, not changed.
+Also wired (2026-06-05): the `memory_supersede` §9 helper (`memory_tools.py`) —
+same imprint-first + `_qdrant_supersede` soft-delete. Its `@pytest.mark.asyncio`
+integration test can't run here (pytest-asyncio not installed — pre-existing), so a
+sync check `test_memory_supersede_helper_soft_deletes` proves it: old fact excluded
+from live recall, retrievable via `include_superseded` with `superseded_by`.

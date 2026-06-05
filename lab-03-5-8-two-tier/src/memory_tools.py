@@ -14,11 +14,12 @@ same as Kafka append-only convention)."""
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from src.audit import AuditEntry, read_audit_log, record_audit
-from src.dedup_synthesis import _qdrant_delete           # §8.1 primitive
+from src.dedup_synthesis import _qdrant_supersede   # §8.6 soft-delete primitive
 from src.portability import export as _portability_export
 from src.portability import import_ as _portability_import
 from src.replay import replay_audit
@@ -61,17 +62,22 @@ def memory_query(tm: TieredMemory, *, query: str, k: int = 5,
 # ─── Task 3: Supersede ────────────────────────────────────────────────────
 def memory_supersede(tm: TieredMemory, *, old_id: str, new_content: str,
                      reason: str, user_id: str, agent_id: str = "") -> str:
-    """Mark `old_id` superseded by a fresh imprint. §8.6 Step 1+2 shape
-    (hard-delete + supersedes-pointer + supersede AuditEntry). Step 3
-    soft-delete swap is contract-free — same call site, different
-    `_qdrant_delete` impl."""
-    _qdrant_delete(tm, [old_id])
+    """Mark `old_id` superseded by a fresh imprint. §8.6 Step 3 (WIRED
+    2026-06-05): SOFT-DELETE — imprint the new fact first (for the back-pointer),
+    then payload-patch the old point with `superseded_by` instead of deleting it.
+    query_context excludes superseded facts by default; include_superseded=True
+    walks the history. (Was hard-delete + supersedes-pointer in Step 1+2.)"""
     metadata = {
         "supersedes": old_id,
         "supersede_reason": reason,
         "fact_kind": "state_evolution",
     }
     new_id = tm.imprint(content=new_content, metadata=metadata)
+    _qdrant_supersede(tm, old_id, {
+        "superseded_by": new_id,
+        "superseded_at": datetime.now(timezone.utc).isoformat(),
+        "supersede_reason": reason,
+    })
     record_audit(AuditEntry(
         operation="supersede",
         actor_agent_id=agent_id,

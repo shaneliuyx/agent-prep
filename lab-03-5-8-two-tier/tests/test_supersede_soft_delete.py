@@ -83,3 +83,27 @@ def test_supersede_soft_deletes_and_filters() -> None:
         assert old_hits[0]["content"] == "user likes the React framework"
     finally:
         _qdrant_delete(tm, [old_id] + ([new_id] if new_id else []))
+
+
+def test_memory_supersede_helper_soft_deletes() -> None:
+    """The §9 `memory_supersede` helper (separate path from execute_action) also
+    soft-deletes now. Sync verification — the async @pytest.mark.asyncio
+    integration test needs pytest-asyncio (not installed); this doesn't."""
+    from src.memory_tools import memory_supersede
+
+    uid = f"test-memsup-{uuid.uuid4().hex[:8]}"
+    tm = TieredMemory(agent_id="test-memsup", user_id=uid)
+    old_id = tm.imprint("user prefers the React framework")
+    new_id = None
+    try:
+        new_id = memory_supersede(
+            tm, old_id=old_id, new_content="user prefers the Svelte framework now",
+            reason="preference shifted", user_id=uid,
+        )
+        live_ids = {h["id"] for h in tm.query_context("frontend framework preference", k=10)}
+        assert old_id not in live_ids, "memory_supersede left the old fact in live recall"
+        history = tm.query_context("frontend framework preference", k=10, include_superseded=True)
+        old_hits = [h for h in history if h["id"] == old_id]
+        assert old_hits and old_hits[0]["superseded_by"] == new_id
+    finally:
+        _qdrant_delete(tm, [old_id] + ([new_id] if new_id else []))
