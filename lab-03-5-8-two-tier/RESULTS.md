@@ -377,3 +377,25 @@ SETUP.md                      — local-first stack bring-up (oMLX + Qdrant + Ev
 AGENTS.md                     — guild workflow primer for agent harnesses
 pyproject.toml + uv.lock      — dependency graph (BCJ Entry 6+7 fixes encoded)
 ```
+
+## §8.6 Step 3 wired — supersede soft-delete (`_qdrant_supersede`) (2026-06-05)
+
+Step 3 of the bitemporal supersede pipeline landed (was hard-delete). The supersede
+branch now imprints the new fact first (for the back-pointer), then **payload-patches
+the old point** with `superseded_by`/`superseded_at` via `_qdrant_supersede`
+(Qdrant `points/payload` set-payload) instead of `_qdrant_delete`. `query_context`
+gained `include_superseded=False` (default) → appends `is_empty: superseded_by` to
+the Qdrant `must`, so superseded facts drop out of live recall (accuracy identical to
+the hard-delete era); `include_superseded=True` walks the history.
+
+Bidirectional chain now intact: new→`supersedes`→old AND old→`superseded_by`→new
+(was forward-only-but-dangling under hard-delete).
+
+**Test:** `tests/test_supersede_soft_delete.py` (live Qdrant + oMLX, skip-gated) — old
+excluded from live recall · new has `supersedes` · old retrievable via
+`include_superseded` with `superseded_by`. **Suite: 30 passed / 23 failed / +1 skipped
+— zero new regressions vs the pre-change baseline (23 failed are pre-existing
+service/LLM-config drift).** The new test passes when embed env is provided (verified).
+
+Out of scope (separate code path, still hard-delete): the `memory_supersede` §9
+demo helper — flagged, not changed.
