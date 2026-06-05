@@ -306,3 +306,20 @@ Correction to an earlier note: "stage gone + not embedded" is NOT a dead end —
 file is re-extracted from its source (`stage_all` already does this). The only
 unrecoverable state is losing the source corpus itself. Each layer is regenerated
 from the layer above; checkpoints just let resume skip the layers already built.
+
+## Repeatable test suite for the resume machinery (2026-06-05)
+
+`tests/test_resumable_ingest.py` (+ `tests/conftest.py` puts `src/` on path) — 9
+tests, deterministic, no LLM (monkeypatched temp dirs + stubbed `_merge`), one
+DB-gated integration test:
+- chunker: small=1 chunk; big splits ≤budget, lossless, line-aligned, deterministic; never mid-line
+- `_files` skips dotted path parts (`.DS_Store`, `.omc-state/` dirs)
+- write checkpoint roundtrip + resume filter (writes only un-checkpointed slugs)
+- oversized-page partition (BIG_PAGE_CHARS)
+- merge: cross-chunk entities grouped + merged (LLM called once for the 2-variant), singletons pass through
+- merge cache: HIT on unchanged stage, MISS after a chunk changes (fingerprint invalidation)
+- `_verify_written` excludes a nonexistent slug (skip-gated on live gbrain-pg)
+
+Run: `uv run --with pytest python -m pytest tests/test_resumable_ingest.py -v`
+(plain `uv run pytest` resolves the wrong interpreter; `python -m pytest` in the
+project venv has smolagents/mcp/openai). Result: **9 passed**.
