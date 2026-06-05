@@ -25,8 +25,13 @@ A big file is split into deterministic chunks (`<file>#0`, `#1`, … by CHUNK_CH
 line-aligned), each its own staging unit — so "one file too big for the extract
 context" is handled, and resume works at chunk granularity.
 
-Two checkpoints, both on disk, so resume re-does no expensive work:
-  - EXTRACTION: a file CHUNK with a stage JSON (`<file>#<idx>.json`) is skipped.
+Each derived layer is a cache of the one above, rebuildable from it — so resume
+re-does no expensive work, and losing a derived layer is recoverable, not fatal:
+  source files (ground truth) → stage chunks → merged canonical → embedded
+  - EXTRACTION: a file CHUNK with a stage JSON (`<file>#<idx>.json`) is skipped;
+    a MISSING chunk is re-extracted from its source file (not a dead end).
+  - MERGE: cached to ~/brain/.ingest_merged.json keyed by a stage fingerprint;
+    unchanged staging → load cache, skip the (LLM-costly) re-merge.
   - WRITES: ~/brain/.ingest_written.json records written canonical slugs — but a
     slug is recorded only after its page is VERIFIED present in GBrain
     (verify-then-mark), so a silently-failed write stays un-checkpointed and is
@@ -36,7 +41,7 @@ Oversized pages (> BIG_PAGE_CHARS) are written driver-side (no 30s sandbox) sinc
 one such page's single embed could approach the agent's per-step limit.
 
 Run: python src/resumable_ingest.py   (re-run to resume)
-Restart from scratch: rm -rf ~/brain/.ingest_stage ~/brain/.ingest_written.json
+Restart: rm -rf ~/brain/.ingest_stage ~/brain/.ingest_merged.json ~/brain/.ingest_written.json
 """
 from __future__ import annotations
 
@@ -55,6 +60,7 @@ from ingest_agent import (
 
 SOURCES = pathlib.Path(os.path.expanduser("~/brain/sources"))
 STAGE_DIR = pathlib.Path(os.path.expanduser("~/brain/.ingest_stage"))   # disk staging
+MERGED = pathlib.Path(os.path.expanduser("~/brain/.ingest_merged.json"))  # merge cache
 WRITTEN = pathlib.Path(os.path.expanduser("~/brain/.ingest_written.json"))  # write checkpoint
 BATCH = 8                 # canonical pages per agent write call (bounded < 30s)
 BIG_PAGE_CHARS = 8000     # bigger pages are written driver-side (one page's embed may near 30s)
@@ -185,9 +191,33 @@ def _merge(base: str, contents: list[str]) -> str:
     return (resp.choices[0].message.content or contents[0]).strip()
 
 
+def _stage_key() -> str:
+    """Fingerprint of the staged chunks (name + mtime + size). If it's unchanged
+    since the cached merge, the merge result is still valid — so resume can skip
+    the (LLM-costly) re-merge. Any re-extracted chunk changes its mtime → miss."""
+    parts = []
+    for f in sorted(STAGE_DIR.glob("*.json")):
+        st = f.stat()
+        parts.append(f"{f.name}:{int(st.st_mtime)}:{st.st_size}")
+    return "|".join(parts)
+
+
 def merge_from_disk() -> list:
     """Group staged pages by entity across all files; return CANONICAL pages.
-    Single-file entities pass through; multi-file entities are merged once."""
+    Single-file entities pass through; multi-file entities are merged once (LLM).
+
+    Cached: the merge (its per-entity LLM calls) is expensive, so the result is
+    cached to MERGED keyed by the stage fingerprint. A resume whose staging is
+    unchanged loads the cache and skips re-merging; if any chunk was re-extracted
+    (fingerprint differs) it re-merges and re-caches."""
+    key = _stage_key()
+    if MERGED.exists():
+        cached = json.loads(MERGED.read_text())
+        if cached.get("key") == key:
+            canonical = cached["canonical"]
+            print(f">>> merge cache HIT: {len(canonical)} canonical (skipped re-merge)")
+            return canonical
+
     groups: dict[str, list[str]] = {}
     for jf in sorted(STAGE_DIR.glob("*.json")):
         for p in json.loads(jf.read_text()):
@@ -198,7 +228,8 @@ def merge_from_disk() -> list:
         if len(contents) > 1:
             merged += 1
         canonical.append({"slug": slug, "content": content})
-    print(f">>> merge_from_disk: {len(canonical)} canonical ({merged} merged from >1 file)")
+    MERGED.write_text(json.dumps({"key": key, "canonical": canonical}))
+    print(f">>> merge_from_disk: {len(canonical)} canonical ({merged} merged from >1 file), cached")
     return canonical
 
 

@@ -285,3 +285,24 @@ _verify_written([real_slug, "people/__does_not_exist__"]) -> [real_slug]
 ```
 Order + judgment now both correct: stage file exists but slug absent from
 checkpoint ⇒ (re-)embed; only a confirmed-present page enters the checkpoint.
+
+## Merge cache + the 4-layer recovery model (2026-06-05)
+
+Resume re-read all stage chunks and RE-RAN the merge (its per-entity LLM calls)
+every time — correct but wasteful. Cached `merge_from_disk` to
+`~/brain/.ingest_merged.json`, keyed by a stage fingerprint (each chunk's
+name+mtime+size). Unchanged staging → cache HIT, skip the re-merge; any
+re-extracted chunk changes the fingerprint → MISS → re-merge + re-cache.
+Tested (single-variant fixtures, 0 LLM): call1 caches, call2 HIT, stage-change → MISS.
+
+**The pipeline is 4 derived layers, each a rebuildable cache of the one above:**
+```
+source files (ground truth, ~/brain/sources)   ← only true loss is losing this
+  → stage chunks (.ingest_stage/<file>#<idx>.json)   ← gone? re-extract from source
+    → merged canonical (.ingest_merged.json)         ← gone/stale? re-merge from stage
+      → embedded (GBrain pages)                       ← gone? re-write from canonical
+```
+Correction to an earlier note: "stage gone + not embedded" is NOT a dead end — the
+file is re-extracted from its source (`stage_all` already does this). The only
+unrecoverable state is losing the source corpus itself. Each layer is regenerated
+from the layer above; checkpoints just let resume skip the layers already built.
