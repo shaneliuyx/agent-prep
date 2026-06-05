@@ -161,3 +161,41 @@ tokens (accumulating history ≈ repeated per-turn context); it wins on retrieva
 |---|---------|-----------|-----|
 | 10 | retrieved "context" is just slugs + a one-line snippet; LLM says "doesn't include the actual content" | `gbrain query --json` returns ranked snippets, not page bodies | fetch full bodies with `gbrain get <slug>` for the ranked slugs before injecting |
 | 11 | model refuses ("I'm Claude Code, I can't help with questions about people"); system prompt ignored | VibeProxy injects a Claude-Code identity that overrides the `system` role | put the instruction + grounding in the USER message as a document-Q&A task; don't rely on `system` |
+
+## Reconcile wired into the agent + large-corpus resumable ingest (2026-06-05)
+
+**reconcile in ingest_agent.py.** `gbrain extract links --source db` is no longer a
+manual step — `reconcile_graph()` runs it deterministically in `main()` AFTER the
+agent's put_page writes and BEFORE the query (two-phase: WRITE → reconcile → READ),
+so the query sees the wired graph (observed `backlink_boost` on the top hit). It is
+infra, NOT an agent tool (must not depend on the LLM remembering). Why required:
+MCP `put_page` is a *remote* caller → GBrain skips inline auto-link
+(operations.ts `skipped:'remote'`), and inline auto-link only wires already-existing
+targets, so forward refs in a single-pass ingest are dropped regardless.
+
+**30s sandbox timeout fixed.** The ~60s oMLX extraction exceeded smolagents' 30s
+per-step code limit → every step timed out and re-extracted (6 wasted steps).
+Fix: warm `extract_pages` ONCE outside the sandbox (module-level cache) → ingest
+now 1 step, 7.5s, 0 timeouts.
+
+**Large-corpus variant `resumable_ingest.py`.** Warm-once doesn't scale (all files
+in one prompt = context wall). Per-file streaming instead: extraction is DRIVER-side
+(one small file, no sandbox), the AGENT writes each file's pages to a staging
+namespace (`staging/<file>/<entity>`), checkpoint per file (`~/brain/.ingest_files.json`,
+resumable), then a final `merge_pass()` consolidates cross-file entities, then
+reconcile. Measured (8 files):
+
+```
+8 files, per-file, 0 timeouts
+merge_pass: 5 promoted, 14 merged from 19 entities   # 14 entities spanned >1 file
+reconcile graph: 23 pages, 63 links
+query -> people/sam-okafor (top hit)
+```
+
+## Bad-Case Journal — ingest hardening additions
+
+| # | symptom | root cause | fix |
+|---|---------|-----------|-----|
+| 12 | every agent step "Code execution exceeded 30 seconds", re-extracts, never finishes | ~60s oMLX extraction runs inside smolagents' 30s per-step sandbox; agent re-runs its whole block each step | warm `extract_pages` once outside the sandbox (cache); agent's call returns instantly → 1-step ingest |
+| 13 | `UnicodeDecodeError` / stray 0-page units in checkpoint | `read_sources`/`_files` walked `.DS_Store` (binary) and `.omc-state/` (dotted dirs OMC wrote under sources) | skip any dotted PATH PART + catch `UnicodeDecodeError`, not just dotted filenames |
+| 14 | large corpus can't be ingested in one shot | warm-once extraction concatenates all files → context-window wall, un-resumable | per-file streaming + per-file checkpoint + staging-namespace writes + final merge_pass (resumable_ingest.py) |

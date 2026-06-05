@@ -16,6 +16,12 @@ TOOLS; the agent just orchestrates:
     for p in pages: put_page(slug=p['slug'], content=p['content'])
     answer = query(query="..."); final_answer(answer)
 
+After the agent run, main() calls reconcile_graph() — a deterministic, zero-LLM
+`gbrain extract links --source db` pass that materializes the [[wikilinks]] into
+typed edges. This is infra, NOT an agent tool: put_page over MCP skips inline
+auto-link (remote caller) and inline auto-link can't wire forward references
+anyway, so the graph must be reconciled once the full corpus exists.
+
 Brain = oMLX (no native tool-calls) → CodeAgent + use_structured_outputs_internally.
 """
 from __future__ import annotations
@@ -23,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import subprocess
 
 from dotenv import load_dotenv
 from mcp import StdioServerParameters
@@ -77,18 +84,36 @@ def read_sources() -> str:
     each prefixed with its relative path as a header."""
     parts = []
     for f in sorted(SOURCES.rglob("*")):
-        if f.is_file():
-            parts.append(f"===== {f.relative_to(SOURCES.parent)} =====\n{f.read_text()}")
+        if not f.is_file() or f.name.startswith("."):
+            continue  # skip dirs + dotfiles (.DS_Store etc. are not source text)
+        try:
+            text = f.read_text()
+        except UnicodeDecodeError:
+            continue  # skip binary / non-UTF-8 files rather than crash the ingest
+        parts.append(f"===== {f.relative_to(SOURCES.parent)} =====\n{text}")
     return "\n\n".join(parts)
+
+
+_PAGES_CACHE: list | None = None
 
 
 @tool
 def extract_pages(raw: str) -> list:
     """Turn raw source text into structured GBrain pages via the local LLM.
 
+    Cached: the ~60s oMLX extraction exceeds smolagents' 30s per-step sandbox
+    timeout, and the agent re-runs its whole code block on each step. main()
+    warms this cache ONCE before the agent loop (outside the sandbox, no
+    timeout), so the agent's `extract_pages(raw)` call returns instantly and
+    ingest finishes in one step. Single-corpus assumption: the cache ignores
+    `raw` after the first compute.
+
     Args:
         raw: concatenated raw source text (from read_sources).
     """
+    global _PAGES_CACHE
+    if _PAGES_CACHE is not None:
+        return _PAGES_CACHE
     client = OpenAI(base_url=os.getenv("LLM_BASE_URL", "http://localhost:8000/v1"),
                     api_key=os.getenv("LLM_API_KEY", "dummy"))
     resp = client.chat.completions.create(
@@ -96,7 +121,8 @@ def extract_pages(raw: str) -> list:
         messages=[{"role": "user", "content": _EXTRACT_PROMPT.replace("{raw}", raw)}],
         temperature=0.0, max_tokens=4000, response_format={"type": "json_object"})
     data = json.loads(resp.choices[0].message.content or "{}")
-    return [p for p in data.get("pages", []) if p.get("slug") and p.get("content")]
+    _PAGES_CACHE = [p for p in data.get("pages", []) if p.get("slug") and p.get("content")]
+    return _PAGES_CACHE
 
 
 def _server_env() -> dict[str, str]:
@@ -108,12 +134,35 @@ def _server_env() -> dict[str, str]:
     return env
 
 
-TASK = """Build the brain, then answer a question, using ONLY the provided tools:
+def reconcile_graph() -> str:
+    """Deterministic post-ingest pass (zero LLM): materialize the `[[wikilinks]]`
+    the agent wrote into typed graph edges. REQUIRED after an agent/MCP ingest,
+    for two reasons baked into GBrain:
+      1. `put_page` over MCP is a *remote* caller, so GBrain skips inline auto-link
+         (operations.ts -> `skipped: 'remote'`); nothing wires on write.
+      2. Even inline auto-link only wires targets that ALREADY exist (FK-safety),
+         so the forward references a single-pass ingest creates would be dropped.
+    `extract links --source db` reconciles the FINISHED corpus (all pages present),
+    resolving every forward ref. Run it once, after all put_page writes."""
+    out = subprocess.run(
+        [_GBRAIN, "extract", "links", "--source", "db"],
+        capture_output=True, text=True, env=_server_env(),
+    )
+    lines = [ln for ln in (out.stdout or out.stderr).splitlines() if ln.strip()]
+    return lines[-1] if lines else "(no output)"
+
+
+# Two phases on purpose: WRITE, then (infra reconcile), then READ. The query must
+# run AFTER reconcile_graph() or it reads a graph whose edges aren't materialized.
+INGEST_TASK = """Build the brain using ONLY the provided tools:
 1. raw = read_sources()
 2. pages = extract_pages(raw)
 3. for each page in pages: call put_page(slug=page["slug"], content=page["content"])
-4. answer = query(query="Who is anchoring the acme-seed round and on what terms?")
-5. return answer via final_answer.
+4. return the number of pages written via final_answer.
+"""
+QUERY_TASK = """Answer using ONLY the query tool:
+1. answer = query(query="Who is anchoring the acme-seed round and on what terms?")
+2. return answer via final_answer.
 """
 
 
@@ -131,7 +180,24 @@ def main() -> None:
             tools=[read_sources, extract_pages, *mcp_tools],
             model=model, max_steps=6,
             use_structured_outputs_internally=True, verbosity_level=1)
-        answer = agent.run(TASK)
+
+        # 0. WARM the extraction cache OUTSIDE the agent sandbox. The oMLX
+        # extraction is ~60s; smolagents kills any single step's code at 30s, so
+        # if the agent triggered it inside its loop every step would time out and
+        # re-extract. Running it once here (no sandbox) means the agent's
+        # extract_pages(raw) call returns the cached result instantly.
+        extract_pages(read_sources())
+
+        # 1. WRITE — the agent ingests raw sources into GBrain pages (cache-fast).
+        print(">>> ingest: " + str(agent.run(INGEST_TASK)))
+
+        # 2. RECONCILE — deterministic, zero-LLM. NOT an agent tool (must not depend
+        # on the LLM remembering). Materializes the [[wikilinks]] into typed edges
+        # BEFORE the read, so the query sees the wired graph. See reconcile_graph().
+        print(">>> reconcile graph: " + reconcile_graph())
+
+        # 3. READ — query now runs over the reconciled graph.
+        answer = agent.run(QUERY_TASK)
         print("\n>>> agent final answer:\n" + str(answer))
 
 
