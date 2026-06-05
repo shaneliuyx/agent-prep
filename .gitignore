@@ -27,3 +27,6 @@ last30days-x.env
 # Run logs + eval stdout dumps (added 2026-05-28)
 **/logs/
 *.output
+
+# Cloned external tool — has its own git history; referenced for MCP schemas, not lab content (added 2026-06-05)
+gbrain/
