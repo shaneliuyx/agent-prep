@@ -21,8 +21,12 @@ The "agent uses GBrain as memory" lesson is intact: the agent still WRITES the
 canonical pages and QUERIES them over MCP. Only the throwaway intermediate left
 the embedded store.
 
+A big file is split into deterministic chunks (`<file>#0`, `#1`, … by CHUNK_CHARS,
+line-aligned), each its own staging unit — so "one file too big for the extract
+context" is handled, and resume works at chunk granularity.
+
 Two checkpoints, both on disk, so resume re-does no expensive work:
-  - EXTRACTION: a file with a stage JSON is skipped (no re-extract).
+  - EXTRACTION: a file CHUNK with a stage JSON (`<file>#<idx>.json`) is skipped.
   - WRITES: ~/brain/.ingest_written.json records written canonical slugs, so a
     resumed run re-embeds ONLY un-written pages — "embed once" survives a crash.
 Oversized pages (> BIG_PAGE_CHARS) are written driver-side (no 30s sandbox) since
@@ -51,6 +55,7 @@ STAGE_DIR = pathlib.Path(os.path.expanduser("~/brain/.ingest_stage"))   # disk s
 WRITTEN = pathlib.Path(os.path.expanduser("~/brain/.ingest_written.json"))  # write checkpoint
 BATCH = 8                 # canonical pages per agent write call (bounded < 30s)
 BIG_PAGE_CHARS = 8000     # bigger pages are written driver-side (one page's embed may near 30s)
+CHUNK_CHARS = 6000        # a file > this is split into <file>#0, #1, … (extract context budget)
 
 _CURRENT: list = []       # the current write batch; the agent's tool reads this
 
@@ -105,17 +110,39 @@ def extract_file(text: str) -> list:
     return [p for p in data.get("pages", []) if p.get("slug") and p.get("content")]
 
 
+def _chunk_text(text: str, max_chars: int) -> list[str]:
+    """Split into ≤max_chars chunks on LINE boundaries (never mid-line). A file
+    that fits returns one chunk; a big file returns several. Deterministic: the
+    same input always yields the same chunks, so chunk N == the same bytes."""
+    chunks, cur, n = [], [], 0
+    for line in text.splitlines(keepends=True):
+        if n + len(line) > max_chars and cur:
+            chunks.append("".join(cur)); cur, n = [], 0
+        cur.append(line); n += len(line)
+    if cur:
+        chunks.append("".join(cur))
+    return chunks or [""]
+
+
 def stage_all() -> None:
-    """Extract every not-yet-staged file to ~/brain/.ingest_stage/<stem>.json.
-    Resumable: a file whose stage JSON already exists is skipped."""
+    """Extract every not-yet-staged file CHUNK to ~/brain/.ingest_stage/<stem>#<idx>.json.
+
+    A file > CHUNK_CHARS is split into deterministic chunks (extract context budget);
+    each chunk is its own staging unit. Resumable at CHUNK granularity for free —
+    the existing 'skip if the JSON exists' check now skips already-staged chunks,
+    so a crash mid-file re-extracts only the unfinished chunk(s). Cross-chunk
+    entities are reunited later by merge_from_disk (same path as cross-file)."""
     STAGE_DIR.mkdir(parents=True, exist_ok=True)
     for stem, text in _files():
-        out = STAGE_DIR / f"{stem}.json"
-        if out.exists():
-            continue
-        pages = extract_file(text)
-        out.write_text(json.dumps(pages))
-        print(f">>> staged {stem}: {len(pages)} pages (disk, no embedding)")
+        chunks = _chunk_text(text, CHUNK_CHARS)
+        for idx, chunk in enumerate(chunks):
+            out = STAGE_DIR / f"{stem}#{idx}.json"
+            if out.exists():
+                continue
+            pages = extract_file(chunk)
+            out.write_text(json.dumps(pages))
+            tag = f"{stem}#{idx}" + (f" of {len(chunks)}" if len(chunks) > 1 else "")
+            print(f">>> staged {tag} ({len(chunk)} chars): {len(pages)} pages (disk, no embedding)")
 
 
 # ── merge across files (disk, no DB reads) ──────────────────────────────────

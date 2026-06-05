@@ -245,3 +245,26 @@ run #2: 18 canonical, 18 already written (resume), 0 to write   → 0 write batc
 
 Resume model now: TWO disk checkpoints — extraction (`.ingest_stage/<file>.json`) +
 writes (`.ingest_written.json`). Restart: `rm -rf ~/brain/.ingest_stage ~/brain/.ingest_written.json`.
+
+## Big-file chunking — intra-file resume (2026-06-05)
+
+Per-file staging assumed "one file fits the extract context." For a file too big,
+`stage_all` now splits it into deterministic, line-aligned chunks `<file>#0/#1/…`
+(by `CHUNK_CHARS`), each its own staging unit — so resume works at CHUNK
+granularity using the SAME "skip if the JSON exists" check (no separate
+line-offset bookkeeping). Cross-chunk entities are reunited by `merge_from_disk`
+(same path as cross-file).
+
+Tested with a synthetic 13.9 KB file (`_chunk_text` → 3 chunks [5937, 5941, 1984],
+≤budget, lossless, line-aligned, deterministic):
+```
+RUN 1 (fresh):  staged #0:13, #1:13, #2:10 pages
+delete #1 (simulate crash)
+RUN 2 (resume): skip #0, staged #1, skip #2     # only the lost chunk re-extracts
+entities spanning >1 chunk: 13 (sam-okafor/lin-zhao/… in chunks [0,1,2]) → merged
+```
+
+Design note: chose deterministic indexed chunks over a `{file: last_line}` offset —
+chunk-file existence is an atomic checkpoint (can't be half-written), reuses the
+per-file resume mechanism, and "many files" + "one huge file" collapse to one
+concept (a chunk; a small file = 1 chunk).
