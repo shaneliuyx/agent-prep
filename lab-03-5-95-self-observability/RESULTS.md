@@ -260,3 +260,34 @@ uv run python src/smolagents_agent.py
   bugs — a docstring schema, a stop-sequence parser leak (#1851), and SQLite
   thread affinity. The seam is the easy part; the framework's executor model
   (off-thread code execution, custom code fences) is the hard part.
+
+## Heat-scored eviction (leverages BAI-LAB/MemoryOS) (2026-06-05)
+
+`metacog_recall` ranks but never prunes — the `learning` store grows unbounded.
+Added `src/heat_eviction.py`: heat = α·log1p(visits) + β·recency + γ·confidence,
+with importance-exempt (confidence ≥ 0.85 never evicted) + lexical-cosine dedup.
+Pure code, no LLM. Run: `python3 src/heat_eviction_demo.py`.
+
+```
+seeded 14 facts → budget 8
+  deduped : 1     # lexical near-dup collapsed to hotter copy
+  evicted : 5     # coldest low-confidence facts
+  final   : 8
+```
+
+Survivors (by heat): the hot low-conf fact (visits=9, heat 3.95) beat a COLD
+high-conf one — but the cold high-conf "deadlock" fact (heat 0.98) still survived
+via **importance-exempt**, though it's colder than evicted facts (heat 1.56–1.81).
+recall() still returns the right fact post-eviction.
+
+**Honest limitation (observed):** lexical TF-cosine catches *reworded* dups but
+MISSES semantic paraphrases — a first run with "retry... no backoff" vs "re-issue...
+without any backoff" gave dedup=0 (few shared tokens). BAI-LAB uses *embedding*
+cosine for exactly this; the lexical version is a cheap local proxy, not a
+replacement.
+
+| | recall (metacog_recall) | eviction (heat_eviction) |
+|---|---|---|
+| direction | READ — rank top-k at decision time | WRITE/retention — prune the store |
+| signal | BM25 × recency × confidence | heat (visits + recency + importance) |
+| LLM? | no | no |

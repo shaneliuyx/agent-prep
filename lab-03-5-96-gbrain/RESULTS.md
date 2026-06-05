@@ -87,3 +87,77 @@ gbrain graph-query deals/acme-seed
 > memory system: the *contract* the extraction prompt enforces (every entity is a
 > typed link) is what makes the graph real, not the storage layer. Measure edges,
 > not pages.
+
+## Phase 6 — keyword vs vector vs hybrid-RRF benchmark (2026-06-04)
+
+Corpus scaled 2 → 8 raw sources → **19 pages**. Reproduce:
+
+```bash
+# 1. ingest the expanded sources/ tree (Phase-3 agent)
+cd ~/code/agent-prep/lab-03-5-96-gbrain && python3 src/ingest_agent.py
+
+# 2. materialize the graph — wikilinks in put_page TEXT are not edges until this runs.
+#    Pages written over MCP live in Postgres, so point extraction at the DB:
+export PATH="$HOME/.bun/bin:$PATH" \
+  GBRAIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gbrain \
+  OLLAMA_BASE_URL=http://localhost:8000/v1 OLLAMA_API_KEY=<key>
+cd ~/brain && gbrain extract links --source db   # 11 → 45 links (created 34 from 19 pages)
+
+# 3. benchmark at the ENGINE layer (CLI search==query, same handler — cannot A/B)
+cd ~/code/agent-prep/lab-03-5-96-gbrain && bun src/bench_strategies.ts
+```
+
+Result (oMLX `nomicai-modernbert` 768-d, k=3):
+
+| strategy | recall@3 | MRR | nDCG@3 |
+|---|---|---|---|
+| keyword (tsvector FTS) | 0.600 | 0.500 | 0.526 |
+| **vector (HNSW)** | **0.900** | **0.917** | **0.900** |
+| hybrid (RRF) | 0.900 | 0.783 | 0.813 |
+
+**Finding (refutes the projected 83→95 RRF lift):** on this small, semantic-heavy
+corpus pure **vector wins outright**. Keyword FTS missed all four purely-semantic
+queries (no lexical overlap); RRF matched vector's recall but *lost* MRR/nDCG because
+fusing the dead keyword arm demoted strong vector hits. RRF helps only when both
+arms are competitive + complementary — not a free upgrade.
+
+## Bad-Case Journal — Phase 6 additions
+
+| # | symptom | root cause | fix |
+|---|---------|-----------|-----|
+| 7 | 19 pages but Links stuck at 11; ~68 wikilinks in text | self-wiring is a batch pass, not a `put_page` side-effect; MCP-written pages live only in PG, bare `extract links` wants a brain dir | `gbrain extract links --source db` → 45 links. Don't gate on `links_extracted_at` (file-source only) |
+| 8 | `gbrain search` ≡ `gbrain query` byte-identical; A/B shows no lift | both CLI subcommands fall through to one handler (`cli.ts:771-772`); no pure-keyword CLI path | benchmark at engine layer via `eval.ts:runEval()` (`strategy: keyword/vector/hybrid`) |
+| 9 | hybrid-RRF recall 0.90 but MRR 0.78 < pure vector 0.92 | keyword arm missed all semantic queries; RRF folded dead arm in, demoting good vector hits | prefer pure vector on small semantic corpora; RRF needs exact-term-heavy traffic to earn its arm |
+
+## Phase 7 — Ground-Truth Hierarchy A/B (memory-os principle) (2026-06-05)
+
+Leverages ClaudioDrews/memory-os's **Ground-Truth Hierarchy**: injected memory is
+authoritative; the "memory-zero" anti-pattern re-establishes context every turn.
+5-turn chained conversation over the live brain, chat via VibeProxy→Haiku 4.5.
+
+```bash
+export OPENROUTER_BASE_URL=http://localhost:8317/v1 OPENROUTER_API_KEY=vibeproxy \
+  GBRAIN_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/gbrain \
+  OLLAMA_BASE_URL=http://localhost:8000/v1 OLLAMA_API_KEY=<key>
+python3 src/ground_truth_ab.py
+```
+
+| mode | retrievals | retr. ctx tok | LLM prompt tok |
+|---|---|---|---|
+| memory-zero | 5 | 11,167 | 22,254 |
+| **ground-truth** | **1** | **2,233** | 23,001 |
+
+**Finding — correctness, not just cost.** memory-zero FAILED 3/5 turns: Q2/Q4
+coreference ("he", "that investor") had no antecedent; Q3 retrieval *drifted* to the
+wrong cluster (Quanta/Ridgeline instead of Acme/Northstar) because the standalone
+query had no anchor. Ground-truth nailed all 5 by resolving coreference from the
+injected subgraph. Token nuance: ground-truth does NOT win on total LLM prompt
+tokens (accumulating history ≈ repeated per-turn context); it wins on retrieval
+(1 vs 5 calls, 80% fewer retrieval-context tokens) AND on answer correctness.
+
+## Bad-Case Journal — Phase 7 additions
+
+| # | symptom | root cause | fix |
+|---|---------|-----------|-----|
+| 10 | retrieved "context" is just slugs + a one-line snippet; LLM says "doesn't include the actual content" | `gbrain query --json` returns ranked snippets, not page bodies | fetch full bodies with `gbrain get <slug>` for the ranked slugs before injecting |
+| 11 | model refuses ("I'm Claude Code, I can't help with questions about people"); system prompt ignored | VibeProxy injects a Claude-Code identity that overrides the `system` role | put the instruction + grounding in the USER message as a document-Q&A task; don't rely on `system` |
