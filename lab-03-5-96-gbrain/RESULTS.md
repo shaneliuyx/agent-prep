@@ -225,3 +225,23 @@ query -> people/sam-okafor
 Embedding calls: **65 → 18** (the 46 wasted staging embeds eliminated). 0 timeouts.
 Disk stage JSONs are the resumability artifact (re-run skips staged files;
 `rm -rf ~/brain/.ingest_stage` to restart).
+
+## Write checkpoint — resume re-embeds only un-written pages (2026-06-05)
+
+The v2 disk-staging only checkpointed EXTRACTION (per file); the write phase was
+idempotent-but-uncheckpointed, so a crash mid-write made a resumed run re-embed
+ALL canonical pages — "embed once" held only for an uninterrupted run.
+
+Fix: a write checkpoint `~/brain/.ingest_written.json` (written canonical slugs).
+The write loop skips already-written slugs and marks each batch after it lands.
+Oversized pages (> BIG_PAGE_CHARS) are written driver-side (no 30s sandbox), since
+one such page's single embed could approach the agent's per-step limit.
+
+Proven (stage JSONs present → extraction skipped both runs):
+```
+run #1: 18 canonical, 0 already written, 18 to write   → written.json = 18 slugs
+run #2: 18 canonical, 18 already written (resume), 0 to write   → 0 write batches, 0 re-embeds
+```
+
+Resume model now: TWO disk checkpoints — extraction (`.ingest_stage/<file>.json`) +
+writes (`.ingest_written.json`). Restart: `rm -rf ~/brain/.ingest_stage ~/brain/.ingest_written.json`.

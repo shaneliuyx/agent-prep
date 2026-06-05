@@ -21,13 +21,22 @@ The "agent uses GBrain as memory" lesson is intact: the agent still WRITES the
 canonical pages and QUERIES them over MCP. Only the throwaway intermediate left
 the embedded store.
 
-Run: python src/resumable_ingest.py   (re-run to resume; rm -rf ~/brain/.ingest_stage to restart)
+Two checkpoints, both on disk, so resume re-does no expensive work:
+  - EXTRACTION: a file with a stage JSON is skipped (no re-extract).
+  - WRITES: ~/brain/.ingest_written.json records written canonical slugs, so a
+    resumed run re-embeds ONLY un-written pages — "embed once" survives a crash.
+Oversized pages (> BIG_PAGE_CHARS) are written driver-side (no 30s sandbox) since
+one such page's single embed could approach the agent's per-step limit.
+
+Run: python src/resumable_ingest.py   (re-run to resume)
+Restart from scratch: rm -rf ~/brain/.ingest_stage ~/brain/.ingest_written.json
 """
 from __future__ import annotations
 
 import json
 import os
 import pathlib
+import subprocess
 
 from mcp import StdioServerParameters
 from openai import OpenAI
@@ -39,7 +48,9 @@ from ingest_agent import (
 
 SOURCES = pathlib.Path(os.path.expanduser("~/brain/sources"))
 STAGE_DIR = pathlib.Path(os.path.expanduser("~/brain/.ingest_stage"))   # disk staging
+WRITTEN = pathlib.Path(os.path.expanduser("~/brain/.ingest_written.json"))  # write checkpoint
 BATCH = 8                 # canonical pages per agent write call (bounded < 30s)
+BIG_PAGE_CHARS = 8000     # bigger pages are written driver-side (one page's embed may near 30s)
 
 _CURRENT: list = []       # the current write batch; the agent's tool reads this
 
@@ -61,6 +72,25 @@ def _files() -> list[tuple[str, str]]:
 def _llm() -> OpenAI:
     return OpenAI(base_url=os.getenv("LLM_BASE_URL", "http://localhost:8000/v1"),
                   api_key=os.getenv("LLM_API_KEY", "dummy"))
+
+
+# ── write checkpoint (so a resumed run re-embeds only un-written pages) ──────
+def _written_done() -> set[str]:
+    if WRITTEN.exists():
+        return set(json.loads(WRITTEN.read_text()).get("done", []))
+    return set()
+
+
+def _mark_written(slugs: list[str]) -> None:
+    done = _written_done() | set(slugs)
+    WRITTEN.write_text(json.dumps({"done": sorted(done)}))
+
+
+def _gbrain_put(slug: str, content: str) -> None:
+    """Driver-side write (no 30s sandbox) — used for oversized pages whose single
+    embed could approach the agent's per-step limit."""
+    subprocess.run([_GBRAIN, "put", slug], input=content, capture_output=True,
+                   text=True, env=_server_env())
 
 
 # ── per-file extraction → DISK staging (no embedding) ───────────────────────
@@ -156,12 +186,27 @@ def main() -> None:
             tools=[current_pages, *mcp_tools], model=model, max_steps=3,
             use_structured_outputs_internally=True, verbosity_level=1)
 
-        # 3. WRITE canonical pages to GBrain via the agent, in bounded batches
-        # (each page embedded EXACTLY ONCE — staging never touched the store).
-        for i in range(0, len(canonical), BATCH):
-            _CURRENT = canonical[i:i + BATCH]
-            print(f">>> write batch {i // BATCH + 1} ({len(_CURRENT)} pages) -> "
+        # 3. WRITE canonical pages to GBrain — embedded EXACTLY ONCE, and the
+        # write checkpoint means a resumed run re-embeds only un-written pages.
+        written = _written_done()
+        pending = [p for p in canonical if p["slug"] not in written]
+        print(f">>> {len(canonical)} canonical, {len(canonical) - len(pending)} "
+              f"already written (resume), {len(pending)} to write")
+
+        # Oversized pages → driver-side (a single big embed could near the 30s
+        # sandbox limit); normal pages → agent, in bounded batches.
+        big = [p for p in pending if len(p["content"]) > BIG_PAGE_CHARS]
+        small = [p for p in pending if len(p["content"]) <= BIG_PAGE_CHARS]
+        for p in big:
+            _gbrain_put(p["slug"], p["content"])
+            _mark_written([p["slug"]])
+            print(f">>> big page driver-side: {p['slug']} ({len(p['content'])} chars)")
+        for i in range(0, len(small), BATCH):
+            batch = small[i:i + BATCH]
+            _CURRENT = batch
+            print(f">>> write batch {i // BATCH + 1} ({len(batch)} pages) -> "
                   + str(agent.run(WRITE_TASK)))
+            _mark_written([p["slug"] for p in batch])   # checkpoint AFTER the batch lands
 
         # 4. RECONCILE links, then the agent queries its memory.
         print(">>> reconcile graph: " + reconcile_graph())
