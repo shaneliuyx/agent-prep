@@ -50,9 +50,13 @@ def _bm25_scores(query: str, docs: list[str], k1: float = 1.5, b: float = 0.75) 
 
 
 def recall(conn: sqlite3.Connection, query: str, k: int = RECALL_K,
-           now: float | None = None) -> list[sqlite3.Row]:
+           now: float | None = None, track: bool = False) -> list[sqlite3.Row]:
     """Return the top-k LEARNING facts for the query, ranked by
-    BM25 × recency-decay × confidence. Empty list if nothing relevant (BM25>0)."""
+    BM25 × recency-decay × confidence. Empty list if nothing relevant (BM25>0).
+
+    track=True records a recall 'visit' on the returned facts (heat_eviction.touch),
+    so the heat score reflects what actually gets used. Default False keeps recall
+    pure-read for tests/ablation; the live loop (recall_block) opts in."""
     now = now or time.time()
     facts = conn.execute("SELECT * FROM learning").fetchall()
     if not facts:
@@ -65,7 +69,14 @@ def recall(conn: sqlite3.Connection, query: str, k: int = RECALL_K,
         recency = 0.5 ** ((now - f["ts"]) / RECENCY_HALFLIFE_S)
         ranked.append((score * recency * f["confidence"], f))
     ranked.sort(key=lambda x: x[0], reverse=True)
-    return [f for _, f in ranked[:k]]
+    top = [f for _, f in ranked[:k]]
+    if track and top:
+        # lazy import: heat_eviction imports this module, so importing at top
+        # would cycle. By call time metacog_recall is fully loaded.
+        from heat_eviction import ensure_heat_columns, touch
+        ensure_heat_columns(conn)
+        touch(conn, [f["id"] for f in top], now=now)
+    return top
 
 
 def format_injection(facts: list[sqlite3.Row]) -> str:
@@ -82,6 +93,8 @@ def format_injection(facts: list[sqlite3.Row]) -> str:
     return "\n".join(lines)
 
 
-def recall_block(conn: sqlite3.Connection, query: str, k: int = RECALL_K) -> str:
-    """Convenience: recall + format in one call (what the agent loop uses)."""
-    return format_injection(recall(conn, query, k))
+def recall_block(conn: sqlite3.Connection, query: str, k: int = RECALL_K,
+                 track: bool = True) -> str:
+    """Convenience: recall + format in one call (what the agent loop uses).
+    track defaults True here — the live loop's recalls SHOULD accrue heat."""
+    return format_injection(recall(conn, query, k, track=track))
