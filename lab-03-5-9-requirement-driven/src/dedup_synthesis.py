@@ -22,10 +22,12 @@ Scoped to the Qdrant TieredMemory variant for clean composition (EverCore
 has its own internal extraction pipeline that doesn't expose delete/update
 hooks cleanly).
 
-Step 3 (deferred): supersede currently uses HARD-DELETE for the old fact.
-Once `_qdrant_supersede` (payload-patch soft-delete) lands, the new fact's
-`supersedes` pointer + query-time filter give true bitemporal semantics
-without losing the old content.
+Step 3 (WIRED 2026-06-05): supersede uses payload-patch SOFT-DELETE. The old
+fact is kept and patched with `superseded_by` (the new fact's id); the new fact
+carries the `supersedes` back-pointer. `query_context` excludes superseded facts
+by default (`is_empty: superseded_by`) so live recall is identical to the old
+hard-delete behavior, while `include_superseded=True` walks the full history —
+true bitemporal semantics without losing the old content.
 """
 from __future__ import annotations
 
@@ -56,6 +58,7 @@ class TieredMemoryLike(Protocol):
         k: int = ...,
         min_confidence: float = ...,
         type_filter: list[str] | None = ...,
+        include_superseded: bool = ...,
     ) -> list[dict[str, Any]]: ...
 
 
@@ -277,20 +280,25 @@ def execute_action(tm: TieredMemoryLike, action: DedupAction, new_fact: str,
         return counts
 
     if action.action == "supersede" and action.target_id:
-        # NOTE (Step 3 deferred): the soft-delete payload-patch path
-        # `_qdrant_supersede` is not yet wired. Until then, hard-delete
-        # old + new fact with `supersedes` pointer + supersede_reason
-        # metadata. Classification IS preserved via the new fact's
-        # supersedes pointer — chain traversal walks forward. Step 3
-        # swaps _qdrant_delete -> payload-patch with zero contract
-        # change at this layer.
-        _qdrant_delete(tm, [action.target_id])
+        # Step 3 WIRED: payload-patch SOFT-DELETE (was hard-delete). Imprint
+        # the new fact FIRST (we need its id for the old fact's back-pointer),
+        # then patch the OLD point with `superseded_by` instead of deleting it.
+        # query_context filters superseded facts out of live recall by default
+        # (is_empty: superseded_by), so accuracy is identical to the hard-delete
+        # era; include_superseded=True walks the chain both ways for audit.
+        superseded_at = datetime.now(timezone.utc).isoformat()
         new_id = tm.imprint(content=new_fact, metadata={
             **md,
             "supersedes": action.target_id,
             "supersede_reason": action.supersede_reason,
             "supersede_category": action.supersede_category,
             "fact_kind": "state_evolution",
+        })
+        _qdrant_supersede(tm, action.target_id, {
+            "superseded_by": new_id,
+            "superseded_at": superseded_at,
+            "supersede_reason": action.supersede_reason,
+            "supersede_category": action.supersede_category,
         })
         counts["superseded"] += 1
         counts["imprinted"] += 1
@@ -326,5 +334,19 @@ def _qdrant_delete(tm: TieredMemoryLike, point_ids: list[str]) -> None:
     r = tm._http.post(
         f"/collections/{COLLECTION}/points/delete",
         json={"points": point_ids},
+    )
+    r.raise_for_status()
+
+
+def _qdrant_supersede(tm: TieredMemoryLike, point_id: str, patch: dict[str, Any]) -> None:
+    """Soft-delete: PATCH a point's payload (set `superseded_by` etc.) instead
+    of removing it. Qdrant's set-payload endpoint merges `patch` into the
+    existing payload, leaving the vector + original content intact so the fact
+    stays queryable for audit (query_context(include_superseded=True))."""
+    from src.tiered_memory_qdrant import COLLECTION
+
+    r = tm._http.post(
+        f"/collections/{COLLECTION}/points/payload",
+        json={"payload": patch, "points": [point_id]},
     )
     r.raise_for_status()

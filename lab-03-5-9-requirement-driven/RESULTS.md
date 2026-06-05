@@ -463,3 +463,25 @@ tests/
   test_aggregate_merge.py     — regression guard for the per-run merge (no-clobber)
 .env                          — LLM_BASE_URL (VibeProxy) + EMBED_BASE_URL (oMLX), all models = Haiku 4.5
 ```
+
+## Supersede soft-delete wired (`_qdrant_supersede`) (2026-06-05)
+
+Previously `supersede` hard-deleted the old fact (forward `supersedes` pointer
+survived, but the old row was gone → backward/audit traversal dangled). Now wired
+to **payload-patch soft-delete**:
+
+- `dedup_synthesis._qdrant_supersede(tm, old_id, patch)` → Qdrant `points/payload`
+  set-payload, merging `superseded_by` / `superseded_at` into the old point
+  (vector + content intact).
+- supersede branch imprints the new fact FIRST (for the back-pointer), then patches
+  the old one (was: delete old → imprint new).
+- `query_context(..., include_superseded=False)` (default) adds an
+  `is_empty: superseded_by` filter → superseded facts excluded from live recall, so
+  **measured accuracy is unchanged** vs the hard-delete era; `include_superseded=True`
+  walks the full history for audit / time-travel.
+
+Bidirectional chain now intact: new→`supersedes`→old AND old→`superseded_by`→new.
+
+**Test:** `tests/test_supersede_soft_delete.py` (live Qdrant + oMLX, skip-gated):
+old excluded from live recall · new has `supersedes` · old still retrievable with
+`include_superseded=True` and carries `superseded_by`. **Suite 3→4 passed, no regressions.**

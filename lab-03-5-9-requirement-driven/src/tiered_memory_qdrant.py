@@ -170,6 +170,7 @@ class TieredMemory:
         k: int = 5,
         min_confidence: float = 0.0,
         type_filter: list[str] | None = None,
+        include_superseded: bool = False,
     ) -> list[dict[str, Any]]:
         """Cosine-nearest top-k filtered by SHARED user_id.
 
@@ -181,6 +182,13 @@ class TieredMemory:
         3× k before filtering so confidence-filtered results still
         return up to k hits when low-quality entries are scattered.
 
+        Bitemporal recall (Phase 9.6): superseded facts are soft-deleted
+        (payload-patched with `superseded_by`, not removed). By default they
+        are EXCLUDED via an `is_empty: superseded_by` filter, so live recall
+        sees only current truth — identical to the old hard-delete behavior.
+        Pass `include_superseded=True` to walk the full history (audit /
+        time-travel / "what did I believe before?").
+
         Returns dicts with keys `content`, `score`, plus all payload
         fields (quest_id, agent_id, subject, quality_score, type, ...).
         """
@@ -191,6 +199,11 @@ class TieredMemory:
         ]
         if type_filter:
             must.append({"key": "type", "match": {"any": type_filter}})
+        if not include_superseded:
+            # Qdrant IsEmpty matches points where the key is missing/null —
+            # i.e. facts never superseded. A superseded fact carries a
+            # `superseded_by` UUID, so it fails IsEmpty and drops out.
+            must.append({"is_empty": {"key": "superseded_by"}})
 
         r = self._http.post(
             f"/collections/{COLLECTION}/points/search",
