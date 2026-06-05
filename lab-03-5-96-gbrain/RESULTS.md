@@ -199,3 +199,29 @@ query -> people/sam-okafor (top hit)
 | 12 | every agent step "Code execution exceeded 30 seconds", re-extracts, never finishes | ~60s oMLX extraction runs inside smolagents' 30s per-step sandbox; agent re-runs its whole block each step | warm `extract_pages` once outside the sandbox (cache); agent's call returns instantly → 1-step ingest |
 | 13 | `UnicodeDecodeError` / stray 0-page units in checkpoint | `read_sources`/`_files` walked `.DS_Store` (binary) and `.omc-state/` (dotted dirs OMC wrote under sources) | skip any dotted PATH PART + catch `UnicodeDecodeError`, not just dotted filenames |
 | 14 | large corpus can't be ingested in one shot | warm-once extraction concatenates all files → context-window wall, un-resumable | per-file streaming + per-file checkpoint + staging-namespace writes + final merge_pass (resumable_ingest.py) |
+
+## resumable_ingest.py v2 — disk staging (embed each entity ONCE) (2026-06-05)
+
+v1 staged into GBrain (one put_page per file-variant) → the store embedded every
+variant then threw it away at merge: ~71% wasted embedding (46 staging embeds for
+19 final pages on the 8-file run). Embedding is the throughput ceiling, so staging
+must not touch the embedded store.
+
+v2: stage on DISK (`~/brain/.ingest_stage/<file>.json`, no embedding), merge from
+disk (driver-side), then the AGENT writes only the CANONICAL pages via put_page in
+bounded batches — each entity embedded EXACTLY ONCE. Teaching point intact: the
+agent still writes canonical pages + queries over MCP; only the throwaway
+intermediate left the store.
+
+```
+staged 8 files to disk (no embedding)
+merge_from_disk: 18 canonical (14 merged from >1 file)
+write batch 1/2/3: 8 + 8 + 2 = 18 pages (embedded once each)
+reconcile graph: 23 pages, 73 links
+staging_in_db = 0          # staging never embedded
+query -> people/sam-okafor
+```
+
+Embedding calls: **65 → 18** (the 46 wasted staging embeds eliminated). 0 timeouts.
+Disk stage JSONs are the resumability artifact (re-run skips staged files;
+`rm -rf ~/brain/.ingest_stage` to restart).
