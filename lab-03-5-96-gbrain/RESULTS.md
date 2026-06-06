@@ -323,3 +323,46 @@ DB-gated integration test:
 Run: `uv run --with pytest python -m pytest tests/test_resumable_ingest.py -v`
 (plain `uv run pytest` resolves the wrong interpreter; `python -m pytest` in the
 project venv has smolagents/mcp/openai). Result: **9 passed**.
+
+## Phase 9 — corpus-adaptive search policy from a real golden eval set (2026-06-06)
+
+A self-tuning **measure → decide → apply** loop. After every ingest, `src/policy_eval.ts`
+scores keyword/vector/hybrid (engine-layer `runEval`) against a **fixed golden set of
+real, labeled questions** (`data/golden_eval.json`), writes the winning arm to
+`results/search_policy.json`, and `src/query_policy.ts` routes subsequent agent queries
+through it (stock `gbrain query` is hybrid-only, so the actuator governs the agent's
+path, not the CLI). `run_auto_eval()` (after reconcile in both ingest drivers) prefers
+the golden eval; the known-item proxy `src/auto_eval.ts` is only a cold-start fallback.
+
+**Golden set** (18 real questions, version-controlled): 12 `tenk` = W2.7's labeled
+Berkshire-10-K questions (out-of-document refusal Qs dropped — no gold section); 6
+`entity` = hand-written from the W3.5.96 fixtures. Gold = `expected_entities` substrings
+a correct answer-bearing section must contain (grounding@K; no per-slug labels needed).
+
+**Why NOT known-item proxy (the rejected first cut):** auto-generating queries from page
+titles selected `keyword` on the 10-K (recall@3 0.72), but on the real golden questions
+keyword grounds at **0.19** vs vector/hybrid **0.95** — the proxy picked the *worst* arm
+for real queries. A policy is only as good as its eval-query representativeness.
+
+**Drift experiment (live, isolated `gbrain_brk` DB) — grounding@5 on the 18 golden Qs:**
+
+| phase | corpus | keyword | vector | hybrid | policy |
+|---|---|---|---|---|---|
+| A | 10-K only (44 pp) | 0.167 | **0.667** | 0.667 | `vector` |
+| B | + entity data → mixed (59 pp) | 0.222 | 0.944 | **0.972** | `hybrid` |
+
+Per-domain (Phase B): `g@5 tenk` keyword 0.250 / vector 0.958 / hybrid 0.958; `g@5
+entity` keyword 0.167 / vector 0.917 / **hybrid 1.000**. The policy **changed on its own**
+(vector → hybrid) when the ingest re-fired the eval — data-justified: entity proper-noun
+questions revive the keyword arm, both arms become competitive, RRF earns its weight.
+`tenk` grounding held at 0.958 across both phases (distractor growth didn't degrade 10-K
+retrieval). Honest note: in Phase A vector and hybrid *tied* (0.667; entity data absent),
+so v1 was a tie broken by order — the decisive signal is Phase B.
+
+**vs W2.7** (same 10-K; W2.7 scored *answer quality* across *index types*): shapes
+converge — dense vector strongest at 10-K factoid retrieval in both; grounding 0.96 ≫
+W2.7's vector answer-judge 0.25 ⇒ the W2.7 bottleneck was generation, not retrieval.
+
+Tests: `bun test tests/auto_eval.test.ts` → **15 passed**; `pytest tests/` → **24 passed**.
+Bug found + fixed: CLI `gbrain put` titles from frontmatter, not `# heading` (exact recall
+0.000 → 0.786). Isolated DB `gbrain_brk` now holds the mixed 59-page corpus.

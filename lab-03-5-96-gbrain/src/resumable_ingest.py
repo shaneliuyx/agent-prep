@@ -55,7 +55,8 @@ from openai import OpenAI
 from smolagents import CodeAgent, OpenAIServerModel, ToolCollection, tool
 
 from ingest_agent import (
-    NEEDED_TOOLS, QUERY_TASK, _EXTRACT_PROMPT, _GBRAIN, _server_env, reconcile_graph,
+    NEEDED_TOOLS, QUERY_TASK, _EXTRACT_PROMPT, _GBRAIN, _server_env,
+    reconcile_graph, run_auto_eval,
 )
 
 SOURCES = pathlib.Path(os.path.expanduser("~/brain/sources"))
@@ -297,6 +298,11 @@ def main() -> None:
 
         # 4. RECONCILE links, then the agent queries its memory.
         print(">>> reconcile graph: " + reconcile_graph())
+
+        # 4.5 AUTO-EVAL — retrieval-health regression check after every ingest
+        # (best-effort; never breaks the ingest). Appends results/auto_eval.jsonl.
+        print(">>> auto-eval: " + run_auto_eval())
+
         answer = agent.run(QUERY_TASK)
         print("\n>>> agent final answer:\n" + str(answer))
 

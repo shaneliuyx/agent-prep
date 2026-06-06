@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "note": "Real-question golden eval set — the POLICY source (replaces known-item proxy). Domain-tagged: 'tenk' = W2.7's labeled Berkshire 10-K questions (in-document only; the 4 out-of-document refusal questions are omitted — they test generation refusal, not retrieval, and have no gold section); 'entity' = hand-written from the W3.5.96 ~/brain/sources fixtures (proper nouns that reliably appear in the generated pages). Scored by substring grounding@K. This is a measuring stick: version-control it; extend it as the real query distribution shifts.",
+  "questions": [
+    {"q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?", "expected_entities": ["37", "operating earnings", "Scorecard"], "domain": "tenk"},
+    {"q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?", "expected_entities": ["27", "Occidental"], "domain": "tenk"},
+    {"q": "What did Buffett write about the five Japanese trading houses Berkshire holds?", "expected_entities": ["Itochu", "Marubeni", "Mitsubishi", "Mitsui", "Sumitomo"], "domain": "tenk"},
+    {"q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?", "expected_entities": ["patient", "long-term", "shareholders", "Wall Street"], "domain": "tenk"},
+    {"q": "Which Item of Form 10-K covers Risk Factors?", "expected_entities": ["Item 1A", "Risk Factors"], "domain": "tenk"},
+    {"q": "Where in the report are the Notes to Consolidated Financial Statements located?", "expected_entities": ["Notes", "Financial Statements", "Item 8"], "domain": "tenk"},
+    {"q": "What were Berkshire's total revenues in 2023?", "expected_entities": ["364", "billion", "revenues"], "domain": "tenk"},
+    {"q": "What was Berkshire's net earnings attributable to shareholders in 2023?", "expected_entities": ["96", "billion", "net earnings"], "domain": "tenk"},
+    {"q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?", "expected_entities": ["secret weapon", "Charlie", "shareholders", "patient"], "domain": "tenk"},
+    {"q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?", "expected_entities": ["Apple", "Coca-Cola", "American Express", "non-controlled"], "domain": "tenk"},
+    {"q": "Which section of the annual report covers BNSF Railway operating results?", "expected_entities": ["BNSF", "Railroad", "Burlington Northern"], "domain": "tenk"},
+    {"q": "Where does the 2023 annual report disclose cybersecurity governance?", "expected_entities": ["Item 1C", "Cybersecurity"], "domain": "tenk"},
+
+    {"q": "Who is anchoring the acme-seed round?", "expected_entities": ["Sam Okafor", "Northstar"], "domain": "entity"},
+    {"q": "Who is the CTO of Acme AI and where did he work before?", "expected_entities": ["Lin Zhao", "Quanta"], "domain": "entity"},
+    {"q": "What does Helix Bio build?", "expected_entities": ["Helix", "protein"], "domain": "entity"},
+    {"q": "What does Quanta Labs work on?", "expected_entities": ["Quanta", "inference"], "domain": "entity"},
+    {"q": "Who founded Acme AI?", "expected_entities": ["Alice Chen", "Acme"], "domain": "entity"},
+    {"q": "Which firm is Dev Patel with?", "expected_entities": ["Dev Patel", "Ridgeline"], "domain": "entity"}
+  ]
+}

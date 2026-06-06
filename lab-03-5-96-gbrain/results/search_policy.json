@@ -1,0 +1,14 @@
+{
+  "strategy": "hybrid",
+  "rrf_k": 60,
+  "k": 5,
+  "source": "golden_eval",
+  "n_questions": 18,
+  "n_pages": 59,
+  "grounding": 0.9722222222222222,
+  "per_domain": {
+    "tenk": 0.9583333333333334,
+    "entity": 1
+  },
+  "note": "auto-selected from data/golden_eval.json (REAL questions, grounding@K). Read by query_policy.ts; does NOT change stock `gbrain query` (hybrid-only)."
+}

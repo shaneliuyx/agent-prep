@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 
 from dotenv import load_dotenv
@@ -153,6 +154,51 @@ def reconcile_graph() -> str:
     return lines[-1] if lines else "(no output)"
 
 
+def query_with_policy(query: str, limit: int = 5) -> str:
+    """APPLY half of the loop: run a query through `query_policy.ts`, which reads
+    the corpus-selected strategy from results/search_policy.json (written by the
+    last auto-eval) and routes to keyword/vector/hybrid accordingly — instead of
+    bare hybrid. This is how the agent's retrieval honors the per-corpus verdict.
+    Returns the actuator's stdout (policy line + ranked slugs)."""
+    env = _server_env()
+    bun = shutil.which("bun", path=env.get("PATH"))
+    if not bun:
+        return "(query_policy skipped: bun not found)"
+    script = pathlib.Path(__file__).resolve().parent / "query_policy.ts"
+    out = subprocess.run([bun, str(script), query, str(limit)],
+                         capture_output=True, text=True, env=env, timeout=120)
+    return (out.stdout or out.stderr).strip()
+
+
+def run_auto_eval() -> str:
+    """Post-ingest retrieval-health check (engine-layer keyword/vector/hybrid on
+    auto-generated known-item qrels — see src/auto_eval.ts). BEST-EFFORT: a failed
+    or absent eval must NEVER break an ingest, so every error path returns a string
+    instead of raising. Disable with AUTO_EVAL=0."""
+    if os.getenv("AUTO_EVAL", "1") != "1":
+        return "(skipped: AUTO_EVAL=0)"
+    bun = shutil.which("bun", path=_server_env().get("PATH"))
+    if not bun:
+        return "(skipped: bun not found on PATH)"
+    # Prefer the REAL-question policy source when a golden set exists; fall back to
+    # the known-item proxy only as cold-start (no golden set yet). The proxy is a
+    # regression guardrail, not the policy oracle (Bad-Case Entry 20).
+    golden = pathlib.Path(__file__).resolve().parent.parent / "data" / "golden_eval.json"
+    script = pathlib.Path(__file__).resolve().parent / (
+        "policy_eval.ts" if golden.exists() else "auto_eval.ts")
+    try:
+        out = subprocess.run([bun, str(script)], capture_output=True, text=True,
+                             env=_server_env(), timeout=600)
+    except Exception as e:  # noqa: BLE001 — eval is advisory; never fail the ingest
+        return f"(auto-eval error: {e})"
+    if out.stdout:
+        print(out.stdout, end="")
+    if out.returncode != 0 and out.stderr:
+        print(out.stderr, end="")
+    lines = [ln for ln in (out.stdout or out.stderr).splitlines() if ln.strip()]
+    return lines[-1] if lines else "(no output)"
+
+
 # Two phases on purpose: WRITE, then (infra reconcile), then READ. The query must
 # run AFTER reconcile_graph() or it reads a graph whose edges aren't materialized.
 INGEST_TASK = """Build the brain using ONLY the provided tools:
@@ -196,6 +242,10 @@ def main() -> None:
         # on the LLM remembering). Materializes the [[wikilinks]] into typed edges
         # BEFORE the read, so the query sees the wired graph. See reconcile_graph().
         print(">>> reconcile graph: " + reconcile_graph())
+
+        # 2.5 AUTO-EVAL — retrieval-health regression check after every ingest.
+        # Best-effort: never breaks the ingest. Appends results/auto_eval.jsonl.
+        print(">>> auto-eval: " + run_auto_eval())
 
         # 3. READ — query now runs over the reconciled graph.
         answer = agent.run(QUERY_TASK)
