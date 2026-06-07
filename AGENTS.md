@@ -23,3 +23,25 @@ Do NOT fall back to CLI; the MCP server is available.
   call `quest_brief("what was done, what's next, gotchas")` without being asked.
 
 MCP namespace: `mcp__guild__*`. CLI fallback: `guild --help` (last resort only).
+
+## shared library — reuse before you reinvent
+
+**BEFORE writing new chapter / lab code, read `shared/` first and reuse what's there.**
+`shared/` holds cross-chapter **infrastructure** extracted from earlier labs (LLM client +
+model presets + retry + judge in `llm.py`; GBrain connect/read in `gbrain_cli.py` /
+`gbrain_engine.ts`). See `shared/README.md` for the provenance map.
+
+Procedure when creating a new lab:
+1. **Read `shared/README.md` + the module surfaces.** Identify which utilities the new code
+   needs (client/preset resolution, `resilient`, `judge`, `load_pass_criteria`, `bootstrapEngine`,
+   `build_context`, …).
+2. **Import, don't re-implement** the plumbing:
+   - Python — `import sys; sys.path.insert(0, "/Users/yuxinliu/code/agent-prep/shared"); from llm import …`
+   - TS/Bun — `import { bootstrapEngine } from "/Users/yuxinliu/code/agent-prep/shared/gbrain_engine.ts"`
+3. **Keep teaching primitives in the lab.** The metric / routing / reader / policy logic a chapter
+   *introduces* stays inline so the reader sees the mechanism — only plumbing goes through `shared/`.
+   Rule: *introduce inline, reuse via import.* Never re-churn a finished chapter to adopt a refactor.
+4. **Promote on rule-of-three.** If you find yourself writing infra a 2nd chapter also needs, add it
+   to `shared/` (one module, documented in the README provenance table) — not speculatively.
+
+This keeps lab code small and consistent without hiding each chapter's actual lesson.
