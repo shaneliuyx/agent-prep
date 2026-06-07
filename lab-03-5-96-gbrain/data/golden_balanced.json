@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "note": "Balanced routing test — SAME answer targets (entities known present in the brain), phrased TWO ways to favor different arms. `domain` encodes the intended class so route_eval reports per-class grounding: 'kw' = exact distinctive tokens (keyword/FTS should win), 'vec' = semantic paraphrase with the exact answer terms removed (dense vector should win), 'mixed' = natural questions both arms find. Purpose: give per-query routing a fair shot — the original golden_eval was 11 vector-only / 0 keyword-only / 0 RRF-hurt, so hybrid dominated by construction. If routing has headroom anywhere, it's here.",
+  "questions": [
+    {"q": "Itochu Marubeni Mitsubishi Mitsui Sumitomo trading houses", "expected_entities": ["Itochu", "Marubeni", "Mitsubishi", "Mitsui", "Sumitomo"], "domain": "kw"},
+    {"q": "Item 1C Cybersecurity disclosure governance", "expected_entities": ["Item 1C", "Cybersecurity"], "domain": "kw"},
+    {"q": "Item 1A Risk Factors", "expected_entities": ["Item 1A", "Risk Factors"], "domain": "kw"},
+    {"q": "Occidental Petroleum 27 percent common shares warrants", "expected_entities": ["Occidental", "27"], "domain": "kw"},
+    {"q": "Sam Okafor Northstar acme-seed anchor", "expected_entities": ["Sam Okafor", "Northstar"], "domain": "kw"},
+    {"q": "Lin Zhao Quanta CTO Acme AI", "expected_entities": ["Lin Zhao", "Quanta"], "domain": "kw"},
+    {"q": "Dev Patel Ridgeline", "expected_entities": ["Dev Patel", "Ridgeline"], "domain": "kw"},
+    {"q": "Helix Bio protein foundation models", "expected_entities": ["Helix", "protein"], "domain": "kw"},
+    {"q": "BNSF Burlington Northern Santa Fe railroad", "expected_entities": ["BNSF", "Burlington Northern"], "domain": "kw"},
+    {"q": "Item 8 Notes to Consolidated Financial Statements", "expected_entities": ["Item 8", "Notes"], "domain": "kw"},
+
+    {"q": "the five trading companies the firm holds for the long term in Japan", "expected_entities": ["Itochu", "Marubeni", "Mitsubishi", "Mitsui", "Sumitomo"], "domain": "vec"},
+    {"q": "how the company guards against digital intrusions and oversees those threats", "expected_entities": ["Item 1C", "Cybersecurity"], "domain": "vec"},
+    {"q": "the part of the filing that lists what could go wrong for the business", "expected_entities": ["Item 1A", "Risk Factors"], "domain": "vec"},
+    {"q": "the oil and gas producer the firm owns a large minority stake in", "expected_entities": ["Occidental", "27"], "domain": "vec"},
+    {"q": "who is putting up the money to anchor the early funding round for the AI startup", "expected_entities": ["Sam Okafor", "Northstar"], "domain": "vec"},
+    {"q": "who runs the startup optimizing model inference and where did he work before", "expected_entities": ["Lin Zhao", "Quanta"], "domain": "vec"},
+    {"q": "which venture firm is the angel investor in the network associated with", "expected_entities": ["Dev Patel", "Ridgeline"], "domain": "vec"},
+    {"q": "the startup designing foundation models for protein structure", "expected_entities": ["Helix", "protein"], "domain": "vec"},
+    {"q": "where the freight rail subsidiary's operating earnings are described", "expected_entities": ["BNSF", "Burlington Northern"], "domain": "vec"},
+    {"q": "where in the report the detailed accounting notes following the primary statements live", "expected_entities": ["Item 8", "Notes"], "domain": "vec"},
+
+    {"q": "What were Berkshire's total revenues in 2023?", "expected_entities": ["364", "billion", "revenues"], "domain": "mixed"},
+    {"q": "What did Buffett describe as Berkshire's 'not-so-secret weapon'?", "expected_entities": ["secret weapon", "Charlie", "patient"], "domain": "mixed"},
+    {"q": "Who founded Acme AI?", "expected_entities": ["Alice Chen", "Acme"], "domain": "mixed"},
+    {"q": "What does Quanta Labs work on?", "expected_entities": ["Quanta", "inference"], "domain": "mixed"}
+  ]
+}
