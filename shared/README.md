@@ -1,9 +1,11 @@
 # agent-prep/shared — cross-chapter infrastructure
 
-Reusable **plumbing** extracted from the lab chapters, so later chapters stay lean. This holds
-infrastructure only (LLM clients, retry, model presets, GBrain connect/read) — **not** the
-teaching primitives. The metric/routing/reader logic each chapter introduces stays in that
-chapter's lab so the reader sees the mechanism.
+Reusable code extracted from the lab chapters, so later chapters stay lean. Two shapes live here:
+**flat infra modules** (LLM client/retry/presets, GBrain connect/read — documented below) and
+larger **packages** (`rag_hybrid/`, `tree_index/`, `phoenix_tracing/`, `agent_loop_tools/`, each
+its own folder with a README + tests). What does NOT live here: the **teaching primitives** —
+the metric/routing/reader/policy logic each chapter *introduces* stays in that chapter's lab so
+the reader sees the mechanism.
 
 ## The rule: introduce inline, reuse via import
 
@@ -54,6 +56,22 @@ non-GBrain chapter (e.g. W3.5.95) imports only `llm`.
 |---|---|---|
 | `bootstrapEngine` | `() -> Promise<{engine, runEval, config}>` | connect to GBrain exactly as the CLI does (load config → create engine → connect → wire gateway). `GBRAIN_SRC` env overrides the gbrain source path. |
 | `Bootstrapped` | `interface` | return shape: `{ engine, runEval, config }`. |
+
+## Packages (subdirectories)
+
+Larger libraries — each its own package with a dedicated README + tests. Read the package's own
+README for its API; the table is the index.
+
+| package | what | extracted from | docs |
+|---|---|---|---|
+| `rag_hybrid/` | modular hybrid-RAG building blocks: char/sentence chunkers, BGE-M3 hybrid + dense encoder (lazy), Qdrant schema, RRF `fusion`, cross-encoder `rerank` (fp16-opt-in), `retrieve` (auto hybrid/dense + RRF + optional rerank), `ingest`, system-aware `autoconfig` | W2 `lab-02-rerank-compress` + W2.5 `lab-02-5-graphrag` | `rag_hybrid/README.md` |
+| `tree_index/` | PageIndex-pattern tree-index RAG primitives: `builder`, `summary_index`, `page_vector_index`, `entity_index`, `ensemble`, `agentic` search, `prompts` | W2.7 `lab-02-7-pageindex` (lifted tree judge 0.44 → 0.885) | `tree_index/README.md` |
+| `phoenix_tracing/` | one-call Phoenix observability — wraps `register()` + OpenAI/LangChain instrumentors + span helpers for any RAG/agent lab | W3 `lab-03-rag-eval/src/05_trace.py` | `phoenix_tracing/README.md` |
+| `agent_loop_tools/` | iterative agent-loop primitives: `interrupt_state` (pause/resume), `token_accounting` | ported from gnhf (MIT) → agent-loop labs | `agent_loop_tools/README.md` |
+
+**Loose helpers (repo-root of `shared/`):**
+- `guild_client.py` — Python wrapper over guild's MCP stdio interface (schema-verified against `list_tools()`).
+- `parity_baseline.py` + `parity/` — freeze ground-truth state (Qdrant point counts, sample vector signatures) before a refactor, for mechanical before/after diffing. Baseline at `parity/pre_refactor.json`.
 
 ## Use it
 
