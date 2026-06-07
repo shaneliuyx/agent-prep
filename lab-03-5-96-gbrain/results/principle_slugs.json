@@ -1,0 +1,748 @@
+[
+  {
+    "q": "Itochu Marubeni Mitsubishi Mitsui Sumitomo trading houses",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Itochu",
+      "Marubeni",
+      "Mitsubishi",
+      "Mitsui",
+      "Sumitomo"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0045",
+      "sections/brk_0010",
+      "sections/brk_0013",
+      "sections/brk_0015"
+    ],
+    "router_slugs": [
+      "sections/brk_0004",
+      "sections/brk_0003",
+      "sections/brk_0007",
+      "sections/brk_0011",
+      "sections/brk_0010"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0004",
+      "sections/brk_0007",
+      "sections/brk_0045",
+      "sections/brk_0010"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Item 1C Cybersecurity disclosure governance",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Item 1C",
+      "Cybersecurity"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0019",
+      "sections/brk_0018",
+      "sections/brk_0020",
+      "sections/brk_0017",
+      "sections/brk_0040"
+    ],
+    "router_slugs": [
+      "sections/brk_0019",
+      "sections/brk_0018",
+      "sections/brk_0041",
+      "sections/brk_0040",
+      "sections/brk_0042"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0019",
+      "sections/brk_0018",
+      "sections/brk_0020",
+      "companies/northstar-ventures",
+      "sections/brk_0043"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Item 1A Risk Factors",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Item 1A",
+      "Risk Factors"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0017",
+      "sections/brk_0028",
+      "sections/brk_0023",
+      "sections/brk_0031",
+      "sections/brk_0032"
+    ],
+    "router_slugs": [
+      "sections/brk_0017",
+      "sections/brk_0021",
+      "sections/brk_0022",
+      "sections/brk_0012",
+      "sections/brk_0020"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0017",
+      "sections/brk_0033",
+      "people/ridgeline-capital",
+      "sections/brk_0022",
+      "sections/brk_0032"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Occidental Petroleum 27 percent common shares warrants",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Occidental",
+      "27"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0034",
+      "sections/brk_0039",
+      "sections/brk_0031",
+      "sections/brk_0004",
+      "sections/brk_0003"
+    ],
+    "router_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0003",
+      "sections/brk_0007",
+      "sections/brk_0004"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0034",
+      "sections/brk_0031",
+      "sections/brk_0015",
+      "sections/brk_0003",
+      "sections/brk_0039"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Sam Okafor Northstar acme-seed anchor",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Sam Okafor",
+      "Northstar"
+    ],
+    "baseline_slugs": [
+      "people/sam-okafor",
+      "companies/northstar-ventures",
+      "deals/acme-seed",
+      "inbox/2026-06-04-6ef79525",
+      "inbox/2026-06-04-5a48101e"
+    ],
+    "router_slugs": [
+      "inbox/2026-06-04-6ef79525",
+      "meetings/tartine-dinner",
+      "inbox/2026-06-04-5a48101e",
+      "people/sam-okafor",
+      "deals/acme-seed"
+    ],
+    "strong_g_slugs": [
+      "people/sam-okafor",
+      "deals/acme-seed",
+      "meetings/tartine-dinner",
+      "companies/northstar-ventures",
+      "people/alice-chen"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Lin Zhao Quanta CTO Acme AI",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Lin Zhao",
+      "Quanta"
+    ],
+    "baseline_slugs": [
+      "people/lin-zhao",
+      "companies/acme-ai",
+      "people/alice-chen",
+      "companies/quanta-labs",
+      "people/priya-nadar"
+    ],
+    "router_slugs": [
+      "people/lin-zhao",
+      "companies/acme-ai",
+      "inbox/2026-06-04-6ef79525",
+      "meetings/tartine-dinner",
+      "inbox/2026-06-04-5a48101e"
+    ],
+    "strong_g_slugs": [
+      "people/lin-zhao",
+      "companies/acme-ai",
+      "people/alice-chen",
+      "people/sam-okafor",
+      "people/priya-nadar"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Dev Patel Ridgeline",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Dev Patel",
+      "Ridgeline"
+    ],
+    "baseline_slugs": [
+      "people/dev-patel",
+      "companies/ridgeline-capital",
+      "people/priya-nadar",
+      "people/ridgeline-capital",
+      "deals/helix-series-a"
+    ],
+    "router_slugs": [
+      "companies/ridgeline-capital",
+      "deals/helix-series-a",
+      "people/dev-patel",
+      "people/ridgeline-capital"
+    ],
+    "strong_g_slugs": [
+      "people/dev-patel",
+      "companies/ridgeline-capital",
+      "people/ridgeline-capital",
+      "people/priya-nadar",
+      "companies/stripe"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Helix Bio protein foundation models",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Helix",
+      "protein"
+    ],
+    "baseline_slugs": [
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "people/priya-helix",
+      "companies/ridgeline-capital",
+      "people/sam-okafor"
+    ],
+    "router_slugs": [
+      "people/marcus-webb",
+      "people/priya-helix",
+      "companies/helix-bio",
+      "people/sam-okafor",
+      "deals/helix-series-a"
+    ],
+    "strong_g_slugs": [
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "people/priya-helix",
+      "deals/helix-series-a",
+      "people/sam-okafor"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "BNSF Burlington Northern Santa Fe railroad",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "BNSF",
+      "Burlington Northern"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0012",
+      "sections/brk_0010",
+      "sections/brk_0004",
+      "sections/brk_0020",
+      "sections/brk_0003"
+    ],
+    "router_slugs": [
+      "sections/brk_0012",
+      "sections/brk_0010",
+      "sections/brk_0011",
+      "sections/brk_0023",
+      "sections/brk_0020"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0012",
+      "sections/brk_0039",
+      "sections/brk_0010",
+      "sections/brk_0004",
+      "sections/brk_0007"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Item 8 Notes to Consolidated Financial Statements",
+    "domain": "kw",
+    "type": "kw",
+    "expected_entities": [
+      "Item 8",
+      "Notes"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0040",
+      "sections/brk_0034",
+      "sections/brk_0034",
+      "sections/brk_0038"
+    ],
+    "router_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0043",
+      "sections/brk_0040",
+      "sections/brk_0044"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0041",
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0034",
+      "sections/brk_0039"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "the five trading companies the firm holds for the long term in Japan",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Itochu",
+      "Marubeni",
+      "Mitsubishi",
+      "Mitsui",
+      "Sumitomo"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0004",
+      "sections/brk_0003",
+      "sections/brk_0031",
+      "sections/brk_0005",
+      "sections/brk_0015"
+    ],
+    "router_slugs": [
+      "sections/brk_0004",
+      "sections/brk_0003",
+      "sections/brk_0007",
+      "sections/brk_0031",
+      "sections/brk_0005"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0004",
+      "companies/northstar-ventures",
+      "companies/ridgeline-capital",
+      "people/ridgeline-capital",
+      "sections/brk_0015"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "how the company guards against digital intrusions and oversees those threats",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Item 1C",
+      "Cybersecurity"
+    ],
+    "baseline_slugs": [
+      "companies/acme-ai",
+      "sections/brk_0020",
+      "companies/northstar-vc",
+      "sections/brk_0018",
+      "sections/brk_0017"
+    ],
+    "router_slugs": [
+      "sections/brk_0020",
+      "companies/northstar-vc",
+      "sections/brk_0018",
+      "sections/brk_0019",
+      "companies/acme-ai"
+    ],
+    "strong_g_slugs": [
+      "people/dev-patel",
+      "sections/brk_0003",
+      "sections/brk_0004",
+      "sections/brk_0010",
+      "companies/helix"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "the part of the filing that lists what could go wrong for the business",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Item 1A",
+      "Risk Factors"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0033",
+      "sections/brk_0034",
+      "sections/brk_0017",
+      "sections/brk_0019",
+      "sections/brk_0021"
+    ],
+    "router_slugs": [
+      "sections/brk_0033",
+      "sections/brk_0034",
+      "sections/brk_0017",
+      "sections/brk_0019",
+      "sections/brk_0021"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0033",
+      "sections/brk_0034",
+      "sections/brk_0017",
+      "sections/brk_0019",
+      "sections/brk_0021"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "the oil and gas producer the firm owns a large minority stake in",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Occidental",
+      "27"
+    ],
+    "baseline_slugs": [
+      "companies/northstar-ventures",
+      "sections/brk_0010",
+      "sections/brk_0004",
+      "sections/brk_0003",
+      "sections/brk_0013"
+    ],
+    "router_slugs": [
+      "companies/northstar-ventures",
+      "sections/brk_0010",
+      "sections/brk_0011",
+      "sections/brk_0004",
+      "sections/brk_0003"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0004",
+      "sections/brk_0007",
+      "sections/brk_0010",
+      "companies/northstar-ventures",
+      "sections/brk_0013"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "who is putting up the money to anchor the early funding round for the AI startup",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Sam Okafor",
+      "Northstar"
+    ],
+    "baseline_slugs": [
+      "meetings/tartine-dinner",
+      "inbox/2026-06-04-6ef79525",
+      "people/sam-okafor",
+      "deals/acme-seed",
+      "companies/quanta-labs"
+    ],
+    "router_slugs": [
+      "people/sam-okafor",
+      "companies/quanta-labs",
+      "companies/northstar-ventures",
+      "companies/acme-ai",
+      "people/priya-nadar"
+    ],
+    "strong_g_slugs": [
+      "companies/acme-ai",
+      "companies/northstar-ventures",
+      "companies/quanta-labs",
+      "people/priya-nadar",
+      "people/sam-okafor"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "who runs the startup optimizing model inference and where did he work before",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Lin Zhao",
+      "Quanta"
+    ],
+    "baseline_slugs": [
+      "companies/quanta-labs",
+      "people/priya-nadar",
+      "people/lin-zhao",
+      "people/marcus-webb",
+      "companies/acme-ai"
+    ],
+    "router_slugs": [
+      "companies/quanta-labs",
+      "people/priya-nadar",
+      "people/lin-zhao",
+      "people/marcus-webb",
+      "people/dev-patel"
+    ],
+    "strong_g_slugs": [
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "people/lin-zhao",
+      "people/priya-helix",
+      "people/dev-patel"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "which venture firm is the angel investor in the network associated with",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Dev Patel",
+      "Ridgeline"
+    ],
+    "baseline_slugs": [
+      "people/sam-okafor",
+      "companies/northstar-ventures",
+      "companies/ridgeline-capital",
+      "people/dev-patel",
+      "companies/northstar-vc"
+    ],
+    "router_slugs": [
+      "companies/northstar-ventures",
+      "companies/northstar-vc",
+      "companies/ridgeline-capital",
+      "people/dev-patel",
+      "people/sam-okafor"
+    ],
+    "strong_g_slugs": [
+      "people/sam-okafor",
+      "companies/northstar-ventures",
+      "companies/ridgeline-capital",
+      "people/dev-patel",
+      "companies/northstar-vc"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "the startup designing foundation models for protein structure",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Helix",
+      "protein"
+    ],
+    "baseline_slugs": [
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "people/priya-helix",
+      "people/dev-patel",
+      "people/priya-nadar"
+    ],
+    "router_slugs": [
+      "companies/helix-bio",
+      "people/priya-helix",
+      "people/marcus-webb",
+      "people/dev-patel",
+      "people/priya-nadar"
+    ],
+    "strong_g_slugs": [
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "people/priya-helix",
+      "people/dev-patel",
+      "companies/northstar-ventures"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "where the freight rail subsidiary's operating earnings are described",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "BNSF",
+      "Burlington Northern"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0023",
+      "sections/brk_0010"
+    ],
+    "router_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0023",
+      "sections/brk_0010",
+      "sections/brk_0011"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0020",
+      "sections/brk_0010",
+      "sections/brk_0034",
+      "sections/brk_0039"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "where in the report the detailed accounting notes following the primary statements live",
+    "domain": "vec",
+    "type": "vec",
+    "expected_entities": [
+      "Item 8",
+      "Notes"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0041",
+      "sections/brk_0033"
+    ],
+    "router_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0041",
+      "sections/brk_0042",
+      "sections/brk_0040"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0039",
+      "sections/brk_0028",
+      "sections/brk_0041",
+      "sections/brk_0043",
+      "sections/brk_0004"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "What were Berkshire's total revenues in 2023?",
+    "domain": "mixed",
+    "type": "mixed",
+    "expected_entities": [
+      "364",
+      "billion",
+      "revenues"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0034",
+      "sections/brk_0003",
+      "sections/brk_0023",
+      "sections/brk_0004",
+      "sections/brk_0035"
+    ],
+    "router_slugs": [
+      "sections/brk_0034",
+      "sections/brk_0003",
+      "sections/brk_0023",
+      "sections/brk_0004",
+      "sections/brk_0035"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0023",
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0034",
+      "sections/brk_0025"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon'?",
+    "domain": "mixed",
+    "type": "mixed",
+    "expected_entities": [
+      "secret weapon",
+      "Charlie",
+      "patient"
+    ],
+    "baseline_slugs": [
+      "sections/brk_0006",
+      "sections/brk_0003",
+      "sections/brk_0004",
+      "sections/brk_0017",
+      "sections/brk_0007"
+    ],
+    "router_slugs": [
+      "sections/brk_0006",
+      "sections/brk_0003",
+      "sections/brk_0004",
+      "sections/brk_0017",
+      "sections/brk_0007"
+    ],
+    "strong_g_slugs": [
+      "sections/brk_0006",
+      "people/dev-patel",
+      "people/sam-okafor",
+      "companies/northstar-vc",
+      "sections/brk_0003"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "Who founded Acme AI?",
+    "domain": "mixed",
+    "type": "mixed",
+    "expected_entities": [
+      "Alice Chen",
+      "Acme"
+    ],
+    "baseline_slugs": [
+      "companies/acme-ai",
+      "people/alice-chen",
+      "people/sam-okafor",
+      "deals/acme-seed",
+      "meetings/tartine-dinner"
+    ],
+    "router_slugs": [
+      "companies/acme-ai",
+      "people/alice-chen",
+      "people/sam-okafor",
+      "deals/acme-seed",
+      "meetings/tartine-dinner"
+    ],
+    "strong_g_slugs": [
+      "companies/acme-ai",
+      "meetings/tartine-dinner",
+      "deals/acme-seed",
+      "people/alice-chen",
+      "people/sam-okafor"
+    ],
+    "strong_g_variant": "g2"
+  },
+  {
+    "q": "What does Quanta Labs work on?",
+    "domain": "mixed",
+    "type": "mixed",
+    "expected_entities": [
+      "Quanta",
+      "inference"
+    ],
+    "baseline_slugs": [
+      "companies/quanta-labs",
+      "companies/ridgeline-capital",
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "deals/quanta-seed"
+    ],
+    "router_slugs": [
+      "companies/quanta-labs",
+      "companies/ridgeline-capital",
+      "companies/helix-bio",
+      "people/marcus-webb",
+      "deals/quanta-seed"
+    ],
+    "strong_g_slugs": [
+      "companies/quanta-labs",
+      "deals/quanta-seed",
+      "people/lin-zhao",
+      "companies/helix-bio",
+      "people/dev-patel"
+    ],
+    "strong_g_variant": "g2"
+  }
+]
