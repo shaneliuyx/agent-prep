@@ -11,13 +11,13 @@
       "keyword": [],
       "vector": [
         "sections/brk_0004",
-        "sections/brk_0003",
-        "sections/brk_0034"
+        "sections/brk_0024",
+        "sections/brk_0039"
       ],
       "hybrid": [
         "sections/brk_0004",
-        "sections/brk_0003",
-        "sections/brk_0034"
+        "sections/brk_0024",
+        "sections/brk_0039"
       ]
     }
   },
@@ -33,13 +33,13 @@
       "keyword": [],
       "vector": [
         "sections/brk_0004",
-        "sections/brk_0039",
-        "sections/brk_0034"
+        "sections/brk_0003",
+        "sections/brk_0039"
       ],
       "hybrid": [
         "sections/brk_0004",
-        "sections/brk_0039",
-        "sections/brk_0034"
+        "sections/brk_0003",
+        "sections/brk_0039"
       ]
     }
   },
@@ -55,13 +55,13 @@
       "keyword": [],
       "vector": [
         "sections/brk_0004",
-        "sections/brk_0003",
-        "sections/brk_0005"
+        "sections/brk_0005",
+        "sections/brk_0003"
       ],
       "hybrid": [
         "sections/brk_0004",
-        "sections/brk_0003",
-        "sections/brk_0005"
+        "sections/brk_0005",
+        "sections/brk_0003"
       ]
     }
   },
@@ -83,7 +83,7 @@
       "hybrid": [
         "sections/brk_0004",
         "sections/brk_0003",
-        "sections/brk_0006"
+        "sections/brk_0017"
       ]
     }
   },
@@ -99,13 +99,13 @@
       "keyword": [],
       "vector": [
         "sections/brk_0017",
-        "sections/brk_0021",
-        "sections/brk_0033"
+        "sections/brk_0010",
+        "sections/brk_0011"
       ],
       "hybrid": [
         "sections/brk_0017",
-        "sections/brk_0021",
-        "sections/brk_0033"
+        "sections/brk_0010",
+        "sections/brk_0021"
       ]
     }
   },
@@ -120,17 +120,18 @@
     "slugs": {
       "keyword": [
         "sections/brk_0034",
-        "sections/brk_0039"
+        "sections/brk_0039",
+        "sections/brk_0002"
       ],
       "vector": [
-        "sections/brk_0040",
+        "sections/brk_0039",
         "sections/brk_0041",
         "sections/brk_0042"
       ],
       "hybrid": [
-        "sections/brk_0040",
         "sections/brk_0039",
-        "sections/brk_0034"
+        "sections/brk_0036",
+        "sections/brk_0038"
       ]
     }
   },
@@ -138,24 +139,24 @@
     "q": "What were Berkshire's total revenues in 2023?",
     "domain": "tenk",
     "grounding": {
-      "keyword": 0.6666666666666666,
+      "keyword": 1,
       "vector": 0.6666666666666666,
       "hybrid": 1
     },
     "slugs": {
       "keyword": [
-        "sections/brk_0027",
         "sections/brk_0034",
-        "sections/brk_0039"
+        "sections/brk_0039",
+        "sections/brk_0035"
       ],
       "vector": [
-        "sections/brk_0027",
+        "sections/brk_0003",
         "sections/brk_0023",
-        "sections/brk_0003"
+        "sections/brk_0027"
       ],
       "hybrid": [
         "sections/brk_0034",
-        "sections/brk_0027",
+        "sections/brk_0003",
         "sections/brk_0023"
       ]
     }
@@ -170,19 +171,19 @@
     },
     "slugs": {
       "keyword": [
-        "sections/brk_0039",
         "sections/brk_0034",
-        "sections/brk_0035"
+        "sections/brk_0035",
+        "sections/brk_0023"
       ],
       "vector": [
-        "sections/brk_0004",
+        "sections/brk_0039",
         "sections/brk_0034",
-        "sections/brk_0027"
+        "sections/brk_0004"
       ],
       "hybrid": [
         "sections/brk_0027",
-        "sections/brk_0004",
-        "sections/brk_0034"
+        "sections/brk_0035",
+        "sections/brk_0039"
       ]
     }
   },
@@ -220,13 +221,13 @@
       "keyword": [],
       "vector": [
         "sections/brk_0007",
-        "sections/brk_0003",
-        "sections/brk_0004"
+        "sections/brk_0004",
+        "sections/brk_0005"
       ],
       "hybrid": [
         "sections/brk_0007",
         "sections/brk_0004",
-        "sections/brk_0017"
+        "sections/brk_0003"
       ]
     }
   },
@@ -241,14 +242,14 @@
     "slugs": {
       "keyword": [],
       "vector": [
-        "sections/brk_0023",
         "sections/brk_0010",
-        "sections/brk_0011"
+        "sections/brk_0011",
+        "sections/brk_0013"
       ],
       "hybrid": [
-        "sections/brk_0023",
         "sections/brk_0010",
-        "sections/brk_0013"
+        "sections/brk_0013",
+        "sections/brk_0023"
       ]
     }
   },
@@ -257,7 +258,7 @@
     "domain": "tenk",
     "grounding": {
       "keyword": 0,
-      "vector": 0,
+      "vector": 0.5,
       "hybrid": 1
     },
     "slugs": {
@@ -265,12 +266,12 @@
       "vector": [
         "companies/quanta-labs",
         "people/lin-zhao",
-        "companies/acme-ai"
+        "sections/brk_0019"
       ],
       "hybrid": [
-        "sections/brk_0018",
+        "sections/brk_0019",
         "sections/brk_0020",
-        "sections/brk_0039"
+        "sections/brk_0018"
       ]
     }
   },

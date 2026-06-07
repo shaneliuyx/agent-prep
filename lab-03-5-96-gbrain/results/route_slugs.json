@@ -6,13 +6,13 @@
     "global_arm": "hybrid",
     "global_slugs": [
       "sections/brk_0004",
-      "sections/brk_0003",
-      "sections/brk_0034"
+      "sections/brk_0024",
+      "sections/brk_0039"
     ],
     "routed_slugs": [
       "sections/brk_0004",
-      "sections/brk_0003",
-      "sections/brk_0034"
+      "sections/brk_0024",
+      "sections/brk_0039"
     ]
   },
   {
@@ -22,13 +22,13 @@
     "global_arm": "hybrid",
     "global_slugs": [
       "sections/brk_0004",
-      "sections/brk_0039",
-      "sections/brk_0034"
+      "sections/brk_0003",
+      "sections/brk_0039"
     ],
     "routed_slugs": [
       "sections/brk_0004",
-      "sections/brk_0039",
-      "sections/brk_0034"
+      "sections/brk_0003",
+      "sections/brk_0039"
     ]
   },
   {
@@ -38,13 +38,13 @@
     "global_arm": "hybrid",
     "global_slugs": [
       "sections/brk_0004",
-      "sections/brk_0003",
-      "sections/brk_0005"
+      "sections/brk_0005",
+      "sections/brk_0003"
     ],
     "routed_slugs": [
       "sections/brk_0004",
-      "sections/brk_0003",
-      "sections/brk_0005"
+      "sections/brk_0005",
+      "sections/brk_0003"
     ]
   },
   {
@@ -55,7 +55,7 @@
     "global_slugs": [
       "sections/brk_0004",
       "sections/brk_0003",
-      "sections/brk_0006"
+      "sections/brk_0017"
     ],
     "routed_slugs": [
       "sections/brk_0004",
@@ -70,13 +70,13 @@
     "global_arm": "hybrid",
     "global_slugs": [
       "sections/brk_0017",
-      "sections/brk_0021",
-      "sections/brk_0033"
+      "sections/brk_0010",
+      "sections/brk_0021"
     ],
     "routed_slugs": [
       "sections/brk_0017",
-      "sections/brk_0021",
-      "sections/brk_0033"
+      "sections/brk_0010",
+      "sections/brk_0011"
     ]
   },
   {
@@ -85,29 +85,30 @@
     "best_arm": "keyword",
     "global_arm": "hybrid",
     "global_slugs": [
-      "sections/brk_0040",
       "sections/brk_0039",
-      "sections/brk_0034"
+      "sections/brk_0036",
+      "sections/brk_0038"
     ],
     "routed_slugs": [
       "sections/brk_0034",
-      "sections/brk_0039"
+      "sections/brk_0039",
+      "sections/brk_0002"
     ]
   },
   {
     "q": "What were Berkshire's total revenues in 2023?",
     "domain": "tenk",
-    "best_arm": "hybrid",
+    "best_arm": "keyword",
     "global_arm": "hybrid",
     "global_slugs": [
       "sections/brk_0034",
-      "sections/brk_0027",
+      "sections/brk_0003",
       "sections/brk_0023"
     ],
     "routed_slugs": [
       "sections/brk_0034",
-      "sections/brk_0027",
-      "sections/brk_0023"
+      "sections/brk_0039",
+      "sections/brk_0035"
     ]
   },
   {
@@ -117,13 +118,13 @@
     "global_arm": "hybrid",
     "global_slugs": [
       "sections/brk_0027",
-      "sections/brk_0004",
-      "sections/brk_0034"
+      "sections/brk_0035",
+      "sections/brk_0039"
     ],
     "routed_slugs": [
-      "sections/brk_0039",
       "sections/brk_0034",
-      "sections/brk_0035"
+      "sections/brk_0035",
+      "sections/brk_0023"
     ]
   },
   {
@@ -150,12 +151,12 @@
     "global_slugs": [
       "sections/brk_0007",
       "sections/brk_0004",
-      "sections/brk_0017"
+      "sections/brk_0003"
     ],
     "routed_slugs": [
       "sections/brk_0007",
-      "sections/brk_0003",
-      "sections/brk_0004"
+      "sections/brk_0004",
+      "sections/brk_0005"
     ]
   },
   {
@@ -164,14 +165,14 @@
     "best_arm": "vector",
     "global_arm": "hybrid",
     "global_slugs": [
-      "sections/brk_0023",
       "sections/brk_0010",
-      "sections/brk_0013"
+      "sections/brk_0013",
+      "sections/brk_0023"
     ],
     "routed_slugs": [
-      "sections/brk_0023",
       "sections/brk_0010",
-      "sections/brk_0011"
+      "sections/brk_0011",
+      "sections/brk_0013"
     ]
   },
   {
@@ -180,14 +181,14 @@
     "best_arm": "hybrid",
     "global_arm": "hybrid",
     "global_slugs": [
-      "sections/brk_0018",
+      "sections/brk_0019",
       "sections/brk_0020",
-      "sections/brk_0039"
+      "sections/brk_0018"
     ],
     "routed_slugs": [
-      "sections/brk_0018",
+      "sections/brk_0019",
       "sections/brk_0020",
-      "sections/brk_0039"
+      "sections/brk_0018"
     ]
   },
   {
