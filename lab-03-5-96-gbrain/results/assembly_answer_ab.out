@@ -1,0 +1,12 @@
+generator/judge: claude-opus-4-5-20251101 · 24 questions
+
+  [same  ] plain=P expanded=P  +2p  "Helix Bio protein foundation models"
+  [same  ] plain=P expanded=P  +2p  "who is putting up the money to anchor the ea"
+  [same  ] plain=P expanded=P  +1p  "who runs the startup optimizing model infere"
+  [same  ] plain=F expanded=F  +2p  "which venture firm is the angel investor in "
+  [same  ] plain=P expanded=P  +2p  "the startup designing foundation models for "
+  [same  ] plain=P expanded=P  +1p  "Who founded Acme AI?"
+  [FIXED ] plain=F expanded=P  +1p  "What does Quanta Labs work on?"
+
+all 24 questions:        plain 0.792  →  graph-expanded 0.833  (Δ +0.042)
+the 7 where expansion fired: plain 0.714  →  expanded 0.857  (Δ +0.143)
