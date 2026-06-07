@@ -2,13 +2,15 @@
   "strategy": "hybrid",
   "rrf_k": 60,
   "k": 5,
+  "c": 3,
+  "metric": "discounted_grounding@C (position-weighted best coverage over the context budget)",
   "source": "golden_eval",
   "n_questions": 18,
-  "n_pages": 59,
-  "grounding": 0.9722222222222222,
+  "n_pages": 67,
+  "grounding": 0.910381083730162,
   "per_domain": {
-    "tenk": 0.9583333333333334,
-    "entity": 1
+    "tenk": 0.9270833333333334,
+    "entity": 0.8769765845238192
   },
-  "note": "auto-selected from data/golden_eval.json (REAL questions, grounding@K). Read by query_policy.ts; does NOT change stock `gbrain query` (hybrid-only)."
+  "note": "auto-selected from data/golden_eval.json (REAL questions, discounted grounding@C: rank- and budget-aware, so an RRF reorder that demotes the answer is penalized). Read by query_policy.ts; does NOT change stock `gbrain query` (hybrid-only)."
 }

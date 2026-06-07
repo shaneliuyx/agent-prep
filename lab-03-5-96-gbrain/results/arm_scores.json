@@ -1,0 +1,419 @@
+[
+  {
+    "q": "What was Berkshire's operating earnings figure for 2023 according to the Scorecard?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0004",
+        "sections/brk_0003",
+        "sections/brk_0034"
+      ],
+      "hybrid": [
+        "sections/brk_0004",
+        "sections/brk_0003",
+        "sections/brk_0034"
+      ]
+    }
+  },
+  {
+    "q": "What is Berkshire's percentage ownership of Occidental Petroleum common shares?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0004",
+        "sections/brk_0039",
+        "sections/brk_0034"
+      ],
+      "hybrid": [
+        "sections/brk_0004",
+        "sections/brk_0039",
+        "sections/brk_0034"
+      ]
+    }
+  },
+  {
+    "q": "What did Buffett write about the five Japanese trading houses Berkshire holds?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0004",
+        "sections/brk_0003",
+        "sections/brk_0005"
+      ],
+      "hybrid": [
+        "sections/brk_0004",
+        "sections/brk_0003",
+        "sections/brk_0005"
+      ]
+    }
+  },
+  {
+    "q": "How does Buffett describe Berkshire's relationship with shareholders compared to Wall Street firms?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 0.75,
+      "hybrid": 0.75
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0004",
+        "sections/brk_0005",
+        "sections/brk_0003"
+      ],
+      "hybrid": [
+        "sections/brk_0004",
+        "sections/brk_0003",
+        "sections/brk_0006"
+      ]
+    }
+  },
+  {
+    "q": "Which Item of Form 10-K covers Risk Factors?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0017",
+        "sections/brk_0021",
+        "sections/brk_0033"
+      ],
+      "hybrid": [
+        "sections/brk_0017",
+        "sections/brk_0021",
+        "sections/brk_0033"
+      ]
+    }
+  },
+  {
+    "q": "Where in the report are the Notes to Consolidated Financial Statements located?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 1,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [
+        "sections/brk_0034",
+        "sections/brk_0039"
+      ],
+      "vector": [
+        "sections/brk_0040",
+        "sections/brk_0041",
+        "sections/brk_0042"
+      ],
+      "hybrid": [
+        "sections/brk_0040",
+        "sections/brk_0039",
+        "sections/brk_0034"
+      ]
+    }
+  },
+  {
+    "q": "What were Berkshire's total revenues in 2023?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0.6666666666666666,
+      "vector": 0.6666666666666666,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [
+        "sections/brk_0027",
+        "sections/brk_0034",
+        "sections/brk_0039"
+      ],
+      "vector": [
+        "sections/brk_0027",
+        "sections/brk_0023",
+        "sections/brk_0003"
+      ],
+      "hybrid": [
+        "sections/brk_0034",
+        "sections/brk_0027",
+        "sections/brk_0023"
+      ]
+    }
+  },
+  {
+    "q": "What was Berkshire's net earnings attributable to shareholders in 2023?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 1,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [
+        "sections/brk_0039",
+        "sections/brk_0034",
+        "sections/brk_0035"
+      ],
+      "vector": [
+        "sections/brk_0004",
+        "sections/brk_0034",
+        "sections/brk_0027"
+      ],
+      "hybrid": [
+        "sections/brk_0027",
+        "sections/brk_0004",
+        "sections/brk_0034"
+      ]
+    }
+  },
+  {
+    "q": "What did Buffett describe as Berkshire's 'not-so-secret weapon' in the 2023 letter?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 0.375,
+      "hybrid": 0.375
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0006",
+        "sections/brk_0017",
+        "sections/brk_0003"
+      ],
+      "hybrid": [
+        "sections/brk_0006",
+        "sections/brk_0017",
+        "sections/brk_0003"
+      ]
+    }
+  },
+  {
+    "q": "What did Buffett write about non-controlled businesses that leave Berkshire comfortable in 2023?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0007",
+        "sections/brk_0003",
+        "sections/brk_0004"
+      ],
+      "hybrid": [
+        "sections/brk_0007",
+        "sections/brk_0004",
+        "sections/brk_0017"
+      ]
+    }
+  },
+  {
+    "q": "Which section of the annual report covers BNSF Railway operating results?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "sections/brk_0023",
+        "sections/brk_0010",
+        "sections/brk_0011"
+      ],
+      "hybrid": [
+        "sections/brk_0023",
+        "sections/brk_0010",
+        "sections/brk_0013"
+      ]
+    }
+  },
+  {
+    "q": "Where does the 2023 annual report disclose cybersecurity governance?",
+    "domain": "tenk",
+    "grounding": {
+      "keyword": 0,
+      "vector": 0,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "companies/quanta-labs",
+        "people/lin-zhao",
+        "companies/acme-ai"
+      ],
+      "hybrid": [
+        "sections/brk_0018",
+        "sections/brk_0020",
+        "sections/brk_0039"
+      ]
+    }
+  },
+  {
+    "q": "Who is anchoring the acme-seed round?",
+    "domain": "entity",
+    "grounding": {
+      "keyword": 1,
+      "vector": 0.6309297535714575,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [
+        "people/sam-okafor",
+        "inbox/2026-06-04-6ef79525",
+        "inbox/2026-06-04-5a48101e"
+      ],
+      "vector": [
+        "deals/acme-seed",
+        "people/sam-okafor",
+        "companies/acme-ai"
+      ],
+      "hybrid": [
+        "people/sam-okafor",
+        "inbox/2026-06-04-6ef79525",
+        "inbox/2026-06-04-5a48101e"
+      ]
+    }
+  },
+  {
+    "q": "Who is the CTO of Acme AI and where did he work before?",
+    "domain": "entity",
+    "grounding": {
+      "keyword": 0,
+      "vector": 0.6309297535714575,
+      "hybrid": 0.6309297535714575
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "companies/acme-ai",
+        "people/lin-zhao",
+        "people/alice-chen"
+      ],
+      "hybrid": [
+        "companies/acme-ai",
+        "people/lin-zhao",
+        "people/alice-chen"
+      ]
+    }
+  },
+  {
+    "q": "What does Helix Bio build?",
+    "domain": "entity",
+    "grounding": {
+      "keyword": 1,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [
+        "companies/helix-bio",
+        "people/marcus-webb",
+        "people/priya-helix"
+      ],
+      "vector": [
+        "companies/helix-bio",
+        "people/priya-helix",
+        "people/marcus-webb"
+      ],
+      "hybrid": [
+        "companies/helix-bio",
+        "people/marcus-webb",
+        "people/priya-helix"
+      ]
+    }
+  },
+  {
+    "q": "What does Quanta Labs work on?",
+    "domain": "entity",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "companies/quanta-labs",
+        "deals/quanta-seed",
+        "companies/ridgeline-capital"
+      ],
+      "hybrid": [
+        "companies/quanta-labs",
+        "companies/ridgeline-capital",
+        "companies/helix-bio"
+      ]
+    }
+  },
+  {
+    "q": "Who founded Acme AI?",
+    "domain": "entity",
+    "grounding": {
+      "keyword": 0.5,
+      "vector": 0.5,
+      "hybrid": 0.6309297535714575
+    },
+    "slugs": {
+      "keyword": [
+        "companies/acme-ai"
+      ],
+      "vector": [
+        "companies/acme-ai",
+        "deals/acme-seed",
+        "people/lin-zhao"
+      ],
+      "hybrid": [
+        "companies/acme-ai",
+        "people/alice-chen",
+        "people/sam-okafor"
+      ]
+    }
+  },
+  {
+    "q": "Which firm is Dev Patel with?",
+    "domain": "entity",
+    "grounding": {
+      "keyword": 0,
+      "vector": 1,
+      "hybrid": 1
+    },
+    "slugs": {
+      "keyword": [],
+      "vector": [
+        "people/dev-patel",
+        "people/priya-nadar",
+        "companies/helix"
+      ],
+      "hybrid": [
+        "people/dev-patel",
+        "people/priya-nadar",
+        "companies/quanta-labs"
+      ]
+    }
+  }
+]
