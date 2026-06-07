@@ -23,6 +23,7 @@
 import { readFileSync } from "node:fs";
 
 import { budgetScore, coverage } from "./grounding.ts";
+import { preprocessOR } from "./query_routing.ts";
 
 const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
 const GOLDEN = process.env.GOLDEN_EVAL ?? `${import.meta.dir}/../data/golden_eval.json`;
@@ -32,27 +33,10 @@ const C = Number(process.env.POLICY_C ?? "3");
 interface GoldenQ { q: string; expected_entities: string[]; domain: string }
 const golden: GoldenQ[] = JSON.parse(readFileSync(GOLDEN, "utf-8")).questions;
 
-// ── keyword query preprocessing: drop noise, OR-join salient tokens ──────────
-const STOP = new Set([
-  "a", "an", "the", "of", "in", "on", "for", "to", "and", "or", "is", "are", "was", "were",
-  "what", "which", "who", "where", "when", "how", "why", "did", "does", "do", "write", "wrote",
-  "describe", "describes", "described", "about", "berkshire", "company", "firm", "report",
-  "annual", "five", "percent", "common", "shares", "its", "his", "her", "their", "that", "this",
-  "with", "from", "by", "as", "at", "be", "it", "they", "long", "term", "holds", "hold", "leave",
-  "leaves", "comfortable", "according", "year", "lists", "could", "go", "wrong", "business",
-  "filing", "section", "part", "where-is", "located", "live", "lives", "puts", "putting", "up",
-  "money", "anchor", "early", "funding", "round", "guards", "guard", "against", "oversees",
-  "owns", "own", "large", "minority", "stake", "runs", "run", "optimizing", "before", "designing",
-  "structure", "detailed", "following", "primary", "statements", "operating", "earnings",
-  "described", "associated", "venture", "angel", "investor", "network",
-]);
-
-function preprocessOR(q: string): string {
-  const toks = (q.toLowerCase().match(/[a-z0-9]+/g) ?? [])
-    .filter(t => t.length > 1 && !STOP.has(t));
-  const uniq = [...new Set(toks)];
-  return uniq.length ? uniq.join(" OR ") : q;   // fall back to raw if we stripped everything
-}
+// `preprocessOR` (drop generic stop-words, OR-join salient tokens) is the shared, corpus-AGNOSTIC
+// version from ./query_routing.ts — the same one the production router uses. An earlier local copy
+// baked in corpus/question-specific words (`berkshire`, `anchor`, `funding`…); that overfit the
+// eval and is gone.
 
 // ── simple RRF over two ranked slug lists ────────────────────────────────────
 function rrf(a: string[], b: string[], k = 60): string[] {

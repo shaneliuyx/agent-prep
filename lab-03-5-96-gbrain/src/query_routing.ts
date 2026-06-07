@@ -18,19 +18,19 @@
 export type QueryType = "kw" | "vec" | "mixed";
 export type Strategy = "keyword" | "vector" | "hybrid";
 
-// Noise words dropped before OR-joining the keyword query (domain + question + function words).
+// Generic English stop-words + WH question words dropped before OR-joining the keyword query.
+// DELIBERATELY corpus-AGNOSTIC: an earlier version baked in content words from the test questions
+// (`berkshire`, `anchor`, `funding`, `guards`…) — that games the eval and breaks on any other
+// corpus (dropping `funding` deletes a real search term). Keep only words that are noise in ANY
+// English query. Domain/boilerplate stop terms, if ever needed, belong in a per-corpus config
+// loaded at run-time, not hardcoded in the shared router.
 export const STOP = new Set([
-  "a", "an", "the", "of", "in", "on", "for", "to", "and", "or", "is", "are", "was", "were",
-  "what", "which", "who", "where", "when", "how", "why", "did", "does", "do", "write", "wrote",
-  "describe", "describes", "described", "about", "berkshire", "company", "firm", "report",
-  "annual", "five", "percent", "common", "shares", "its", "his", "her", "their", "that", "this",
-  "with", "from", "by", "as", "at", "be", "it", "they", "long", "term", "holds", "hold", "leave",
-  "leaves", "comfortable", "according", "year", "lists", "could", "go", "wrong", "business",
-  "filing", "section", "part", "where-is", "located", "live", "lives", "puts", "putting", "up",
-  "money", "anchor", "early", "funding", "round", "guards", "guard", "against", "oversees",
-  "owns", "own", "large", "minority", "stake", "runs", "run", "optimizing", "before", "designing",
-  "structure", "detailed", "following", "primary", "statements", "operating", "earnings",
-  "associated", "venture", "angel", "investor", "network",
+  "a", "an", "the", "of", "in", "on", "at", "for", "to", "and", "or", "is", "are", "was", "were",
+  "be", "been", "being", "am", "it", "its", "this", "that", "these", "those", "with", "from", "by",
+  "as", "into", "than", "then", "there", "here", "about", "what", "which", "who", "whom", "whose",
+  "where", "when", "how", "why", "did", "does", "do", "done", "has", "have", "had", "will", "would",
+  "could", "should", "shall", "can", "may", "might", "must", "their", "his", "her", "they", "them",
+  "he", "she", "we", "you", "i", "my", "our", "your", "his", "hers", "not", "no",
 ]);
 
 // Function words used to detect a prose paraphrase (high ratio → semantic, not exact-token).
