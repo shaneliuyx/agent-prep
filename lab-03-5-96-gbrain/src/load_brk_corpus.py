@@ -20,13 +20,21 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import subprocess
 
 from ingest_agent import _GBRAIN, _server_env, run_auto_eval
 
 _DEFAULT_CORPUS = pathlib.Path(os.path.expanduser(
     "~/code/agent-prep/lab-02-7-pageindex/data/brk_corpus.json"))
+# PageIndex tree (built by lab-02-7 build_tree.py) carries the STRUCTURE the flat
+# brk_corpus.json drops: per-section page ranges + hierarchy. Joining it in is the
+# "PageIndex + GBrain" combined ingest — it makes structural/"where-is-X" questions
+# answerable from the page itself, with no per-query tree navigation.
+_DEFAULT_TREE = pathlib.Path(os.path.expanduser(
+    "~/code/agent-prep/lab-02-7-pageindex/data/tree.json"))
 _SLUG_PREFIX = os.getenv("SLUG_PREFIX", "sections")
+_ITEM_RE = re.compile(r"\bItem\s+\d+[A-Z]?\b")
 
 
 def _clean_title(raw: str, fallback: str) -> str:
@@ -38,16 +46,42 @@ def _clean_title(raw: str, fallback: str) -> str:
     return tail or fallback
 
 
-def build_pages(corpus: list[dict], prefix: str = _SLUG_PREFIX) -> list[tuple[str, str]]:
+def flatten_tree(node: dict, parent_title: str = "", inherited_item: str = "",
+                 out: dict | None = None) -> dict:
+    """node_id → {title, start_page, end_page, parent, item}. `item` is inherited from the
+    nearest ancestor whose title matches `Item N` (so a sub-section of Item 8 still knows it's
+    in Item 8). Used to enrich each GBrain page with its document location."""
+    if out is None:
+        out = {}
+    title = str(node.get("title", ""))
+    m = _ITEM_RE.search(title)
+    item = m.group(0) if m else inherited_item
+    nid = str(node.get("node_id", "")).strip()
+    if nid:
+        out[nid] = {"title": title, "start_page": node.get("start_page"),
+                    "end_page": node.get("end_page"), "parent": parent_title, "item": item}
+    for child in node.get("nodes", []):
+        flatten_tree(child, title, item, out)
+    return out
+
+
+def build_pages(corpus: list[dict], prefix: str = _SLUG_PREFIX,
+                tree_meta: dict | None = None, source: str = "") -> list[tuple[str, str]]:
     """Pure transform: W2.7 sections → (slug, GBrain-page-content) pairs.
 
     Each section becomes a markdown page with YAML frontmatter under `<prefix>/<id>`.
     The frontmatter `title:` is AUTHORITATIVE — `gbrain put` titles from frontmatter,
-    NOT from the `# heading` (that seam is why a slug-only write gets titled
-    "Brk 0002"). No wikilinks — this corpus is for retrieval eval, not the graph.
-    Sections with no id or empty text are skipped.
+    NOT from the `# heading` (that seam is why a slug-only write gets titled "Brk 0002").
+
+    PageIndex-enriched (when `tree_meta` is supplied): frontmatter gains `source` / `item` /
+    `pages` / `parent`, AND a `**Location:**` breadcrumb is prepended to the BODY. The body
+    line is the load-bearing bit — GBrain indexes title+body+timeline, so a location *in the
+    body* is retrievable (keyword + vector) and injected into the reader's context, whereas
+    unknown frontmatter keys are not. That is what makes "where are the Notes located?"
+    answerable. Sections with no id or empty text are skipped.
     """
     pages: list[tuple[str, str]] = []
+    tree_meta = tree_meta or {}
     for sec in corpus:
         sid = str(sec.get("id", "")).strip()
         text = str(sec.get("text", "")).strip()
@@ -56,7 +90,26 @@ def build_pages(corpus: list[dict], prefix: str = _SLUG_PREFIX) -> list[tuple[st
         title = _clean_title(str(sec.get("title", "")), sid)
         esc = title.replace('"', '\\"')
         slug = f"{prefix}/{sid}"
-        content = f'---\ntitle: "{esc}"\n---\n\n# {title}\n\n{text}\n'
+        # Join by TITLE, not node_id: the on-disk brk_corpus.json and tree.json can carry
+        # drifted node_ids (regenerated independently), but section titles are stable.
+        meta = tree_meta.get(title, {})
+
+        fm = [f'title: "{esc}"']
+        loc = ""
+        if source:
+            fm.append(f'source: "{source}"')
+        if meta.get("item"):
+            fm.append(f'item: "{meta["item"]}"')
+        if meta.get("parent"):
+            fm.append(f'parent: "{_clean_title(meta["parent"], "").replace(chr(34), "")}"')
+        if meta.get("start_page") and meta.get("end_page"):
+            pages_str = f'{meta["start_page"]}-{meta["end_page"]}'
+            fm.append(f'pages: "{pages_str}"')
+            where = meta.get("item") or title
+            loc = (f"**Location:** {where} — {title} · pages {pages_str}"
+                   + (f" · source: {source}" if source else "") + "\n\n")
+
+        content = f'---\n' + "\n".join(fm) + f'\n---\n\n# {title}\n\n{loc}{text}\n'
         pages.append((slug, content))
     return pages
 
@@ -84,7 +137,21 @@ def main() -> None:
         raise SystemExit(f"corpus not found: {corpus_path} (set BRK_CORPUS=<path>)")
 
     corpus = json.loads(corpus_path.read_text())
-    pages = build_pages(corpus)
+
+    # PageIndex join: pull per-section page ranges + hierarchy from tree.json (if present).
+    tree_path = pathlib.Path(os.getenv("BRK_TREE", str(_DEFAULT_TREE)))
+    tree_meta, source = {}, ""
+    if tree_path.exists():
+        tree = json.loads(tree_path.read_text())
+        # key by title (see build_pages: id join is unreliable across regenerated files)
+        tree_meta = {m["title"].strip(): m for m in flatten_tree(tree).values() if m.get("title")}
+        source = str(tree.get("title", "")).strip()
+        print(f">>> PageIndex enrich: {tree_path.name} → {len(tree_meta)} nodes "
+              f"(source '{source}')")
+    else:
+        print(f">>> no tree.json at {tree_path} — ingesting WITHOUT structural metadata")
+
+    pages = build_pages(corpus, tree_meta=tree_meta, source=source)
     print(f">>> {corpus_path.name}: {len(corpus)} sections → {len(pages)} pages "
           f"(prefix '{_SLUG_PREFIX}')")
 
