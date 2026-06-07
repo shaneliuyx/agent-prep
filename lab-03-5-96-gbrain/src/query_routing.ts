@@ -13,7 +13,8 @@
  *   semantic paraphrase → vector
  *   natural question    → hybrid
  * Measured on the balanced 24-Q set (route_principle_ab.ts): classifier 24/24, router +0.039
- * grounding and +0.083 answer-quality (pinned Opus) over global hybrid.
+ * grounding and ~+0.04 answer-quality (pinned Opus; ±1 question of judge variance) over global
+ * hybrid — a modest, real win on mixed-type traffic.
  */
 export type QueryType = "kw" | "vec" | "mixed";
 export type Strategy = "keyword" | "vector" | "hybrid";

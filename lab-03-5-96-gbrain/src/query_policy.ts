@@ -16,7 +16,7 @@
  * Per-query ROUTER switch (opt-in): set `QUERY_ROUTER=on` to route each query to the arm its
  * TYPE favours (kw→OR-preprocessed keyword · vec→vector · mixed→hybrid) instead of the single
  * global policy. DEFAULT OFF — routing is a *conditional* win (route_principle_ab.ts: +0.039
- * grounding / +0.083 answer-quality ONLY when the workload spans query types AND a cheap
+ * grounding / ~+0.04 answer-quality ONLY when the workload spans query types AND a cheap
  * classifier detects them; on a single-type corpus a perfect router merely ties global and a
  * real classifier nets negative). So it ships off; turn it on when the traffic is mixed-type
  * and the extra accuracy is worth the per-query classify step.
