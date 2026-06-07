@@ -23,7 +23,7 @@ import { dirname } from "node:path";
 import { budgetScore, coverage } from "./grounding.ts";
 
 const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
-const GOLDEN = `${import.meta.dir}/../data/golden_eval.json`;
+const GOLDEN = process.env.GOLDEN_EVAL ?? `${import.meta.dir}/../data/golden_eval.json`;
 const SLUG_DUMP = `${import.meta.dir}/../results/route_slugs.json`;
 const ARM_DUMP = `${import.meta.dir}/../results/arm_scores.json`; // per-arm grounding + slugs (verify_arch.py)
 const K = Number(process.env.POLICY_K ?? "5");
