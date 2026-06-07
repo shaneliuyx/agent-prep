@@ -109,18 +109,18 @@
       "sections/brk_0003"
     ],
     "router_slugs": [
-      "sections/brk_0039",
       "sections/brk_0034",
+      "sections/brk_0039",
       "sections/brk_0003",
       "sections/brk_0007",
       "sections/brk_0004"
     ],
     "strong_g_slugs": [
       "sections/brk_0034",
+      "sections/brk_0045",
       "sections/brk_0031",
-      "sections/brk_0015",
       "sections/brk_0003",
-      "sections/brk_0039"
+      "sections/brk_0007"
     ],
     "strong_g_variant": "g2"
   },
@@ -141,17 +141,17 @@
     ],
     "router_slugs": [
       "inbox/2026-06-04-6ef79525",
-      "meetings/tartine-dinner",
       "inbox/2026-06-04-5a48101e",
+      "meetings/tartine-dinner",
       "people/sam-okafor",
       "deals/acme-seed"
     ],
     "strong_g_slugs": [
       "people/sam-okafor",
       "deals/acme-seed",
-      "meetings/tartine-dinner",
       "companies/northstar-ventures",
-      "people/alice-chen"
+      "people/alice-chen",
+      "meetings/tartine-dinner"
     ],
     "strong_g_variant": "g2"
   },
@@ -296,16 +296,16 @@
     "router_slugs": [
       "sections/brk_0039",
       "sections/brk_0034",
-      "sections/brk_0043",
+      "sections/brk_0044",
       "sections/brk_0040",
-      "sections/brk_0044"
+      "sections/brk_0043"
     ],
     "strong_g_slugs": [
       "sections/brk_0041",
       "sections/brk_0039",
       "sections/brk_0034",
-      "sections/brk_0034",
-      "sections/brk_0039"
+      "sections/brk_0039",
+      "sections/brk_0034"
     ],
     "strong_g_variant": "g2"
   },
@@ -335,11 +335,11 @@
       "sections/brk_0005"
     ],
     "strong_g_slugs": [
-      "sections/brk_0004",
       "companies/northstar-ventures",
-      "companies/ridgeline-capital",
       "people/ridgeline-capital",
-      "sections/brk_0015"
+      "sections/brk_0007",
+      "sections/brk_0003",
+      "sections/brk_0004"
     ],
     "strong_g_variant": "g2"
   },
@@ -366,11 +366,11 @@
       "companies/acme-ai"
     ],
     "strong_g_slugs": [
-      "people/dev-patel",
-      "sections/brk_0003",
-      "sections/brk_0004",
-      "sections/brk_0010",
-      "companies/helix"
+      "sections/brk_0018",
+      "companies/northstar-ventures",
+      "companies/northstar-vc",
+      "sections/brk_0017",
+      "sections/brk_0011"
     ],
     "strong_g_variant": "g2"
   },
@@ -397,11 +397,11 @@
       "sections/brk_0021"
     ],
     "strong_g_slugs": [
-      "sections/brk_0033",
       "sections/brk_0034",
-      "sections/brk_0017",
-      "sections/brk_0019",
-      "sections/brk_0021"
+      "sections/brk_0040",
+      "sections/brk_0016",
+      "sections/brk_0022",
+      "sections/brk_0027"
     ],
     "strong_g_variant": "g2"
   },
@@ -429,10 +429,10 @@
     ],
     "strong_g_slugs": [
       "sections/brk_0004",
+      "sections/brk_0003",
       "sections/brk_0007",
-      "sections/brk_0010",
       "companies/northstar-ventures",
-      "sections/brk_0013"
+      "sections/brk_0010"
     ],
     "strong_g_variant": "g2"
   },
@@ -459,11 +459,11 @@
       "people/priya-nadar"
     ],
     "strong_g_slugs": [
-      "companies/acme-ai",
-      "companies/northstar-ventures",
-      "companies/quanta-labs",
-      "people/priya-nadar",
-      "people/sam-okafor"
+      "meetings/tartine-dinner",
+      "sections/brk_0003",
+      "inbox/2026-06-04-6ef79525",
+      "sections/brk_0004",
+      "inbox/2026-06-04-5a48101e"
     ],
     "strong_g_variant": "g2"
   },
@@ -490,11 +490,11 @@
       "people/dev-patel"
     ],
     "strong_g_slugs": [
+      "people/priya-nadar",
+      "companies/quanta-labs",
       "companies/helix-bio",
-      "people/marcus-webb",
-      "people/lin-zhao",
-      "people/priya-helix",
-      "people/dev-patel"
+      "sections/brk_0010",
+      "sections/brk_0016"
     ],
     "strong_g_variant": "g2"
   },
@@ -521,11 +521,11 @@
       "people/sam-okafor"
     ],
     "strong_g_slugs": [
-      "people/sam-okafor",
       "companies/northstar-ventures",
       "companies/ridgeline-capital",
       "people/dev-patel",
-      "companies/northstar-vc"
+      "people/priya-nadar",
+      "people/sam-okafor"
     ],
     "strong_g_variant": "g2"
   },
@@ -556,7 +556,7 @@
       "people/marcus-webb",
       "people/priya-helix",
       "people/dev-patel",
-      "companies/northstar-ventures"
+      "people/priya-nadar"
     ],
     "strong_g_variant": "g2"
   },
@@ -582,10 +582,10 @@
       "sections/brk_0011"
     ],
     "strong_g_slugs": [
-      "sections/brk_0020",
-      "sections/brk_0010",
       "sections/brk_0034",
-      "sections/brk_0039"
+      "sections/brk_0039",
+      "sections/brk_0013",
+      "sections/brk_0034"
     ],
     "strong_g_variant": "g2"
   },
@@ -611,11 +611,11 @@
       "sections/brk_0040"
     ],
     "strong_g_slugs": [
-      "sections/brk_0039",
-      "sections/brk_0028",
       "sections/brk_0041",
-      "sections/brk_0043",
-      "sections/brk_0004"
+      "sections/brk_0039",
+      "sections/brk_0034",
+      "sections/brk_0039",
+      "sections/brk_0034"
     ],
     "strong_g_variant": "g2"
   },
@@ -643,11 +643,11 @@
       "sections/brk_0035"
     ],
     "strong_g_slugs": [
-      "sections/brk_0023",
-      "sections/brk_0039",
+      "sections/brk_0003",
       "sections/brk_0034",
-      "sections/brk_0034",
-      "sections/brk_0025"
+      "sections/brk_0033",
+      "sections/brk_0004",
+      "sections/brk_0035"
     ],
     "strong_g_variant": "g2"
   },
@@ -676,10 +676,10 @@
     ],
     "strong_g_slugs": [
       "sections/brk_0006",
-      "people/dev-patel",
-      "people/sam-okafor",
-      "companies/northstar-vc",
-      "sections/brk_0003"
+      "sections/brk_0017",
+      "sections/brk_0003",
+      "sections/brk_0004",
+      "sections/brk_0045"
     ],
     "strong_g_variant": "g2"
   },

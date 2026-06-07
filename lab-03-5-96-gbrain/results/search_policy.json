@@ -2,7 +2,7 @@
   "strategy": "hybrid",
   "rrf_k": 60,
   "k": 5,
-  "c": 3,
+  "c": 5,
   "metric": "discounted_grounding@C (position-weighted best coverage over the context budget)",
   "source": "golden_eval",
   "n_questions": 18,
