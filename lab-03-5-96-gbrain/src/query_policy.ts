@@ -28,7 +28,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 import { type Strategy, classifyType, preprocessOR, TYPE_TO_STRATEGY } from "./query_routing.ts";
 
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 const POLICY = `${import.meta.dir}/../results/search_policy.json`;
 
 const ROUTER_ON = ["1", "on", "true", "yes"].includes((process.env.QUERY_ROUTER ?? "").toLowerCase());

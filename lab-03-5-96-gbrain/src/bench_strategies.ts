@@ -11,7 +11,7 @@
  *
  * Run: bun src/bench_strategies.ts   (needs GBRAIN_DATABASE_URL + OLLAMA_* env)
  */
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 
 const { loadConfig, toEngineConfig } = await import(`${GB}/core/config.ts`);
 const { createEngine } = await import(`${GB}/core/engine-factory.ts`);

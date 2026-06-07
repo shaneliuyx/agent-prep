@@ -21,7 +21,7 @@
  */
 import { readFileSync } from "node:fs";
 
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 const EVAL_DIR = "/Users/yuxinliu/code/agent-prep/lab-02-7-pageindex/data";
 const K = Number(process.env.BENCH_K ?? "5");
 

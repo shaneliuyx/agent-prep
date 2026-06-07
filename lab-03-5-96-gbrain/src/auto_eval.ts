@@ -31,7 +31,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 const RESULTS = `${import.meta.dir}/../results/auto_eval.jsonl`;
 // The APPLY target: the decision artifact the policy-aware query path reads to
 // honor the corpus-selected strategy (closes the measure→decide→apply loop).

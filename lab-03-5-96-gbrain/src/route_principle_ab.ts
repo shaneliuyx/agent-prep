@@ -27,7 +27,7 @@ import { dirname } from "node:path";
 import { budgetScore, coverage } from "./grounding.ts";
 import { classifyType, preprocessOR, type QueryType } from "./query_routing.ts";
 
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 const GOLDEN = process.env.GOLDEN_EVAL ?? `${import.meta.dir}/../data/golden_balanced.json`;
 const SLUG_DUMP = `${import.meta.dir}/../results/principle_slugs.json`;
 const K = Number(process.env.POLICY_K ?? "5");

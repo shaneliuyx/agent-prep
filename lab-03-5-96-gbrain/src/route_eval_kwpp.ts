@@ -25,7 +25,7 @@ import { readFileSync } from "node:fs";
 import { budgetScore, coverage } from "./grounding.ts";
 import { preprocessOR } from "./query_routing.ts";
 
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 const GOLDEN = process.env.GOLDEN_EVAL ?? `${import.meta.dir}/../data/golden_eval.json`;
 const K = Number(process.env.POLICY_K ?? "5");
 const C = Number(process.env.POLICY_C ?? "3");

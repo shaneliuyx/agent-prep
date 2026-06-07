@@ -34,7 +34,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { budgetScore, coverage } from "./grounding.ts";
 
-const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
+const GB = process.env.GBRAIN_SRC ?? `${import.meta.dir}/../../gbrain/src`;
 const GOLDEN = `${import.meta.dir}/../data/golden_eval.json`;
 const POLICY = `${import.meta.dir}/../results/search_policy.json`;
 const K = Number(process.env.POLICY_K ?? "5");   // retrieval depth (hits pulled)
