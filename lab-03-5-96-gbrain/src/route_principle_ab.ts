@@ -25,6 +25,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { budgetScore, coverage } from "./grounding.ts";
+import { classifyType, preprocessOR, type QueryType } from "./query_routing.ts";
 
 const GB = "/Users/yuxinliu/code/agent-prep/gbrain/src";
 const GOLDEN = process.env.GOLDEN_EVAL ?? `${import.meta.dir}/../data/golden_balanced.json`;
@@ -35,51 +36,10 @@ const C = Number(process.env.POLICY_C ?? "3");
 interface GoldenQ { q: string; expected_entities: string[]; domain: string }
 const golden: GoldenQ[] = JSON.parse(readFileSync(GOLDEN, "utf-8")).questions;
 
-// ── keyword query preprocessing (same fix as route_eval_kwpp.ts) ─────────────
-const STOP = new Set([
-  "a", "an", "the", "of", "in", "on", "for", "to", "and", "or", "is", "are", "was", "were",
-  "what", "which", "who", "where", "when", "how", "why", "did", "does", "do", "write", "wrote",
-  "describe", "describes", "described", "about", "berkshire", "company", "firm", "report",
-  "annual", "five", "percent", "common", "shares", "its", "his", "her", "their", "that", "this",
-  "with", "from", "by", "as", "at", "be", "it", "they", "long", "term", "holds", "hold", "leave",
-  "leaves", "comfortable", "according", "year", "lists", "could", "go", "wrong", "business",
-  "filing", "section", "part", "where-is", "located", "live", "lives", "puts", "putting", "up",
-  "money", "anchor", "early", "funding", "round", "guards", "guard", "against", "oversees",
-  "owns", "own", "large", "minority", "stake", "runs", "run", "optimizing", "before", "designing",
-  "structure", "detailed", "following", "primary", "statements", "operating", "earnings",
-  "associated", "venture", "angel", "investor", "network",
-]);
-
-function preprocessOR(q: string): string {
-  const toks = (q.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(t => t.length > 1 && !STOP.has(t));
-  const uniq = [...new Set(toks)];
-  return uniq.length ? uniq.join(" OR ") : q;
-}
-
-// ── deterministic query-TYPE classifier (the shippable router's brain) ───────
-// Signals, no LLM: a natural question (ends '?') is mixed; otherwise a low function-word
-// ratio + distinctive exact tokens (Item N, ALL-CAPS, capitalised entity runs, digit+%) marks
-// a keyword-focus probe, while a high function-word ratio / leading lowercase connective marks a
-// semantic paraphrase. Returns the arm the type should route to.
-type Type = "kw" | "vec" | "mixed";
-const FUNCTION = new Set([
-  "the", "a", "an", "of", "in", "on", "for", "to", "and", "or", "is", "are", "was", "were",
-  "that", "this", "with", "from", "by", "as", "at", "be", "it", "they", "its", "his", "her",
-  "their", "how", "who", "which", "where", "what", "when", "could", "the", "following",
-]);
-function classify(q: string): Type {
-  const raw = q.trim();
-  if (/\?\s*$/.test(raw)) return "mixed";                       // natural question
-  const words = raw.split(/\s+/);
-  const distinctive = raw.match(
-    /\bItem\s+\d+[A-Z]?\b|\b[A-Z]{2,}\b|\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b|\b\d+\s*(?:percent|%)\b/g,
-  ) ?? [];
-  const fnRatio = words.filter(w => FUNCTION.has(w.toLowerCase())).length / words.length;
-  const leadsLowerFn = FUNCTION.has(words[0].toLowerCase()) && /^[a-z]/.test(words[0]);
-  if (leadsLowerFn || fnRatio >= 0.4) return "vec";            // prose paraphrase
-  if (distinctive.length >= 1 || /^[A-Z]/.test(words[0])) return "kw"; // exact-token probe
-  return "vec";
-}
+// `preprocessOR` + `classifyType` (the shippable router's brain) live in ./query_routing.ts —
+// the SAME module the production actuator (query_policy.ts) imports, so this A/B validates the
+// exact classifier production ships. type alias for readability:
+type Type = QueryType;
 
 // ── RRF over two ranked slug lists ───────────────────────────────────────────
 function rrf(a: string[], b: string[], k = 60): string[] {
@@ -146,7 +106,7 @@ for (const g of golden) {
   perArm.hyb.push(await ground(hyb, ents));
   perArm.g1.push(await ground(g1, ents));
   perArm.g2.push(await ground(g2, ents));
-  raw.push({ q: g.q, domain: g.domain, type: classify(g.q), slugs, ents });
+  raw.push({ q: g.q, domain: g.domain, type: classifyType(g.q), slugs, ents });
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
