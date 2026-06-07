@@ -74,12 +74,15 @@ await reconfigureGatewayWithEngine(engine);
 let routeNote = "";
 function pickStrategy(): { strategy: Strategy; kwQuery: string } {
   if (!ROUTER_ON) {
-    routeNote = `router OFF (global policy)  ←  ${source}`;
+    // global policy = whatever auto_eval wrote (keyword | vector | hybrid) — NOT always hybrid;
+    // hybrid is only the fallback when no policy file exists. Surface the actual arm.
+    const knob = strategy === "hybrid" ? ` rrf_k=${rrfK}` : "";
+    routeNote = `router OFF · global policy = ${strategy}${knob}  ←  ${source}`;
     return { strategy, kwQuery: query };
   }
   const type = classifyType(query);
   const routed = TYPE_TO_STRATEGY[type];
-  routeNote = `router ON: type=${type} → ${routed}`;
+  routeNote = `router ON · type=${type} → ${routed}`;
   return { strategy: routed, kwQuery: routed === "keyword" ? preprocessOR(query) : query };
 }
 
