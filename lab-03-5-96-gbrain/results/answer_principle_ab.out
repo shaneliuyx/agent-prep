@@ -1,0 +1,33 @@
+generator/judge: claude-opus-4-5-20251101 · 24 questions
+
+  [DIFF] base=F rout=P stro=P  (kw) Itochu Marubeni Mitsubishi Mitsui Sumitomo tra
+  [DIFF] base=P rout=F stro=F  (kw) Item 1C Cybersecurity disclosure governance
+  [DIFF] base=P rout=P stro=P  (kw) Item 1A Risk Factors
+  [DIFF] base=P rout=P stro=P  (kw) Occidental Petroleum 27 percent common shares 
+  [DIFF] base=P rout=P stro=P  (kw) Sam Okafor Northstar acme-seed anchor
+  [DIFF] base=P rout=P stro=P  (kw) Lin Zhao Quanta CTO Acme AI
+  [DIFF] base=P rout=P stro=P  (kw) Dev Patel Ridgeline
+  [DIFF] base=P rout=P stro=P  (kw) Helix Bio protein foundation models
+  [DIFF] base=P rout=P stro=P  (kw) BNSF Burlington Northern Santa Fe railroad
+  [DIFF] base=F rout=P stro=P  (kw) Item 8 Notes to Consolidated Financial Stateme
+  [DIFF] base=P rout=P stro=P  (vec) the five trading companies the firm holds for 
+  [DIFF] base=F rout=P stro=F  (vec) how the company guards against digital intrusi
+  [same] base=P rout=P stro=P  (vec) the part of the filing that lists what could g
+  [DIFF] base=P rout=P stro=P  (vec) the oil and gas producer the firm owns a large
+  [DIFF] base=P rout=P stro=P  (vec) who is putting up the money to anchor the earl
+  [DIFF] base=P rout=P stro=P  (vec) who runs the startup optimizing model inferenc
+  [DIFF] base=F rout=F stro=F  (vec) which venture firm is the angel investor in th
+  [DIFF] base=P rout=P stro=P  (vec) the startup designing foundation models for pr
+  [DIFF] base=P rout=P stro=P  (vec) where the freight rail subsidiary's operating 
+  [DIFF] base=P rout=P stro=P  (vec) where in the report the detailed accounting no
+  [same] base=P rout=P stro=P  (mixed) What were Berkshire's total revenues in 2023?
+  [same] base=F rout=F stro=F  (mixed) What did Buffett describe as Berkshire's 'not-
+  [same] base=P rout=P stro=P  (mixed) Who founded Acme AI?
+  [same] base=P rout=P stro=P  (mixed) What does Quanta Labs work on?
+
+judged 24 questions on a pinned generator
+  policy      pass    p:kw     p:vec    p:mixed  Δ vs base
+  --------------------------------------------------------
+  baseline    0.792   0.800    0.800    0.750    +0.000
+  router      0.875   0.900    0.900    0.750    +0.083
+  strong_g    0.833   0.900    0.800    0.750    +0.042
