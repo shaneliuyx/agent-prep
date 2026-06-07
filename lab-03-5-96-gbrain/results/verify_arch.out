@@ -1,0 +1,49 @@
+  [reader] full-body check: 0 slugs, body chars=[] (via `gbrain get`, not `query --json` snippets)
+  keyword grnd=0.000 ans=F  What was Berkshire's operating earnings figu
+  vector  grnd=1.000 ans=P  What was Berkshire's operating earnings figu
+  hybrid  grnd=1.000 ans=P  What was Berkshire's operating earnings figu
+  keyword grnd=0.000 ans=F  What is Berkshire's percentage ownership of 
+  vector  grnd=1.000 ans=P  What is Berkshire's percentage ownership of 
+  hybrid  grnd=1.000 ans=P  What is Berkshire's percentage ownership of 
+  keyword grnd=0.000 ans=F  What did Buffett write about the five Japane
+  vector  grnd=1.000 ans=P  What did Buffett write about the five Japane
+  hybrid  grnd=1.000 ans=P  What did Buffett write about the five Japane
+  keyword grnd=0.000 ans=F  How does Buffett describe Berkshire's relati
+  vector  grnd=0.750 ans=P  How does Buffett describe Berkshire's relati
+  hybrid  grnd=0.750 ans=P  How does Buffett describe Berkshire's relati
+  keyword grnd=0.000 ans=F  Which Item of Form 10-K covers Risk Factors?
+  vector  grnd=1.000 ans=P  Which Item of Form 10-K covers Risk Factors?
+  hybrid  grnd=1.000 ans=P  Which Item of Form 10-K covers Risk Factors?
+  keyword grnd=1.000 ans=F  Where in the report are the Notes to Consoli
+  vector  grnd=1.000 ans=P  Where in the report are the Notes to Consoli
+  hybrid  grnd=1.000 ans=P  Where in the report are the Notes to Consoli
+  keyword grnd=1.000 ans=P  What were Berkshire's total revenues in 2023
+  vector  grnd=0.667 ans=F  What were Berkshire's total revenues in 2023
+  hybrid  grnd=1.000 ans=P  What were Berkshire's total revenues in 2023
+  keyword grnd=1.000 ans=P  What was Berkshire's net earnings attributab
+  vector  grnd=1.000 ans=P  What was Berkshire's net earnings attributab
+  hybrid  grnd=1.000 ans=P  What was Berkshire's net earnings attributab
+  keyword grnd=0.000 ans=F  What did Buffett describe as Berkshire's 'no
+  vector  grnd=0.375 ans=P  What did Buffett describe as Berkshire's 'no
+  hybrid  grnd=0.375 ans=P  What did Buffett describe as Berkshire's 'no
+  keyword grnd=0.000 ans=F  What did Buffett write about non-controlled 
+  vector  grnd=1.000 ans=P  What did Buffett write about non-controlled 
+  hybrid  grnd=1.000 ans=P  What did Buffett write about non-controlled 
+  keyword grnd=0.000 ans=F  Which section of the annual report covers BN
+  vector  grnd=1.000 ans=P  Which section of the annual report covers BN
+  hybrid  grnd=1.000 ans=P  Which section of the annual report covers BN
+  keyword grnd=0.000 ans=F  Where does the 2023 annual report disclose c
+  vector  grnd=0.500 ans=P  Where does the 2023 annual report disclose c
+  hybrid  grnd=1.000 ans=P  Where does the 2023 annual report disclose c
+
+=== CALIBRATOR — does the cheap metric predict answer quality? ===
+  cells judged: 36
+  corr(discounted grounding@C, answer-pass) = +0.820
+
+=== SELECTOR — is the max-grounding arm the answer-quality winner? ===
+  arm       mean grnd  ans pass
+  keyword       0.250     0.167
+  vector        0.858     0.917
+  hybrid        0.927     1.000
+
+  selector pick (max grounding) = hybrid;  answer winner = hybrid  → CONFIRMED
