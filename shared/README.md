@@ -25,6 +25,36 @@ Everything below already had 2+ real call sites when extracted.
 `llm.py` is provider-agnostic (every chapter can use it). `gbrain_*` is GBrain-specific — a
 non-GBrain chapter (e.g. W3.5.95) imports only `llm`.
 
+## API reference — every utility
+
+### `llm.py` (Python) — provider-agnostic LLM plumbing
+| symbol | signature | what it does |
+|---|---|---|
+| `make_client` | `(base_url=None, api_key=None) -> OpenAI` | OpenAI-compatible client; unset args fall back through `LLM_BASE_URL`→`OPENROUTER_BASE_URL`→`OMLX_BASE_URL` (key similar, non-empty `EMPTY` sentinel so it builds with no `.env`). |
+| `PROFILES` | `dict[str, (base,key,model)]` | named model presets: `haiku`, `opus` (VibeProxy→Claude), `14b`, `qwen` (oMLX). Add a model = one line. |
+| `resolve` | `(role, default_profile) -> (client, model, label)` | resolve a ROLE (e.g. `"GEN"`/`"JUDGE"`) with no code change: `<ROLE>=haiku` preset, or raw `<ROLE>_MODEL` (+ optional `<ROLE>_BASE_URL`/`_API_KEY`). |
+| `chat` | `(client, prompt_or_messages, model, temperature=0.0) -> str` | one completion; accepts a raw prompt string or a messages list. |
+| `judge` | `(client, answer, criteria, model) -> bool` | LLM judge — PASS/FAIL of `answer` against `criteria` (retries through drops). |
+| `JUDGE_TMPL` | `str` | the judge prompt template (`{criteria}`, `{answer}`). |
+| `resilient` | `(fn, *args, retries=4, backoff=2.0)` | retry an LLM call through transient connection drops; raises `LLMUnavailable` if it never recovers. |
+| `LLMUnavailable` | `Exception` | endpoint refused after retries — caller should SKIP the item, not crash. |
+| `load_pass_criteria` | `(ground_truth_path) -> dict[str,str]` | question text → `pass_criteria`, from a W2.7-style `eval_ground_truth.json`. |
+
+### `gbrain_cli.py` (Python) — GBrain CLI wrappers + read assembly *(GBrain chapters only)*
+| symbol | signature | what it does |
+|---|---|---|
+| `gbrain_query_slugs` | `(q, limit) -> list[str]` | hybrid retrieval — ranked slugs only (snippets are too thin to ground). |
+| `gbrain_get` | `(slug) -> str` | full page body via `gbrain get <slug>` (NOT the truncated `query --json` snippet). |
+| `build_context` | `(slugs, max_body_chars=0, min_body_chars=80) -> str` | assemble reader context from full bodies; raises `SnippetRegression` if any body is suspiciously short; `max_body_chars>0` caps each body for a small-context generator. |
+| `SnippetRegression` | `Exception` | a reader injected a truncated snippet instead of a full `gbrain get` body. |
+| `server_env` | `() -> dict` | env for shelling `gbrain` (puts `~/.bun/bin` on PATH; defaults DB + embed endpoint). |
+
+### `gbrain_engine.ts` (TS/Bun) — GBrain engine bootstrap *(GBrain chapters only)*
+| symbol | signature | what it does |
+|---|---|---|
+| `bootstrapEngine` | `() -> Promise<{engine, runEval, config}>` | connect to GBrain exactly as the CLI does (load config → create engine → connect → wire gateway). `GBRAIN_SRC` env overrides the gbrain source path. |
+| `Bootstrapped` | `interface` | return shape: `{ engine, runEval, config }`. |
+
 ## Use it
 
 **Python** (flat import via `sys.path`; no packaging ceremony):
