@@ -158,6 +158,15 @@ const rWins = rows.filter((_, i) => score.router[i] > score.baseline[i] + 1e-9).
 const rLoses = rows.filter((_, i) => score.router[i] < score.baseline[i] - 1e-9).length;
 console.log(`router vs baseline per-question:  +${rWins} better  ·  -${rLoses} worse  ·  ${rows.length - rWins - rLoses} tie`);
 
+// show the questions where router differs from baseline — the evidence behind the +N/-N count
+console.log("\nwhere router ≠ baseline (the only rows that move the average):");
+rows.forEach((r, i) => {
+  const d = score.router[i] - score.baseline[i];
+  if (Math.abs(d) <= 1e-9) return;
+  const arm = armForType[r.type];
+  console.log(`  ${d > 0 ? "WIN " : "LOSS"}  ${r.type}  baseline(hyb) ${f(score.baseline[i])} → router(${arm}) ${f(score.router[i])}   "${r.q.slice(0, 50)}"`);
+});
+
 // ── dump slugs for the answer-quality A/B ────────────────────────────────────
 const dump = rows.map(r => ({
   q: r.q, domain: r.domain, type: r.type,
