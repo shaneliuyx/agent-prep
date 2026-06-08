@@ -19,7 +19,7 @@ from pathlib import Path
 from openai import OpenAI
 
 MODEL = "Qwen3.6-35B-A3B-UD-MLX-4bit"
-OMLX = OpenAI(base_url="http://localhost:8000/v1", api_key=os.getenv("OMLX_API_KEY", "***REMOVED-OMLX-KEY***"))
+OMLX = OpenAI(base_url="http://localhost:8000/v1", api_key=os.getenv("OMLX_API_KEY", "not-needed"))
 
 
 def _print(label: str, ok: bool, latency: float, detail: str = "") -> dict:

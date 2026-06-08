@@ -9,7 +9,7 @@ from qdrant_client.http.models import Distance, VectorParams, PointStruct
 HOME = os.path.expanduser("~")
 
 # 1. oMLX chat completion (sonnet tier — Gemma 26B)
-client = OpenAI(base_url="http://127.0.0.1:8000/v1", api_key="***REMOVED-OMLX-KEY***")
+client = OpenAI(base_url="http://127.0.0.1:8000/v1", api_key=os.getenv("OMLX_API_KEY", "not-needed"))
 t0 = time.time()
 resp = client.chat.completions.create(
     model="gemma-4-26B-A4B-it-heretic-4bit",
