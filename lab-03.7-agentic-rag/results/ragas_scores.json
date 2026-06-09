@@ -1,0 +1,20 @@
+{
+  "single_pass": {
+    "faithfulness": 0.98,
+    "answer_relevancy": 0.75512694469779,
+    "context_precision": 0.981977777695309,
+    "context_recall": 1.0
+  },
+  "agentic_canonical": {
+    "faithfulness": 0.8761357823761915,
+    "answer_relevancy": 0.7864907720018772,
+    "context_precision": 0.6944444443832962,
+    "context_recall": 0.7
+  },
+  "agentic_structural": {
+    "faithfulness": 1.0,
+    "answer_relevancy": 0.7845536732435867,
+    "context_precision": 0.9819777776964089,
+    "context_recall": 1.0
+  }
+}

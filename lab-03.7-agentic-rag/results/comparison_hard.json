@@ -1,0 +1,525 @@
+[
+  {
+    "qid": "7460930",
+    "question": "What is the phone number for the SiriusXM Listener Care hotline?",
+    "ground_truth": "1-866-635-5020",
+    "single_pass": {
+      "answer": "* The phone number for the SiriusXM Listener Care hotline is 1-866-635-5020 [#1, #3].\n* This hotline is available Monday to Saturday from 8 a.m. to 11 p.m. EST and on Sundays from 8 a.m. to 8 p.m. EST [#1].",
+      "latency": 9.362807989120483,
+      "llm_calls": 1,
+      "contexts": [
+        "How to Cancel Sirius. March 31, 2015. In December 2014, SiriusXM released a statement in which the company pledged to make it easier for customers to cancel their satellite radio service. As of March 2015, however, it is still impossible to cancel your SiriusXM service online. Instead, terminating your subscription requires you to call SiriusXM's Listener Care hotline at 1-866-635-5020 Monday to Saturday from 8 a.m. to 11 p.m. EST or from 8 a.m. to 8 p.m. EST on Sundays. Calling SiriusXM.",
+        "SiriusXM Chat. A SiriusXM Customer Care representative may be able to help solve your issue quickly. Please be advised that Chat is available Monday \u2013 Saturday 8:00 AM \u2013 11:00 PM EDT and Sunday and Holidays 8:00 AM \u2013 8:00 PM EDT. By Phone. If you need assistance, please call Customer Care at 1-888-539-7474. By Email. Please complete the form below and a member of our Listener Care team will get back to you. If you are an existing Sirius or XM subscriber, please include your ESN and phone number ",
+        "Sirius/XM Cancel Services. 866-635-5020. Before dialing Sirius/XM Cancel Services. We've tried for years to eliminate that 3 minute wait for you. But the fact is that it can still take many phone calls to Sirius/XM to resolve your issue. Now you can hire GetHuman to do all the work on the phone for you.",
+        "Audible Customer Support Service Phone Number The customer support phone number of Audible is 1-888-283-5051 (Click phone number to call). data-ad-slot=7829909793>",
+        "Call Harland Clarke Customer Service. Call Customer Service by tapping below if on your phone, or talk to them from your browser. Tap or click here to call (800-643-5737); Press 1, then press 0. Use our web-phone to save plan minutes.",
+        "And here are some reasons that other Frontier Communications customers called 877-462-8188 recently:  1 told the wrong email to FrontierGetHuman-ivyliu20d agoI want to change my caller ID nameGetHuman5224525d agoKeep getting message Check Signal Cable. I have unplugged the box with n...GetHuman-gkfamily8 mons ago."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "The phone number for the SiriusXM Listener Care hotline is 1-866-635-5020. Alternatively, you can call Customer Care at 1-888-539-7474.",
+      "latency": 8.059240102767944,
+      "llm_calls": 1,
+      "contexts": [
+        "SiriusXM Chat. A SiriusXM Customer Care representative may be able to help solve your issue quickly. Please be advised that Chat is available Monday \u2013 Saturday 8:00 AM \u2013 11:00 PM EDT and Sunday and Holidays 8:00 AM \u2013 8:00 PM EDT. By Phone. If you need assistance, please call Customer Care at 1-888-539-7474. By Email. Please complete the form below and a member of our Listener Care team will get back to you. If you are an existing Sirius or XM subscriber, please include your ESN and phone number ",
+        "How to Cancel Sirius. March 31, 2015. In December 2014, SiriusXM released a statement in which the company pledged to make it easier for customers to cancel their satellite radio service. As of March 2015, however, it is still impossible to cancel your SiriusXM service online. Instead, terminating your subscription requires you to call SiriusXM's Listener Care hotline at 1-866-635-5020 Monday to Saturday from 8 a.m. to 11 p.m. EST or from 8 a.m. to 8 p.m. EST on Sundays. Calling SiriusXM.",
+        "Sirius/XM Cancel Services. 866-635-5020. Before dialing Sirius/XM Cancel Services. We've tried for years to eliminate that 3 minute wait for you. But the fact is that it can still take many phone calls to Sirius/XM to resolve your issue. Now you can hire GetHuman to do all the work on the phone for you.",
+        "Audible Customer Support Service Phone Number The customer support phone number of Audible is 1-888-283-5051 (Click phone number to call). data-ad-slot=7829909793>",
+        "Call Harland Clarke Customer Service. Call Customer Service by tapping below if on your phone, or talk to them from your browser. Tap or click here to call (800-643-5737); Press 1, then press 0. Use our web-phone to save plan minutes.",
+        "This phone number is Amazon's Best Phone Number because 1,694,862 customers like you used this contact information over the last 18 months and gave us feedback. Common problems addressed by the customer care unit that answers calls to 888-280-4331 include Technical and Service Support, Order Issue, Cancel or Change Account, Account Issue, Billing Issue and other customer service issues. The Amazon call center that you call into has employees from Arizona or Washington or North Carolina or India "
+      ]
+    },
+    "agentic_structural": {
+      "answer": "The phone number for the SiriusXM Listener Care hotline is 1-866-635-5020. It is available Monday to Saturday from 8 a.m. to 11 p.m. EST and from 8 a.m. to 8 p.m. EST on Sundays.",
+      "latency": 8.059756994247437,
+      "llm_calls": 0,
+      "contexts": [
+        "How to Cancel Sirius. March 31, 2015. In December 2014, SiriusXM released a statement in which the company pledged to make it easier for customers to cancel their satellite radio service. As of March 2015, however, it is still impossible to cancel your SiriusXM service online. Instead, terminating your subscription requires you to call SiriusXM's Listener Care hotline at 1-866-635-5020 Monday to Saturday from 8 a.m. to 11 p.m. EST or from 8 a.m. to 8 p.m. EST on Sundays. Calling SiriusXM.",
+        "SiriusXM Chat. A SiriusXM Customer Care representative may be able to help solve your issue quickly. Please be advised that Chat is available Monday \u2013 Saturday 8:00 AM \u2013 11:00 PM EDT and Sunday and Holidays 8:00 AM \u2013 8:00 PM EDT. By Phone. If you need assistance, please call Customer Care at 1-888-539-7474. By Email. Please complete the form below and a member of our Listener Care team will get back to you. If you are an existing Sirius or XM subscriber, please include your ESN and phone number ",
+        "Sirius/XM Cancel Services. 866-635-5020. Before dialing Sirius/XM Cancel Services. We've tried for years to eliminate that 3 minute wait for you. But the fact is that it can still take many phone calls to Sirius/XM to resolve your issue. Now you can hire GetHuman to do all the work on the phone for you.",
+        "Audible Customer Support Service Phone Number The customer support phone number of Audible is 1-888-283-5051 (Click phone number to call). data-ad-slot=7829909793>",
+        "Call Harland Clarke Customer Service. Call Customer Service by tapping below if on your phone, or talk to them from your browser. Tap or click here to call (800-643-5737); Press 1, then press 0. Use our web-phone to save plan minutes.",
+        "And here are some reasons that other Frontier Communications customers called 877-462-8188 recently:  1 told the wrong email to FrontierGetHuman-ivyliu20d agoI want to change my caller ID nameGetHuman5224525d agoKeep getting message Check Signal Cable. I have unplugged the box with n...GetHuman-gkfamily8 mons ago."
+      ]
+    }
+  },
+  {
+    "qid": "791",
+    "question": "Where is Calusa located?",
+    "ground_truth": "on the northwest side of the island",
+    "single_pass": {
+      "answer": "* Calusa is a beach located on the northwest side of the island in Bahia Honda state [#1].\n* Bahia Honda state is located near Big Pine Key in the Florida Keys [#1].",
+      "latency": 4.190118789672852,
+      "llm_calls": 1,
+      "contexts": [
+        "Top 25 Beaches in United States. The first beach on our best beaches in the USA list is Bahia Honda state located near Big Pine Key in the Florida Keys. This park has several white sandy beaches for you to enjoy. Calusa, the smallest beach, is located on the northwest side of the island.",
+        "Ontario (/\u0252n\u02c8t\u025b\u0259rio\u028a/ ( listen); French pronunciation: \u200b[\u0254\u0303ta\u0281jo]), one of the 13 provinces and territories of Canada, is located in east-central Canada.[7][8] It is Canada's most populous province[9] accounting for nearly 40 percent[10] of the country's population, and is the second-largest province in total area.",
+        "Toledo, Ohio. Toledo (/t\u0259\u02c8li\u02d0do\u028a/) is a city in and the county seat of Lucas County, Ohio, United States. Toledo is in northwest Ohio, at the western end of Lake Erie bordering the state of Michigan. The city was founded by United States citizens in 1833 on the west bank of the Maumee River, and originally incorporated as part of Monroe County, Michigan Territory.",
+        "Columbus, Texas. Columbus is a city in Colorado County in southeastern Texas, United States, 74 miles (119 km) west of Houston. The population was 3,655 as of the 2010 census.[3] It is the county seat of Colorado County [4] and is located on the Colorado River.",
+        "Rome is in the Lazio region of central Italy on the Tiber river (Italian: Tevere). The original settlement developed on hills that faced onto a ford beside the Tiber Island, the only natural ford of the river in this area.",
+        "Location of McCall in Valley County, Idaho. McCall, Idaho. McCall is a resort town on the western edge of Valley County, Idaho, United States. Named after its founder, Tom McCall, it is situated on the southern shore of Payette Lake, near the center of the Payette National Forest. The population was 2,991 as of the 2010 census, up from 2,084 in 2000.[4]"
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "Calusa is located on the northwest side of the island. It is the smallest beach in Bahia Honda State Park.",
+      "latency": 2.139180898666382,
+      "llm_calls": 1,
+      "contexts": [
+        "1. Bahia Honda State Park, Florida. The first beach on our best beaches in the USA list is Bahia Honda state located near Big Pine Key in the Florida Keys. This park has several white sandy beaches for you to enjoy. Calusa, the smallest beach, is located on the northwest side of the island.",
+        "Top 25 Beaches in United States. The first beach on our best beaches in the USA list is Bahia Honda state located near Big Pine Key in the Florida Keys. This park has several white sandy beaches for you to enjoy. Calusa, the smallest beach, is located on the northwest side of the island.",
+        "Ontario (/\u0252n\u02c8t\u025b\u0259rio\u028a/ ( listen); French pronunciation: \u200b[\u0254\u0303ta\u0281jo]), one of the 13 provinces and territories of Canada, is located in east-central Canada.[7][8] It is Canada's most populous province[9] accounting for nearly 40 percent[10] of the country's population, and is the second-largest province in total area.",
+        "Toledo, Ohio. Toledo (/t\u0259\u02c8li\u02d0do\u028a/) is a city in and the county seat of Lucas County, Ohio, United States. Toledo is in northwest Ohio, at the western end of Lake Erie bordering the state of Michigan. The city was founded by United States citizens in 1833 on the west bank of the Maumee River, and originally incorporated as part of Monroe County, Michigan Territory.",
+        "Columbus, Texas. Columbus is a city in Colorado County in southeastern Texas, United States, 74 miles (119 km) west of Houston. The population was 3,655 as of the 2010 census.[3] It is the county seat of Colorado County [4] and is located on the Colorado River.",
+        "Kewaunee County is a county located in the U.S. state of Wisconsin. As of the 2010 census, the population was 20,574.[1] Its county seat is Kewaunee.[2] The county was created in 1852 and organized in 1859.[3]"
+      ]
+    },
+    "agentic_structural": {
+      "answer": "Calusa is located on the northwest side of the island. It is the smallest beach in Bahia Honda State Park.",
+      "latency": 1.371814250946045,
+      "llm_calls": 0,
+      "contexts": [
+        "1. Bahia Honda State Park, Florida. The first beach on our best beaches in the USA list is Bahia Honda state located near Big Pine Key in the Florida Keys. This park has several white sandy beaches for you to enjoy. Calusa, the smallest beach, is located on the northwest side of the island.",
+        "Top 25 Beaches in United States. The first beach on our best beaches in the USA list is Bahia Honda state located near Big Pine Key in the Florida Keys. This park has several white sandy beaches for you to enjoy. Calusa, the smallest beach, is located on the northwest side of the island.",
+        "Ontario (/\u0252n\u02c8t\u025b\u0259rio\u028a/ ( listen); French pronunciation: \u200b[\u0254\u0303ta\u0281jo]), one of the 13 provinces and territories of Canada, is located in east-central Canada.[7][8] It is Canada's most populous province[9] accounting for nearly 40 percent[10] of the country's population, and is the second-largest province in total area.",
+        "Toledo, Ohio. Toledo (/t\u0259\u02c8li\u02d0do\u028a/) is a city in and the county seat of Lucas County, Ohio, United States. Toledo is in northwest Ohio, at the western end of Lake Erie bordering the state of Michigan. The city was founded by United States citizens in 1833 on the west bank of the Maumee River, and originally incorporated as part of Monroe County, Michigan Territory.",
+        "Columbus, Texas. Columbus is a city in Colorado County in southeastern Texas, United States, 74 miles (119 km) west of Houston. The population was 3,655 as of the 2010 census.[3] It is the county seat of Colorado County [4] and is located on the Colorado River.",
+        "Kewaunee County is a county located in the U.S. state of Wisconsin. As of the 2010 census, the population was 20,574.[1] Its county seat is Kewaunee.[2] The county was created in 1852 and organized in 1859.[3]"
+      ]
+    }
+  },
+  {
+    "qid": "614",
+    "question": "What is the average cost of tutoring per hour?",
+    "ground_truth": "$131.66/hour",
+    "single_pass": {
+      "answer": "* The average cost of tutoring varies by company, ranging from $37.50/hour at Tutor Bungalow [#3] to $131.66/hour at Kumon [#1].\n* Other listed average costs include $48/hour [#4], $81.25/hour [#2], and $125/hour [#5].\n* For SAT tutoring, rates are suggested to be $30-50 per hour depending on the area's affluence, while the rate in London is \u00a3125.00 per hour [#6].",
+      "latency": 2.3415489196777344,
+      "llm_calls": 1,
+      "contexts": [
+        "Average cost of tutoring: $131.66/hour. Kumon, like other tutoring centers in our list of tutoring companies, loses points for convenience. It has no online or in-home options and set hours for tutoring centers that your student must go to.",
+        "Average cost of tutoring: $81.25/hour. If you hadn\u2019t guessed it by the name of the company, 36 By Design only does one kind of tutoring \u2014 ACT Test Prep. It\u2019s their opinion that by only focusing on one subject, they can perfect it.",
+        "Average cost of tutoring: $37.50/hour. Tutor Bungalow is a tutoring marketplace \u2014 kind of like Amazon, but for tutors. Their low score is mainly attributed to their lack of points in tutoring effectiveness. Tutor Bungalow tutors can sign up in only 5 minutes, with no background check or additional training provided.",
+        "Average cost of tutoring: $48/hour. Although tutors can be found on Craigslist for $20/hour (that\u2019s a cheaper deal), you may be swapping quantity for quality. Craigslist doesn\u2019t specialize in providing tutors, so the site doesn\u2019t screen their applicants.",
+        "Average cost of tutoring: $125/hour. Unfortunately, Test Masters receives fairly low ratings in a number of areas. A glance at their Yelp reviews is enough to make a parent uneasy, but this could have something to do with the company\u2019s expansion over time.",
+        "Replies to: How much should I charge for SAT Tutoring? Probably $30-50 per/hour, depending on how affluent an area you live in. I tutored Chemistry for $20 per/hour, but because SAT requires more expertise, I would say slightly more. In London the rate is \u00a3125.00 per hour."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "Because tutoring rates vary significantly based on subject, tutor experience, and location, there is no single \"average.\" However, you can categorize costs into several tiers:\n\n### 1. General Price Ranges\n*   **Low End ($20\u2013$40 per hour):** Typically college students, peer tutors, or local high school students. These are great for homework help or general subject review.\n*   **Mid-Range ($50\u2013$80 per hour):** Professional tutors with teaching degrees or significant experience. This is the most common bracket for K-12 subject support.\n*   **High End ($100\u2013$250+ per hour):** Specialized subject matter experts (e.g., advanced physics, organic chemistry), test prep specialists (SAT/ACT/LSAT), or tutors with PhDs.\n\n### 2. Factors That Influence Cost\n*   **Subject Complexity:** A general math tutor will charge less than a specialized Calculus or Statistics tutor. STEM subjects and test preparation (SAT, GRE, MCAT) almost always command higher rates.\n*   **Tutor Qualifications:** A certified teacher or a professional with a Master\u2019s degree will charge significantly more than a college student.\n*   **Format (In-person vs. Online):** Online tutoring is often slightly cheaper because the tutor saves on travel time and expenses. In-person tutoring may include a premium for the convenience of having someone come to your home.\n*   **Location:** Rates in major metropolitan areas (like NYC, San Francisco, or London) are much higher than in rural areas or smaller towns.\n*   **Group vs. Individual:** One-on-one sessions are the most expensive. Group tutoring sessions can often reduce the cost per student by 30% to 50%.\n\n### 3. Summary Table\n| Tutor Type | Estimated Hourly Rate |\n| :--- | :--- |\n| **College Student / Peer** | $20 \u2013 $40 |\n| **Professional K-12 Tutor** | $50 \u2013 $80 |\n| **Specialized Subject Expert** | $80 \u2013 $150 |\n| **High-Stakes Test Prep** | $100 \u2013 $250+ |\n\n**Pro-Tip:** If you are looking for the best value, many tutoring agencies offer \"package deals\" (e.g., buying 10 hours upfront) which can lower your effective hourly rate.",
+      "latency": 6.952782869338989,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "The provided text does not state a single average cost for tutoring per hour. Instead, it lists various individual average costs ranging from $37.50 to $131.66 per hour.",
+      "latency": 1.4781949520111084,
+      "llm_calls": 0,
+      "contexts": [
+        "Average cost of tutoring: $131.66/hour. Kumon, like other tutoring centers in our list of tutoring companies, loses points for convenience. It has no online or in-home options and set hours for tutoring centers that your student must go to.",
+        "Average cost of tutoring: $81.25/hour. If you hadn\u2019t guessed it by the name of the company, 36 By Design only does one kind of tutoring \u2014 ACT Test Prep. It\u2019s their opinion that by only focusing on one subject, they can perfect it.",
+        "Average cost of tutoring: $37.50/hour. Tutor Bungalow is a tutoring marketplace \u2014 kind of like Amazon, but for tutors. Their low score is mainly attributed to their lack of points in tutoring effectiveness. Tutor Bungalow tutors can sign up in only 5 minutes, with no background check or additional training provided.",
+        "Average cost of tutoring: $48/hour. Although tutors can be found on Craigslist for $20/hour (that\u2019s a cheaper deal), you may be swapping quantity for quality. Craigslist doesn\u2019t specialize in providing tutors, so the site doesn\u2019t screen their applicants.",
+        "Average cost of tutoring: $125/hour. Unfortunately, Test Masters receives fairly low ratings in a number of areas. A glance at their Yelp reviews is enough to make a parent uneasy, but this could have something to do with the company\u2019s expansion over time.",
+        "Replies to: How much should I charge for SAT Tutoring? Probably $30-50 per/hour, depending on how affluent an area you live in. I tutored Chemistry for $20 per/hour, but because SAT requires more expertise, I would say slightly more. In London the rate is \u00a3125.00 per hour."
+      ]
+    }
+  },
+  {
+    "qid": "1013",
+    "question": "What is an example of something worn to ensure good fortune according to the passage?",
+    "ground_truth": "a rabbit's foot",
+    "single_pass": {
+      "answer": "* An example of something worn about a person to ensure good fortune is a rabbit's foot [#1].",
+      "latency": 1.0257179737091064,
+      "llm_calls": 1,
+      "contexts": [
+        "Definition of charm. 1  1a : the chanting or reciting of a magic spell : incantationb : a practice or expression believed to have magic power. 2  2 : something worn about the person to ward off evil or ensure good fortune : amulet wore a rabbit's foot as a good-luck charm.",
+        "Examples of charm in a sentence. 1  He keeps a horseshoe as a good luck charm. 2  He fell under the spell of her charms. 3  The resort has many charms.  The inn has a quaint 1  charm. The island possesses great charm.  The new curtains add charm to the 1  room. The seaside location is a big part of the house's 2  charm. He won her over with his  charm.",
+        "An object that began life as an ordinary back-scratcher is now also believed to be a good luck charm and widely available on the net. MANAGER Ronnie Moore looks to his Irish good luck charm John Thompson to keep Tranmere Rovers in the winning habit tonight. She wanted to be her sister's good luck charm on Tuesday, too.",
+        "Contemporary Examples. 1  I've always had good luck, and I thought it was another stroke of good fortune to be invested with the legendary Bernard Madoff. 2  If such an attitude is meant to intimidate Muslim women, good luck. 3  good luck finding that cohort of \u201cna\u00efve\u201d participants, noble goal though that it is.",
+        "charm, good luck charm(noun) something believed to bring good luck. Good Luck Charm. Good Luck Charm is a song recorded by Elvis Presley and published by Gladys Music, Elvis Presley's publishing company, that reached number 1 on the Billboard Hot 100 list in the week ending April 21, 1962.",
+        "Historical Examples. 1  And by good luck it's orders that I'm to be one of the escort to St. Mary's. Sir Christopher Maud Wilder Goodwin.  2 I had the good luck to be standing near, said Clif, modestly. A Prisoner of Morro Upton Sinclair."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "An example of something worn to ensure good fortune is a rabbit's foot. This is described as an amulet worn about the person.",
+      "latency": 1.8410780429840088,
+      "llm_calls": 1,
+      "contexts": [
+        "Definition of charm. 1  1a : the chanting or reciting of a magic spell : incantationb : a practice or expression believed to have magic power. 2  2 : something worn about the person to ward off evil or ensure good fortune : amulet wore a rabbit's foot as a good-luck charm.",
+        "charm, good luck charm(noun) something believed to bring good luck. Good Luck Charm. Good Luck Charm is a song recorded by Elvis Presley and published by Gladys Music, Elvis Presley's publishing company, that reached number 1 on the Billboard Hot 100 list in the week ending April 21, 1962.",
+        "An object that began life as an ordinary back-scratcher is now also believed to be a good luck charm and widely available on the net. MANAGER Ronnie Moore looks to his Irish good luck charm John Thompson to keep Tranmere Rovers in the winning habit tonight. She wanted to be her sister's good luck charm on Tuesday, too.",
+        "Contemporary Examples. 1  I've always had good luck, and I thought it was another stroke of good fortune to be invested with the legendary Bernard Madoff. 2  If such an attitude is meant to intimidate Muslim women, good luck. 3  good luck finding that cohort of \u201cna\u00efve\u201d participants, noble goal though that it is.",
+        "The p\u00faca (Irish for spirit/ghost), pooka, phouka, phooka, phooca, puca or p\u00faka) is primarily a creature of Celtic folklore. Considered to be bringers both of good and bad fortune, they could either help or hinder rural and marine communities.The P\u00faca can have dark or staunch white fur or hair.",
+        "A prostration is a gesture used in Buddhist practice to show reverence to the Triple Gem and other objects of veneration. Among Buddhists prostration is believed to be beneficial for practitioners for several reasons, including: an experience of giving or veneration an act to purify defilements, especially conceit a preparatory act for meditation an act that accumulates merit In contemporary Western Buddhism, some teachers use prostrations as a practice unto itself, while other teachers relegate"
+      ]
+    },
+    "agentic_structural": {
+      "answer": "An example of something worn to ensure good fortune is a rabbit's foot.",
+      "latency": 1.194310188293457,
+      "llm_calls": 0,
+      "contexts": [
+        "Definition of charm. 1  1a : the chanting or reciting of a magic spell : incantationb : a practice or expression believed to have magic power. 2  2 : something worn about the person to ward off evil or ensure good fortune : amulet wore a rabbit's foot as a good-luck charm.",
+        "Examples of charm in a sentence. 1  He keeps a horseshoe as a good luck charm. 2  He fell under the spell of her charms. 3  The resort has many charms.  The inn has a quaint 1  charm. The island possesses great charm.  The new curtains add charm to the 1  room. The seaside location is a big part of the house's 2  charm. He won her over with his  charm.",
+        "An object that began life as an ordinary back-scratcher is now also believed to be a good luck charm and widely available on the net. MANAGER Ronnie Moore looks to his Irish good luck charm John Thompson to keep Tranmere Rovers in the winning habit tonight. She wanted to be her sister's good luck charm on Tuesday, too.",
+        "Contemporary Examples. 1  I've always had good luck, and I thought it was another stroke of good fortune to be invested with the legendary Bernard Madoff. 2  If such an attitude is meant to intimidate Muslim women, good luck. 3  good luck finding that cohort of \u201cna\u00efve\u201d participants, noble goal though that it is.",
+        "charm, good luck charm(noun) something believed to bring good luck. Good Luck Charm. Good Luck Charm is a song recorded by Elvis Presley and published by Gladys Music, Elvis Presley's publishing company, that reached number 1 on the Billboard Hot 100 list in the week ending April 21, 1962.",
+        "Historical Examples. 1  And by good luck it's orders that I'm to be one of the escort to St. Mary's. Sir Christopher Maud Wilder Goodwin.  2 I had the good luck to be standing near, said Clif, modestly. A Prisoner of Morro Upton Sinclair."
+      ]
+    }
+  },
+  {
+    "qid": "2181",
+    "question": "Where do anthropologists teach and conduct research?",
+    "ground_truth": "On campuses, in departments of anthropology, and in research laboratories",
+    "single_pass": {
+      "answer": "* Anthropologists teach and conduct research on campuses, in departments of anthropology, and in research laboratories [#1, #2].\n* Forensic anthropologists work in university and museum settings [#6].",
+      "latency": 1.1792402267456055,
+      "llm_calls": 1,
+      "contexts": [
+        "Academic Careers. 1  On campuses, in departments of anthropology, and in research laboratories, anthropologists teach and conduct research. They spend a great deal of time preparing for classes, writing lectures, grading papers, working with individual students, composing scholarly articles, and writing books.",
+        "Anthropologists work in disaster areas, including Ground Zero in New York and the Gulf Coast in the aftermath of hurricane Katrina. Today there are four main career paths for anthropology graduates: Academic Careers. On campuses, in departments of anthropology, and in research laboratories, anthropologists teach and conduct research.",
+        "Fields of Anthropology. There are now four major fields of anthropology: biological anthropology, cultural anthropology, linguistic anthropology, and archaeology. Each focuses on a different set of research interests and generally uses different research techniques.",
+        "Biological Anthropology. Biological (or physical) anthropologists carry out systematic studies of the non-cultural aspects of humans and near-humans. Non-cultural refers to all of those biological characteristics that are genetically inherited in contrast to learned.",
+        "Today's anthropologists do not just work in exotic locations. Anthropologists can be found in a surprising array of fields and careers, not least of which being mother-of-the-President of the United States of America.",
+        "Forensic anthropologists, in careers glamorized by Hollywood and popular novels, not only work with police departments to help identify mysterious or unknown remains but also work in university and museum settings. The federal government is one of the largest employers of anthropologists outside of academia. Possible career paths include: international development, cultural resource management, the legislative branch, forensic and physical anthropology, natural resource management, and defense a"
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "Anthropologists work in a wide variety of settings, depending on their specific subfield (such as cultural, biological, archaeology, or linguistic anthropology) and their career goals. Their work is generally divided between **academic settings** and **applied/field settings**.\n\nHere is a breakdown of where they teach and conduct research:\n\n### 1. Where They Teach\nMost anthropologists who teach do so within higher education institutions:\n*   **Universities and Colleges:** This is the most common setting. Professors teach undergraduate and graduate courses, mentor students, and conduct research as part of their academic duties.\n*   **Community Colleges:** Instructors here often focus on teaching foundational courses and may also work in the field or in government roles.\n*   **Specialized Research Institutes:** Some anthropologists teach at institutes dedicated to specific topics (e.g., an institute for Arctic studies or linguistic research).\n\n### 2. Where They Conduct Research\nResearch locations vary wildly depending on the branch of anthropology:\n\n#### **Cultural/Social Anthropologists**\nThese researchers study living human societies, cultures, and social structures.\n*   **Field Sites (Global):** They travel to specific geographic locations\u2014ranging from remote villages to bustling megacities\u2014to live among a community.\n*   **Urban Environments:** Many conduct research in modern cities, studying subcultures, corporate environments, or immigrant communities.\n*   **Digital Spaces:** With the rise of \"digital anthropology,\" much research now happens in online communities, social media platforms, and virtual reality.\n\n#### **Archaeologists**\nArchaeologists study human history through material remains.\n*   **Excavation Sites:** They work at physical dig sites, which can be anywhere from desert plains to underwater locations.\n*   **Museums and Laboratories:** Much of their research involves analyzing artifacts, bones, and tools brought back from the field.\n*   **Remote Sensing Sites:** Using satellite imagery and LiDAR, they conduct research from afar to identify ancient settlements.\n\n#### **Biological/Physical Anthropologists**\nThese researchers study the biological evolution and adaptation of humans.\n*   **Laboratory Settings:** They work with genetic material, skeletal remains, and chemical analysis tools.\n*   **Natural Environments:** Researchers studying human evolution or primatology often work in forests, savannas, or other natural habitats to observe primates or collect biological data.\n*   **Medical/Clinical Settings:** Biological anthropologists often work in hospitals or public health clinics to study human health and adaptation.\n\n#### **Linguistic Anthropologists**\nThese researchers study how language shapes social life.\n*   **Community Settings:** They conduct research through participant observation in various social groups to understand speech patterns, dialects, and social interaction.\n*   **Digital/Media Platforms:** They study how language evolves through text, internet slang, and digital communication.\n\n### 3. Other Professional Settings (Applied Anthropology)\nMany anthropologists apply their skills in non-academic sectors:\n*   **Government Agencies:** Working in policy-making, urban planning, or international development.\n*   **Non-Governmental Organizations (NGOs):** Conducting field research to assist with humanitarian aid, environmental conservation, or human rights.\n*   **Corporations:** Working in \"user experience\" (UX) research, marketing, or organizational culture to understand consumer behavior and workplace dynamics.\n*   **Museums and Heritage Sites:** Curating collections, managing archives, and conducting public-facing research.",
+      "latency": 9.590411901473999,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "Anthropologists teach and conduct research on campuses, in departments of anthropology, and in research laboratories. They also work in disaster areas, such as Ground Zero in New York and the Gulf Coast following hurricane Katrina.",
+      "latency": 1.373295783996582,
+      "llm_calls": 0,
+      "contexts": [
+        "Academic Careers. 1  On campuses, in departments of anthropology, and in research laboratories, anthropologists teach and conduct research. They spend a great deal of time preparing for classes, writing lectures, grading papers, working with individual students, composing scholarly articles, and writing books.",
+        "Anthropologists work in disaster areas, including Ground Zero in New York and the Gulf Coast in the aftermath of hurricane Katrina. Today there are four main career paths for anthropology graduates: Academic Careers. On campuses, in departments of anthropology, and in research laboratories, anthropologists teach and conduct research.",
+        "Fields of Anthropology. There are now four major fields of anthropology: biological anthropology, cultural anthropology, linguistic anthropology, and archaeology. Each focuses on a different set of research interests and generally uses different research techniques.",
+        "Biological Anthropology. Biological (or physical) anthropologists carry out systematic studies of the non-cultural aspects of humans and near-humans. Non-cultural refers to all of those biological characteristics that are genetically inherited in contrast to learned.",
+        "Today's anthropologists do not just work in exotic locations. Anthropologists can be found in a surprising array of fields and careers, not least of which being mother-of-the-President of the United States of America.",
+        "Forensic anthropologists, in careers glamorized by Hollywood and popular novels, not only work with police departments to help identify mysterious or unknown remains but also work in university and museum settings. The federal government is one of the largest employers of anthropologists outside of academia. Possible career paths include: international development, cultural resource management, the legislative branch, forensic and physical anthropology, natural resource management, and defense a"
+      ]
+    }
+  },
+  {
+    "qid": "1688",
+    "question": "How is the energy E in kilowatt-hours per day calculated?",
+    "ground_truth": "E (kWh/day) = P (W) \u00d7 t (h/day) / 1000 (W/kW)",
+    "single_pass": {
+      "answer": "* The energy E in kilowatt-hours (kWh) per day is calculated by multiplying the power P in watts (W) by the number of usage hours per day t, then dividing by 1000 watts per kilowatt [#1, #2].\n* A 100-watt light bulb turned on for 8 hours uses 0.8 kW\u22c5h [#3].\n* One kilowatt hour is equal to 3,600,000 watt seconds [#5].",
+      "latency": 2.2944788932800293,
+      "llm_calls": 1,
+      "contexts": [
+        "The energy E in kilowatt-hours (kWh) per day is equal to the power P in watts (W) times number of usage hours per day t divided by 1000 watts per kilowatt:E (kWh/day) = P (W) \u00d7 t (h/day) / 1000 (W/kW).lectricity cost calculation. The electricity cost per day in dollars is equal to the energy consumption E in kWh per day times the energy cost of 1 kWh in cents/kWh divided by 100 cents per dollar:",
+        "Energy consumption calculation. The energy E in kilowatt-hours (kWh) per day is equal to the power P in watts (W) times number of usage hours per day t divided by 1000 watts per kilowatt: E (kWh/day) = P (W) \u00d7 t (h/day) / 1000 (W/kW).lectricity cost calculation. The electricity cost per day in dollars is equal to the energy consumption E in kWh per day times the energy cost of 1 kWh in cents/kWh divided by 100 cents per dollar:",
+        "A kilowatt-hour is the amount of energy equivalent to a steady power of 1 kilowatt running for 1 hour, or 3.6 megajoules. Energy cost can be illustrated in a similar example: a 100-watt (i.e. 0.1 kilowatt) light bulb turned on for 8 hours uses 800 W\u22c5h or 0.8 kW\u22c5h.If the energy cost is 25 cents per kilowatt-hour, it would cost 0.1 kW \u00d7 8 h \u00d7 $0.25/kW\u22c5h = $0.20.Whereas individual homes only pay for the kilowatt-hours consumed, commercial buildings and institutions also pay for peak power consumpti",
+        "The unit that both gas and electricity are measured in is kilowatt hours (kWh). One kWh of gas is approximately equivalent to leaving a small gas hob burner on for an hour. One kWh of electricity is the rough equivalent of running a washing machine for an hour. Standing charge-this is a fixed amount that you are charged each day, regardless of how much gas or electricity you use. 2  Unit rate-this is the price you will pay per unit (kWh) of energy, so it can fluctuate depending on how much energ",
+        "One terawatt hour is equal to a sustained power of approximately 114 megawatts for a period of one year. The watt second is a unit of energy, equal to the joule. One kilowatt hour is 3,600,000 watt seconds. The watt second is used, for example, to rate the energy storage of flash lamps used in photography, although the term joule is generally employed.",
+        "Fuel consumption rate. Kilowatt-hours is an energy unit for electricity. This value tells you how many kilowatt-hours the vehicle would use to travel 100 miles. Like gallons per 100 miles, this kilowatt-hours per 100 miles value relates directly to the amount of electricity used, and thus to cost."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "To calculate energy ($E$) in kilowatt-hours per day ($\\text{kWh/day}$), you need to know the **power rating** of the device and the **duration** it is used.\n\nThe fundamental formula for energy is:\n$$\\text{Energy} = \\text{Power} \\times \\text{Time}$$\n\nHere is the step-by-step breakdown of how to perform this calculation:\n\n### 1. The Basic Formula\nIf you have a single device:\n$$E = P \\times t$$\n\n*   **$E$**: Energy in kilowatt-hours ($\\text{kWh}$)\n*   **$P$**: Power rating of the device in **kilowatts** ($\\text{kW}$)\n*   **$t$**: Time the device is running in **hours** ($\\text{h}$)\n\n### 2. Converting Watts to Kilowatts\nMost household appliances are labeled in **Watts (W)**, not Kilowatts. To use the formula above, you must first convert Watts to Kilowatts by dividing by $1,000$.\n\n$$\\text{Power in kW} = \\frac{\\text{Power in Watts}}{1,000}$$\n\n### 3. Example Calculation\n**Scenario:** You have a space heater that uses $1,500\\text{ Watts}$ and you run it for $3\\text{ hours}$ every day.\n\n*   **Step 1: Convert Watts to kW**\n    $$1,500\\text{ W} / 1,000 = 1.5\\text{ kW}$$\n*   **Step 2: Multiply by time**\n    $$1.5\\text{ kW} \\times 3\\text{ hours} = 4.5\\text{ kWh per day}$$\n\n---\n\n### 4. Calculating Total Daily Consumption (Multiple Devices)\nIf you are trying to calculate the total energy consumption for an entire house or a specific room, you sum the energy used by every individual device:\n\n$$E_{\\text{total}} = (P_1 \\times t_1) + (P_2 \\times t_2) + (P_3 \\times t_3) \\dots$$\n\n**Example Table:**\n| Device | Power (W) | Power (kW) | Hours used/day | Daily Energy (kWh) |\n| :--- | :--- | :--- | :--- | :--- |\n| LED Bulb | $10\\text{ W}$ | $0.01\\text{ kW}$ | $5\\text{ h}$ | $0.05\\text{ kWh}$ |\n| Laptop | $60\\text{ W}$ | $0.06\\text{ kW}$ | $8\\text{ h}$ | $0.48\\text{ kWh}$ |\n| Refrigerator | $200\\text{ W}$ | $0.20\\text{ kW}$ | $24\\text{ h}$* | $4.80\\text{ kWh}$ |\n| **Total** | | | | **$5.33\\text{ kWh/day}$** |\n\n*\\*Note: For appliances like refrigerators, they are \"on\" for 24 hours, but the compressor only runs for a fraction of that time. For accurate calculations, use the \"average hourly consumption\" provided in the appliance's energy label.*\n\n### Summary Checklist\nTo get the correct answer, ensure:\n1.  **Power is in kW** (not Watts).\n2.  **Time is in hours** (if you have minutes, divide them by 60; e.g., $30\\text{ mins} = 0.5\\text{ hours}$).\n3.  **Duty Cycle:** Account for the fact that some devices (like ACs or heaters) cycle on and off.",
+      "latency": 11.18661093711853,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "The energy E in kilowatt-hours (kWh) per day is equal to the power P in watts (W) times the number of usage hours per day t divided by 1000 watts per kilowatt. The formula is expressed as: E (kWh/day) = P (W) \u00d7 t (h/day) / 1000 (W/kW).",
+      "latency": 2.214064836502075,
+      "llm_calls": 0,
+      "contexts": [
+        "The energy E in kilowatt-hours (kWh) per day is equal to the power P in watts (W) times number of usage hours per day t divided by 1000 watts per kilowatt:E (kWh/day) = P (W) \u00d7 t (h/day) / 1000 (W/kW).lectricity cost calculation. The electricity cost per day in dollars is equal to the energy consumption E in kWh per day times the energy cost of 1 kWh in cents/kWh divided by 100 cents per dollar:",
+        "Energy consumption calculation. The energy E in kilowatt-hours (kWh) per day is equal to the power P in watts (W) times number of usage hours per day t divided by 1000 watts per kilowatt: E (kWh/day) = P (W) \u00d7 t (h/day) / 1000 (W/kW).lectricity cost calculation. The electricity cost per day in dollars is equal to the energy consumption E in kWh per day times the energy cost of 1 kWh in cents/kWh divided by 100 cents per dollar:",
+        "A kilowatt-hour is the amount of energy equivalent to a steady power of 1 kilowatt running for 1 hour, or 3.6 megajoules. Energy cost can be illustrated in a similar example: a 100-watt (i.e. 0.1 kilowatt) light bulb turned on for 8 hours uses 800 W\u22c5h or 0.8 kW\u22c5h.If the energy cost is 25 cents per kilowatt-hour, it would cost 0.1 kW \u00d7 8 h \u00d7 $0.25/kW\u22c5h = $0.20.Whereas individual homes only pay for the kilowatt-hours consumed, commercial buildings and institutions also pay for peak power consumpti",
+        "The unit that both gas and electricity are measured in is kilowatt hours (kWh). One kWh of gas is approximately equivalent to leaving a small gas hob burner on for an hour. One kWh of electricity is the rough equivalent of running a washing machine for an hour. Standing charge-this is a fixed amount that you are charged each day, regardless of how much gas or electricity you use. 2  Unit rate-this is the price you will pay per unit (kWh) of energy, so it can fluctuate depending on how much energ",
+        "One terawatt hour is equal to a sustained power of approximately 114 megawatts for a period of one year. The watt second is a unit of energy, equal to the joule. One kilowatt hour is 3,600,000 watt seconds. The watt second is used, for example, to rate the energy storage of flash lamps used in photography, although the term joule is generally employed.",
+        "Fuel consumption rate. Kilowatt-hours is an energy unit for electricity. This value tells you how many kilowatt-hours the vehicle would use to travel 100 miles. Like gallons per 100 miles, this kilowatt-hours per 100 miles value relates directly to the amount of electricity used, and thus to cost."
+      ]
+    }
+  },
+  {
+    "qid": "2456914",
+    "question": "Who stars in the title role of the series?",
+    "ground_truth": "Melissa Benoist",
+    "single_pass": {
+      "answer": "* Melissa Benoist stars in the title role of the series based on the DC Comics character Supergirl [#1].\n* The title role of the American television sitcom *Ellen* is played by Ellen DeGeneres [#2].\n* Candice Patricia Bergen played the title character on the CBS sitcom *Murphy Brown* [#3].",
+      "latency": 1.720390796661377,
+      "llm_calls": 1,
+      "contexts": [
+        "It is based on the DC Comics character Supergirl (Kara Zor-El), created by Otto Binder and Al Plastino, and stars Melissa Benoist in the title role. Supergirl is a costumed superheroine who is the cousin to Superman and one of the last surviving Kryptonians. The series was officially picked up on May 6, 2015, after receiving a series commitment in September 2014, and received a full season order on November 30, 2015.",
+        "Ellen (TV series) This article is about the 1994\u201398 ABC sitcom. For the 2001\u201302 CBS sitcom, see The Ellen Show. For the talk show airing since 2003, see The Ellen DeGeneres Show. Ellen is an American television sitcom that aired on the ABC network from March 29, 1994, to July 22, 1998, consisting of 109 episodes. The title role is Ellen Morgan, played by stand-up comedian Ellen DeGeneres, a neurotic bookstore owner in her thirties. The title of the series was These Friends of Mine for the first ",
+        "For the Canadian politician, see Candice Bergen (politician). Candice Patricia Bergen (born May 9, 1946) is an American actress and former fashion model. She won five Emmy Awards and two Golden Globe Awards for her ten seasons as the title character on the CBS sitcom Murphy Brown (1988\u201398). She is also known for her role as Shirley Schmidt on the ABC drama Boston Legal (2005\u201308).",
+        "Cast and characters Main. David Boreanaz as Master Chief Special Warfare Operator A Jason Hayes, leader of a Navy SEAL team (Bravo Team) dealing with the recent loss of one of their own. In the series pilot, Jason is referred to as a Senior Chief, but in Collapse, he calls himself an E-9 Master Chief.",
+        "Starring: Edward Norton, Liv Tyler, Tim Roth, William Hurt. The Incredible Hulk kicks off an all-new, explosive and action-packed epic of one of the most popular super heroes of all time. In this new beginning, scientist Bruce Banner (Edward Norton) desperately hunts for a cure to the gamma radiation that poisoned his cells and unleashes the unbridled force of rage within him: The Hulk. Living in ...",
+        "For years, Bruce (Edward Norton) has been living in the shadows, pursued by the military and haunted by the rage within. But traveling the world in secrecy isn't easy, and as hard as he tries Bruce can't get Betty Ross (Liv Tyler) off his mind. The daughter of Bruce's nemesis Gen. Thaddeus Thunderbolt Ross (William Hurt), Betty represents everything that is beautiful in the world to a man who lives his life on the run."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "The provided text mentions several title roles: Melissa Benoist stars in the series based on Supergirl, and Ellen DeGeneres plays the title role of Ellen Morgan. Additionally, Candice Patricia Bergen played the title character on the sitcom Murphy Brown.",
+      "latency": 2.246901035308838,
+      "llm_calls": 1,
+      "contexts": [
+        "It is based on the DC Comics character Supergirl (Kara Zor-El), created by Otto Binder and Al Plastino, and stars Melissa Benoist in the title role. Supergirl is a costumed superheroine who is the cousin to Superman and one of the last surviving Kryptonians. The series was officially picked up on May 6, 2015, after receiving a series commitment in September 2014, and received a full season order on November 30, 2015.",
+        "Ellen (TV series) This article is about the 1994\u201398 ABC sitcom. For the 2001\u201302 CBS sitcom, see The Ellen Show. For the talk show airing since 2003, see The Ellen DeGeneres Show. Ellen is an American television sitcom that aired on the ABC network from March 29, 1994, to July 22, 1998, consisting of 109 episodes. The title role is Ellen Morgan, played by stand-up comedian Ellen DeGeneres, a neurotic bookstore owner in her thirties. The title of the series was These Friends of Mine for the first ",
+        "For the Canadian politician, see Candice Bergen (politician). Candice Patricia Bergen (born May 9, 1946) is an American actress and former fashion model. She won five Emmy Awards and two Golden Globe Awards for her ten seasons as the title character on the CBS sitcom Murphy Brown (1988\u201398). She is also known for her role as Shirley Schmidt on the ABC drama Boston Legal (2005\u201308).",
+        "Cast and characters Main. David Boreanaz as Master Chief Special Warfare Operator A Jason Hayes, leader of a Navy SEAL team (Bravo Team) dealing with the recent loss of one of their own. In the series pilot, Jason is referred to as a Senior Chief, but in Collapse, he calls himself an E-9 Master Chief.",
+        "Starring: Edward Norton, Liv Tyler, Tim Roth, William Hurt. The Incredible Hulk kicks off an all-new, explosive and action-packed epic of one of the most popular super heroes of all time. In this new beginning, scientist Bruce Banner (Edward Norton) desperately hunts for a cure to the gamma radiation that poisoned his cells and unleashes the unbridled force of rage within him: The Hulk. Living in ...",
+        "For years, Bruce (Edward Norton) has been living in the shadows, pursued by the military and haunted by the rage within. But traveling the world in secrecy isn't easy, and as hard as he tries Bruce can't get Betty Ross (Liv Tyler) off his mind. The daughter of Bruce's nemesis Gen. Thaddeus Thunderbolt Ross (William Hurt), Betty represents everything that is beautiful in the world to a man who lives his life on the run."
+      ]
+    },
+    "agentic_structural": {
+      "answer": "The provided text mentions several title roles: Melissa Benoist stars in the series based on Supergirl, and Ellen DeGeneres plays the title role of Ellen Morgan. Additionally, Candice Patricia Bergen played the title character on the sitcom Murphy Brown.",
+      "latency": 1.7718620300292969,
+      "llm_calls": 0,
+      "contexts": [
+        "It is based on the DC Comics character Supergirl (Kara Zor-El), created by Otto Binder and Al Plastino, and stars Melissa Benoist in the title role. Supergirl is a costumed superheroine who is the cousin to Superman and one of the last surviving Kryptonians. The series was officially picked up on May 6, 2015, after receiving a series commitment in September 2014, and received a full season order on November 30, 2015.",
+        "Ellen (TV series) This article is about the 1994\u201398 ABC sitcom. For the 2001\u201302 CBS sitcom, see The Ellen Show. For the talk show airing since 2003, see The Ellen DeGeneres Show. Ellen is an American television sitcom that aired on the ABC network from March 29, 1994, to July 22, 1998, consisting of 109 episodes. The title role is Ellen Morgan, played by stand-up comedian Ellen DeGeneres, a neurotic bookstore owner in her thirties. The title of the series was These Friends of Mine for the first ",
+        "For the Canadian politician, see Candice Bergen (politician). Candice Patricia Bergen (born May 9, 1946) is an American actress and former fashion model. She won five Emmy Awards and two Golden Globe Awards for her ten seasons as the title character on the CBS sitcom Murphy Brown (1988\u201398). She is also known for her role as Shirley Schmidt on the ABC drama Boston Legal (2005\u201308).",
+        "Cast and characters Main. David Boreanaz as Master Chief Special Warfare Operator A Jason Hayes, leader of a Navy SEAL team (Bravo Team) dealing with the recent loss of one of their own. In the series pilot, Jason is referred to as a Senior Chief, but in Collapse, he calls himself an E-9 Master Chief.",
+        "Starring: Edward Norton, Liv Tyler, Tim Roth, William Hurt. The Incredible Hulk kicks off an all-new, explosive and action-packed epic of one of the most popular super heroes of all time. In this new beginning, scientist Bruce Banner (Edward Norton) desperately hunts for a cure to the gamma radiation that poisoned his cells and unleashes the unbridled force of rage within him: The Hulk. Living in ...",
+        "For years, Bruce (Edward Norton) has been living in the shadows, pursued by the military and haunted by the rage within. But traveling the world in secrecy isn't easy, and as hard as he tries Bruce can't get Betty Ross (Liv Tyler) off his mind. The daughter of Bruce's nemesis Gen. Thaddeus Thunderbolt Ross (William Hurt), Betty represents everything that is beautiful in the world to a man who lives his life on the run."
+      ]
+    }
+  },
+  {
+    "qid": "1028",
+    "question": "Which two paintings are among Leonardo da Vinci's best known works?",
+    "ground_truth": "The Last Supper and the Mona Lisa",
+    "single_pass": {
+      "answer": "* The Last Supper and the Mona Lisa are two of his best known paintings [#1, #2].",
+      "latency": 1.1127490997314453,
+      "llm_calls": 1,
+      "contexts": [
+        "Leonardo da Vinci(1452-1519) Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.He was one of the greatest painters of all times. The Last Supper and the Mona Lisa are two of his best known paintings.1452-1519). Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.",
+        "(1452-1519). Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.He was one of the greatest painters of all times. The Last Supper and the Mona Lisa are two of his best known paintings.1452-1519). Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.",
+        "Born: April 15, 1452 Vinci, Italy Died: May 2, 1519 Amboise, France. Italian artist, painter, sculptor, architect, engineer, and scientist. Leonardo da Vinci was an Italian painter, sculptor, architect, engineer, and scientist.He was one of the greatest minds of the Italian Renaissance, and his influence on painting was enormous to the following generations.eonardo da Vinci was born on April 15, 1452, near the village of Vinci about 25 miles west of Florence. He was the illegitimate (born to unm",
+        "Humble Beginnings. Leonardo da Vinci was born on April 15, 1452, in Vinci, Italy. Born out of wedlock, the love child of a respected notary and a young peasant woman, he was raised by his father, Ser Piero, and his stepmothers.At the age of 14, da Vinci began apprenticing with the artist Verrocchio.umble Beginnings. Leonardo da Vinci was born on April 15, 1452, in Vinci, Italy. Born out of wedlock, the love child of a respected notary and a young peasant woman, he was raised by his father, Ser P",
+        "Leonardo da Vinci. More commonly known as the greatest artist in the history of mankind, Leonardo da Vinci was also a magnificent philosopher and scientist.The most influential figure in the Italian Renaissance, Leonardo is widely considered to be an inventive multi-genius.eonardo da Vinci. More commonly known as the greatest artist in the history of mankind, Leonardo da Vinci was also a magnificent philosopher and scientist.",
+        "Born on April 15, 1452, in Vinci, Italy, Leonardo da Vinci was concerned with the laws of science and nature, which greatly informed his work as a painter, sculptor, inventor and draftsman.umble Beginnings. Leonardo da Vinci was born on April 15, 1452, in Vinci, Italy. Born out of wedlock, the love child of a respected notary and a young peasant woman, he was raised by his father, Ser Piero, and his stepmothers."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "Two of Leonardo da Vinci's best-known paintings are the **Mona Lisa** and **The Last Supper**.",
+      "latency": 0.5003147125244141,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "The Last Supper and the Mona Lisa are two of his best known paintings.",
+      "latency": 1.372743844985962,
+      "llm_calls": 0,
+      "contexts": [
+        "Leonardo da Vinci(1452-1519) Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.He was one of the greatest painters of all times. The Last Supper and the Mona Lisa are two of his best known paintings.1452-1519). Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.",
+        "(1452-1519). Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.He was one of the greatest painters of all times. The Last Supper and the Mona Lisa are two of his best known paintings.1452-1519). Leonardo da Vinci was a painter, sculptor, architect, engineer, scientist and genius who best represents the ideals of the Renaissance period.",
+        "Born: April 15, 1452 Vinci, Italy Died: May 2, 1519 Amboise, France. Italian artist, painter, sculptor, architect, engineer, and scientist. Leonardo da Vinci was an Italian painter, sculptor, architect, engineer, and scientist.He was one of the greatest minds of the Italian Renaissance, and his influence on painting was enormous to the following generations.eonardo da Vinci was born on April 15, 1452, near the village of Vinci about 25 miles west of Florence. He was the illegitimate (born to unm",
+        "Humble Beginnings. Leonardo da Vinci was born on April 15, 1452, in Vinci, Italy. Born out of wedlock, the love child of a respected notary and a young peasant woman, he was raised by his father, Ser Piero, and his stepmothers.At the age of 14, da Vinci began apprenticing with the artist Verrocchio.umble Beginnings. Leonardo da Vinci was born on April 15, 1452, in Vinci, Italy. Born out of wedlock, the love child of a respected notary and a young peasant woman, he was raised by his father, Ser P",
+        "Leonardo da Vinci. More commonly known as the greatest artist in the history of mankind, Leonardo da Vinci was also a magnificent philosopher and scientist.The most influential figure in the Italian Renaissance, Leonardo is widely considered to be an inventive multi-genius.eonardo da Vinci. More commonly known as the greatest artist in the history of mankind, Leonardo da Vinci was also a magnificent philosopher and scientist.",
+        "Born on April 15, 1452, in Vinci, Italy, Leonardo da Vinci was concerned with the laws of science and nature, which greatly informed his work as a painter, sculptor, inventor and draftsman.umble Beginnings. Leonardo da Vinci was born on April 15, 1452, in Vinci, Italy. Born out of wedlock, the love child of a respected notary and a young peasant woman, he was raised by his father, Ser Piero, and his stepmothers."
+      ]
+    }
+  },
+  {
+    "qid": "7254169",
+    "question": "What happens to moisture when it is heated?",
+    "ground_truth": "Moisture rarefies when heated.",
+    "single_pass": {
+      "answer": "* Hydrates can be heated so that the water within them will boil off, leaving behind a completely waterless substance known as an anhydrate [#1].\n* In the process of evaporation, particles in a liquid change state into a gas, which requires heat to break the bonds between the liquid particles [#3].\n* Processes such as melting, boiling, and sublimation occur when heat is taken in for the transition of states of matter [#4].",
+      "latency": 1.897871732711792,
+      "llm_calls": 1,
+      "contexts": [
+        "For example, the Greek root hydra-means that it has to do with water; can be found in the words ''hydrate'' and ''anhydrate.'' Answer and Explanation: A hydrate is any substance that has been chemically combined with water. Hydrates can be heated so that the water will boil off. The completely waterless substance left at the end of the process is an anhydrate. So a hydrate contains water, and an anhydrate does not. Learn more about this topic:",
+        "In addition, spores that form at higher temperatures will naturally have lower core water content, and thus, have greater wet heat resistance [11] . Dry heat causes significant DNA damage in a vegetative cell [11] . As a result, SASPs play a major role in the dry heat resistance of spores.",
+        "Evaporation is endothermic, meaning it takes heat away from its surroundings. Condensation however, is the opposite with it being exothermic, where it releases heat into the surroundings. Allow me to explain. Evaporation is where particles in a liquid change state into a gas. This requires heat to do so because you are breaking the bonds between the liquid particles to make it a gas. This is endothermic because it takes heat away from its surroundings. For example, think about when you sweat dur",
+        "hai friend, from your points, melting, boiling and sublimation are the process done when heat taken in for transition of state of matter from solid to liquid, liquid to gas and solid to gas respectively, also evaporation comes in this section. Condensation and freezing are done when heat gone out. best regards.",
+        "Heat Resistance. Wet heat resistance is a notable characteristic of spores when suspended in an aqueous medium. Generally, wet heat resistance allows spores to be resistant to temperatures 40 degrees celsius higher than their respective vegetative form [11] . The major determinant of wet heat resistance is the core water content [10] .",
+        "A humidor is a humidity-controlled box or room used primarily for storing cigars, cigarettes, or pipe tobacco. Either too much or too little humidity can be harmful to tobacco products; a humidor's primary function is to maintain a steady, desirable moisture level inside; secondarily it protects its contents from physical damage and deterioration from sunlight. For private use, small wooden boxes holding a few dozen cigars or less are common, while cigar shops may have walk-in humidors. Other us"
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "When moisture (water) is heated, it undergoes a series of physical changes depending on the temperature applied and the environment (such as air pressure). \n\nHere is the step-by-step breakdown of what happens:\n\n### 1. Increased Kinetic Energy\nAt a molecular level, heating adds energy to the water molecules. This causes them to move, vibrate, and rotate much faster. As the molecules move faster, they push against each other with more force.\n\n### 2. Evaporation (The Phase Change)\nAs the temperature rises, some molecules at the surface of the liquid gain enough energy to overcome the \"surface tension\" and the attractive forces of the surrounding liquid molecules. \n*   These high-energy molecules break free and escape into the air as **water vapor** (a gas).\n*   This process happens even below the boiling point (this is why a puddle disappears on a warm day even if it hasn't \"boiled\").\n\n### 3. Increased Humidity\nAs moisture turns into water vapor, the amount of water in the air increases. This is measured as **humidity**. \n*   **Warm air can hold more moisture:** A key rule in meteorology is that warmer air has a higher capacity to hold water vapor than cold air. This is why tropical environments feel so much more humid than polar ones.\n\n### 4. Boiling (Rapid Phase Change)\nIf you continue to heat the liquid to its **boiling point**, the energy is no longer just moving molecules to the surface; it is being used to completely break the bonds between molecules throughout the entire volume of the liquid.\n*   At this point, bubbles of water vapor form *inside* the liquid and rise to the surface.\n*   The liquid undergoes a rapid transition from liquid to gas.\n\n### 5. The Role of Pressure\nThe behavior of moisture is heavily influenced by atmospheric pressure:\n*   **High Pressure:** Molecules are pushed closer together, making it harder for them to escape into a gas.\n*   **Low Pressure (High Altitude):** Because there is less pressure pushing down on the liquid, molecules can escape more easily. This is why water boils at a lower temperature on top of a mountain than at sea level.\n\n### Summary Table\n| State | Action | Result |\n| :--- | :--- | :--- |\n| **Liquid** | Heating | Molecules move faster; evaporation begins. |\n| **Evaporation** | Surface escape | Liquid turns to gas (water vapor) at the surface. |\n| **Boiling** | Bulk transition | Rapid conversion of liquid to gas throughout the volume. |\n| **Gas (Vapor)** | Expansion | Molecules spread out widely; humidity increases. |",
+      "latency": 7.566416025161743,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "When hydrates are heated, the water will boil off. This process results in a completely waterless substance known as an anhydrate.",
+      "latency": 1.346113920211792,
+      "llm_calls": 0,
+      "contexts": [
+        "For example, the Greek root hydra-means that it has to do with water; can be found in the words ''hydrate'' and ''anhydrate.'' Answer and Explanation: A hydrate is any substance that has been chemically combined with water. Hydrates can be heated so that the water will boil off. The completely waterless substance left at the end of the process is an anhydrate. So a hydrate contains water, and an anhydrate does not. Learn more about this topic:",
+        "In addition, spores that form at higher temperatures will naturally have lower core water content, and thus, have greater wet heat resistance [11] . Dry heat causes significant DNA damage in a vegetative cell [11] . As a result, SASPs play a major role in the dry heat resistance of spores.",
+        "Evaporation is endothermic, meaning it takes heat away from its surroundings. Condensation however, is the opposite with it being exothermic, where it releases heat into the surroundings. Allow me to explain. Evaporation is where particles in a liquid change state into a gas. This requires heat to do so because you are breaking the bonds between the liquid particles to make it a gas. This is endothermic because it takes heat away from its surroundings. For example, think about when you sweat dur",
+        "hai friend, from your points, melting, boiling and sublimation are the process done when heat taken in for transition of state of matter from solid to liquid, liquid to gas and solid to gas respectively, also evaporation comes in this section. Condensation and freezing are done when heat gone out. best regards.",
+        "Heat Resistance. Wet heat resistance is a notable characteristic of spores when suspended in an aqueous medium. Generally, wet heat resistance allows spores to be resistant to temperatures 40 degrees celsius higher than their respective vegetative form [11] . The major determinant of wet heat resistance is the core water content [10] .",
+        "A humidor is a humidity-controlled box or room used primarily for storing cigars, cigarettes, or pipe tobacco. Either too much or too little humidity can be harmful to tobacco products; a humidor's primary function is to maintain a steady, desirable moisture level inside; secondarily it protects its contents from physical damage and deterioration from sunlight. For private use, small wooden boxes holding a few dozen cigars or less are common, while cigar shops may have walk-in humidors. Other us"
+      ]
+    }
+  },
+  {
+    "qid": "7926202",
+    "question": "What should the conditioner contain?",
+    "ground_truth": "low pH",
+    "single_pass": {
+      "answer": "* Conditioner should contain a low pH [#1].\n* In the context of water changes, conditioner removes chloramine, fluoride, metals, and other \"nasties\" [#2].",
+      "latency": 1.267941951751709,
+      "llm_calls": 1,
+      "contexts": [
+        "Correct shampooing. 1  1. Use a shampoo that is made for dry hair. 2  2. Conditioner should contain low pH. 3  3. Once you are in the shower and have already shampoo-d and rinsed, apply conditioner, working thoroughly on the tips.  4. Refrain from washing your hair every day; this will only dry out the hair even more.",
+        "The Chlorine will evaporate in about 24 hours. Chloramine, Fluoride, metals, and other nasties removed by the conditioner won't. Best to wait until you've gotten more conditioner before performing your water change. that water conditioner takes out a lot more things than just chlorine. but if you are only doing a small water change and you leave it out for 48 hours you should be fine Anonymous \u00b7 9 years ago 1",
+        "Antifreeze, also called coolant, is the colored fluid (usually green or red) found in your radiator. Antifreeze serves a few purposes. The most important is keeping the water in your radiator and engine from freezing in cold temps. It also keeps that same water from boiling over in the summer. Radiators are normally filled with a 50/50 mixture of antifreeze and water. The third function of antifreeze, or coolant is lubrication -- it lubricates the moving parts it comes in contact with, like the ",
+        "What role does a condenser play in your car\u2019s A/C system? Posted on July 9, 2010 by macsworldwide The condenser is the other heat exchanger in a mobile A/C system. Nowadays, condensers are usually made of aluminum, but in the past, some were made of copper/brass. Condensers look very much like radiators, just a little thinner, and since they also depend on air flowing through them, are usually located in front of the\u2026",
+        "Stemuderm contains an olive oil extract called Squalane to help heal, hydrate, and smooth the skin. It also contains a compound called Acetyl Hexapeptide-8, or Argireline\u00ae, which helps your facial muscles to relax to instantly reduce the appearance of wrinkles.",
+        "A cleanser is a facial care product that is used to remove make-up, dead skin cells, oil, dirt, and other types of pollutants from the skin of the face. This helps to unclog pores and prevent skin conditions such as acne. A cleanser can be used as part of a skin care regimen together with a toner and moisturizer."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "Because \"conditioner\" can refer to many different things depending on the context (hair care, fabric care, or even soil), the ideal ingredients depend on your specific goal.\n\nHere is a breakdown of what a conditioner should contain based on the most common uses:\n\n### 1. Hair Conditioner\nThe goal of hair conditioner is to smooth the cuticle, add moisture, and reduce friction.\n\n*   **For Dry/Damaged Hair:** Look for **emollients** and **penetrating oils** like shea butter, coconut oil, argan oil, or avocado oil. These help repair the lipid barrier of the hair shaft.\n*   **For Fine/Oily Hair:** Look for **lightweight silicones** (like dimethicone in low amounts) or **polyquaterniums**. Avoid heavy oils or heavy butters that can weigh hair down.\n*   **For Protein Repair:** Look for **hydrolyzed proteins** (keratin, silk, wheat, or soy protein). These fill in gaps in the hair cuticle.\n*   **Key Functional Ingredients:**\n    *   **Cationic Surfactants (e.g., Behentrimonium Chloride):** These are positively charged molecules that stick to the negatively charged damaged parts of your hair to smooth it.\n    *   **Humectants (e.g., Glycerin, Aloe Vera):** These pull moisture from the air into the hair.\n\n### 2. Fabric Conditioner (Fabric Softener)\nThe goal is to make clothes feel soft and reduce static electricity.\n\n*   **Cationic Surfactants:** These are the primary active ingredients. They coat the fibers of the fabric with a thin layer of wax-like material to make them feel soft.\n*   **Fragrance:** A major component of consumer appeal.\n*   **Anti-static agents:** To prevent clothes from clinging to the body.\n*   *Note:* Avoid using heavy conditioners on highly absorbent items like towels, as they can reduce absorbency over time.\n\n### 3. Soil/Plant Conditioner\nThe goal is to improve the physical properties of the soil.\n\n*   **Organic Matter:** Compost, peat moss, or aged manure to improve structure and nutrient availability.\n*   **Microbial Inoculants:** Beneficial bacteria and fungi (like mycorrhizae) that help plants absorb nutrients.\n*   **Humic Acid:** To improve cation exchange capacity (the soil's ability to hold onto nutrients).\n\n---\n\n### Summary Checklist: How to choose?\n\n| If you want... | Look for... | Avoid... |\n| :--- | :--- | :--- |\n| **Deep Hydration** | Natural oils, Shea butter, Glycerin | Alcohol-heavy formulas |\n| **Volume/Body** | Lightweight proteins, lightweight polymers | Heavy oils, heavy waxes |\n| **Repair** | Keratin, Amino acids, Ceramides | Harsh sulfates (though usually in shampoos) |\n| **Soft Fabric** | Cationic surfactants | Using too much (can cause buildup) |\n\n**Are you asking about a specific type of product or a specific hair type? I can give you a more tailored recommendation if you provide more detail.**",
+      "latency": 9.009724855422974,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "Conditioner should contain low pH.",
+      "latency": 1.1656320095062256,
+      "llm_calls": 0,
+      "contexts": [
+        "Correct shampooing. 1  1. Use a shampoo that is made for dry hair. 2  2. Conditioner should contain low pH. 3  3. Once you are in the shower and have already shampoo-d and rinsed, apply conditioner, working thoroughly on the tips.  4. Refrain from washing your hair every day; this will only dry out the hair even more.",
+        "The Chlorine will evaporate in about 24 hours. Chloramine, Fluoride, metals, and other nasties removed by the conditioner won't. Best to wait until you've gotten more conditioner before performing your water change. that water conditioner takes out a lot more things than just chlorine. but if you are only doing a small water change and you leave it out for 48 hours you should be fine Anonymous \u00b7 9 years ago 1",
+        "Lavender oil deep conditions the hair, keeps it shiny, and helps control dandruff. Moroccan argan oil moisturizes, nourishes, and provides antioxidants to hair. Rosemary oil stimulates the roots, improves hair growth, and increases circulation in the scalp. Sandalwood oil helps with dry ends, and adds fragrance to the hair. How to Use Essential Oils. You only need a few drops of an essential oil -- mix one or more types in a shampoo or conditioner. Or mix the drops into 2 ounces of a carrier oil",
+        "Antifreeze, also called coolant, is the colored fluid (usually green or red) found in your radiator. Antifreeze serves a few purposes. The most important is keeping the water in your radiator and engine from freezing in cold temps. It also keeps that same water from boiling over in the summer. Radiators are normally filled with a 50/50 mixture of antifreeze and water. The third function of antifreeze, or coolant is lubrication -- it lubricates the moving parts it comes in contact with, like the ",
+        "What role does a condenser play in your car\u2019s A/C system? Posted on July 9, 2010 by macsworldwide The condenser is the other heat exchanger in a mobile A/C system. Nowadays, condensers are usually made of aluminum, but in the past, some were made of copper/brass. Condensers look very much like radiators, just a little thinner, and since they also depend on air flowing through them, are usually located in front of the\u2026",
+        "Stemuderm contains an olive oil extract called Squalane to help heal, hydrate, and smooth the skin. It also contains a compound called Acetyl Hexapeptide-8, or Argireline\u00ae, which helps your facial muscles to relax to instantly reduce the appearance of wrinkles."
+      ]
+    }
+  },
+  {
+    "qid": "1126",
+    "question": "What will the global adoption of IPv6 be critical for in the coming years?",
+    "ground_truth": "the successful development of the IoT in the future",
+    "single_pass": {
+      "answer": "* The global adoption of IPv6 in the coming years will be critical for the successful development of the Internet of things [1, 2].\n* The future of the Internet of things will not be possible to a large extent without the support of IPv6 [1, 2].",
+      "latency": 1.4750819206237793,
+      "llm_calls": 1,
+      "contexts": [
+        "To a large extent, the future of the Internet of things will not be possible without the support of IPv6; and consequently the global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future.",
+        "To a large extent, the future of the Internet of things will not be possible without the support of IPv6; and consequently, the global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future. Short-range wireless Edit",
+        "The consequences of this development for the world at large are staggering: 1  A typical family of four is expected to have 50 connected devices in 2022, double the number of 2017. 2  By the same year, 30 billion such devices are to expected to exist. 3  As a consequence, the Internet of Things will become a trillion industry.",
+        "The Internet Protocol (IP) is the method or protocol by which data is sent from one computer to another on the Internet. Each computer (known as a host) on the Internet has at least one IP address that uniquely identifies it from all other computers on the Internet. Download this free guide.",
+        "Security experts view Internet of things as a threat to the traditional Internet. Some argue that market incentive to secure IoT devices is insufficient and increased governmental regulation is necessary to make the Internet of things secure. The overall understanding of IoT is essential for basic user security.",
+        "The Internet is often used as an example of a successful protocols-based system in which the implementation of key qualities of protocols, such as error correction and message formatting, are utilized and respected across a wide variety of hardware and software."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "The global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future. This is because the future of the Internet of things will not be possible without the support of IPv6.",
+      "latency": 2.174952983856201,
+      "llm_calls": 1,
+      "contexts": [
+        "To a large extent, the future of the Internet of things will not be possible without the support of IPv6; and consequently the global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future.",
+        "To a large extent, the future of the Internet of things will not be possible without the support of IPv6; and consequently, the global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future. Short-range wireless Edit",
+        "The Internet Protocol (IP) is the method or protocol by which data is sent from one computer to another on the Internet. Each computer (known as a host) on the Internet has at least one IP address that uniquely identifies it from all other computers on the Internet. Download this free guide.",
+        "The Internet is often used as an example of a successful protocols-based system in which the implementation of key qualities of protocols, such as error correction and message formatting, are utilized and respected across a wide variety of hardware and software.",
+        "The consequences of this development for the world at large are staggering: 1  A typical family of four is expected to have 50 connected devices in 2022, double the number of 2017. 2  By the same year, 30 billion such devices are to expected to exist. 3  As a consequence, the Internet of Things will become a trillion industry.",
+        "Security experts view Internet of things as a threat to the traditional Internet. Some argue that market incentive to secure IoT devices is insufficient and increased governmental regulation is necessary to make the Internet of things secure. The overall understanding of IoT is essential for basic user security."
+      ]
+    },
+    "agentic_structural": {
+      "answer": "The global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future. This is because the future of the Internet of things will not be possible without the support of IPv6.",
+      "latency": 1.5146780014038086,
+      "llm_calls": 0,
+      "contexts": [
+        "To a large extent, the future of the Internet of things will not be possible without the support of IPv6; and consequently the global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future.",
+        "To a large extent, the future of the Internet of things will not be possible without the support of IPv6; and consequently, the global adoption of IPv6 in the coming years will be critical for the successful development of the IoT in the future. Short-range wireless Edit",
+        "The consequences of this development for the world at large are staggering: 1  A typical family of four is expected to have 50 connected devices in 2022, double the number of 2017. 2  By the same year, 30 billion such devices are to expected to exist. 3  As a consequence, the Internet of Things will become a trillion industry.",
+        "The Internet Protocol (IP) is the method or protocol by which data is sent from one computer to another on the Internet. Each computer (known as a host) on the Internet has at least one IP address that uniquely identifies it from all other computers on the Internet. Download this free guide.",
+        "Security experts view Internet of things as a threat to the traditional Internet. Some argue that market incentive to secure IoT devices is insufficient and increased governmental regulation is necessary to make the Internet of things secure. The overall understanding of IoT is essential for basic user security.",
+        "The Internet is often used as an example of a successful protocols-based system in which the implementation of key qualities of protocols, such as error correction and message formatting, are utilized and respected across a wide variety of hardware and software."
+      ]
+    }
+  },
+  {
+    "qid": "7161101",
+    "question": "What is the function of epinephrine in the example provided?",
+    "ground_truth": "trigger the release of glucose from cells in the liver",
+    "single_pass": {
+      "answer": "* Epinephrine is used as a sample messenger to trigger the release of glucose from cells in the liver [#1].\n* Epinephrine is a catecholamine and is considered a stress hormone and a neurotransmitter [#2].",
+      "latency": 1.3509249687194824,
+      "llm_calls": 1,
+      "contexts": [
+        "038 - Signal Transduction Pathways.mov Paul Andersen explains how signal transduction pathways are used by cells to convert chemical messages to cellular action. Epinephrine is used as a sample messenger to trigger the release of glucose from cells in the liver. The G-Protein, adenylyl cyclase, cAMP, and protein kinases are all used as illustrative examples of signal transduction.",
+        "There are two types of tyrosine derived hormones: thyroid hormone and catecholamines. Thyroid hormone is one of the most important in the body because it regulates the development of organs and metabolism. Norepinephrine and epinephrine are catecholamines. Both are stress hormones and are also neurotransmitters.ther examples include LH (lutenizing hormone) and FSH (follicle stimulating hormone). LH acts on the gonads to produce eggs and sperm while FSH stimulates the gonads to produce steroids. ",
+        "Examples include cocaine, methamphetamine, amphetamine, methylphenidate (Ritalin), MDMA (ecstasy), & methcathinone. Other examples are caffeine; yohimbe; & ephedrine, but these drugs act via a different mechanism & do not cause as much euphoria (and abuse potential) as the later groups of drugs mentioned.",
+        "Caffeine Effects on the Adrenal Function. Caffeine can provide short-term energy. Adrenal glands function to produce hormones essential to life. The adrenal medulla is the inner portion of the adrenal gland, and produces adrenaline and noradrenaline. The adrenal cortex is the outer portion of the adrenal gland, and produces cortisol, estrogen, progesterone and testosterone. Cortisol regulates other hormones, balances metabolism and manages immune function.",
+        "- the primary responsibility of the endocrine system is to regulate the body's growth and development, control the function of various tissues, support pregnancy and other reproductive functions and regulates metabolism. - the endocrine organs secrete the hormones directly into the bloodstream. - the hormones binds with special proteins.",
+        "Benefits of being on this drug can include relief of fever, pain, swelling and inflammation. Listed below are the typical uses of ibuprofen. 1  Headache. 2  Migraine headache. 3  Back pain. 4  Feverishness. 5  Joint pain (rheumatic pain)."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "Please provide the text, image, or context you are referring to. \n\nSince you haven't provided the specific example yet, I cannot give you a precise answer based on your source. However, in most biological and medical contexts, **epinephrine** (also known as adrenaline) typically serves one of the following functions:\n\n1.  **The \"Fight or Flight\" Response:** It acts as a hormone and neurotransmitter that prepares the body for immediate action by increasing heart rate, dilating air passages (bronchodilation), and increasing blood glucose levels for quick energy.\n2.  **Treatment of Anaphylaxis:** In medical examples involving allergic reactions, it is used to reverse life-threatening swelling and low blood pressure.\n3.  **Metabolic Regulation:** It triggers the breakdown of glycogen into glucose in the liver to provide an immediate energy surge.\n\n**If you paste the example here, I can tell you exactly which function is being described.**",
+      "latency": 2.7268319129943848,
+      "llm_calls": 1,
+      "contexts": []
+    },
+    "agentic_structural": {
+      "answer": "Epinephrine is used as a sample messenger to trigger the release of glucose from cells in the liver. It is also categorized as a catecholamine and a stress hormone.",
+      "latency": 1.4643831253051758,
+      "llm_calls": 0,
+      "contexts": [
+        "038 - Signal Transduction Pathways.mov Paul Andersen explains how signal transduction pathways are used by cells to convert chemical messages to cellular action. Epinephrine is used as a sample messenger to trigger the release of glucose from cells in the liver. The G-Protein, adenylyl cyclase, cAMP, and protein kinases are all used as illustrative examples of signal transduction.",
+        "There are two types of tyrosine derived hormones: thyroid hormone and catecholamines. Thyroid hormone is one of the most important in the body because it regulates the development of organs and metabolism. Norepinephrine and epinephrine are catecholamines. Both are stress hormones and are also neurotransmitters.ther examples include LH (lutenizing hormone) and FSH (follicle stimulating hormone). LH acts on the gonads to produce eggs and sperm while FSH stimulates the gonads to produce steroids. ",
+        "Examples include cocaine, methamphetamine, amphetamine, methylphenidate (Ritalin), MDMA (ecstasy), & methcathinone. Other examples are caffeine; yohimbe; & ephedrine, but these drugs act via a different mechanism & do not cause as much euphoria (and abuse potential) as the later groups of drugs mentioned.",
+        "Caffeine Effects on the Adrenal Function. Caffeine can provide short-term energy. Adrenal glands function to produce hormones essential to life. The adrenal medulla is the inner portion of the adrenal gland, and produces adrenaline and noradrenaline. The adrenal cortex is the outer portion of the adrenal gland, and produces cortisol, estrogen, progesterone and testosterone. Cortisol regulates other hormones, balances metabolism and manages immune function.",
+        "Putrescine, or tetramethylenediamine, is a foul-smelling[1] organic chemical compound NH2(CH2)4NH2 (1,4-diaminobutane or butanediamine) that is related to cadaverine; both are produced by the breakdown of amino acids in living and dead organisms and both are toxic in large doses.[2][3] The two compounds are largely responsible for the foul odor of ...",
+        "- the primary responsibility of the endocrine system is to regulate the body's growth and development, control the function of various tissues, support pregnancy and other reproductive functions and regulates metabolism. - the endocrine organs secrete the hormones directly into the bloodstream. - the hormones binds with special proteins."
+      ]
+    }
+  },
+  {
+    "qid": "1064",
+    "question": "Who picks the speaker up when they are down?",
+    "ground_truth": "The rodeo clowns",
+    "single_pass": {
+      "answer": "* The rodeo clowns pick the speaker up when they are down [#1].",
+      "latency": 0.9393229484558105,
+      "llm_calls": 1,
+      "contexts": [
+        "(x4) The rodeo clowns, yeah yeah yeah Pick me up when I'm down, yeah yeah The rodeo clowns, yeah yeah yeah Pick me up when I'm down, yeah yeah Sweepin' the floors, open up the doors, yeah Turn on the lights, getting' ready for the night Nobodies romancing cause its too early for dancing But here comes the music...",
+        "Google Home, like Amazon Alexa, is a Wi-Fi connected smart home hub and digital assistant. Home is a small speaker tower that contains far-field microphones designed to pick up speech at a distance as well as touch controls, a microphone mute button, and lights that let you know when it's listening.",
+        "Amazon Echo is a brand of smart speakers developed by Amazon.com. The devices connect to the voice-controlled intelligent personal assistant service Alexa, which responds to the name Alexa. This wake word can be changed by the user to Amazon, Echo or Computer. The device is capable of voice interaction, music playback, making to-do lists, setting alarms, streaming podcasts, playing audiobooks, and providing weather, traffic and other real-time information. It can also control several s",
+        "The task of giving a rehearsal dinner toast speech traditionally falls on the father of the groom as well as a select few other people in attendance.Depending on the etiquette you follow for your wedding, however, you may wind up with a variety of different speakers.upport the Couple. Giving a rehearsal dinner toast speech doesn't have to be chore. With a few simple guidelines, anyone asked to raise their glass to the happy couple can offer eloquent congratulations and support for their union.",
+        "The essence of the concierge job is to provide service. A hotel concierge is there to ensure that guests have everything they need during their stay. Typically, the concierge sits at a desk in the lobby, and guests can either stop by or call with their requests. In the next section, we'll look at personal concierges.",
+        "See Harry Styles Play Mick Jagger, Perform New Songs on... See Melissa McCarthy's Sean Spicer Apologize for Hitler... 'America's Got Talent' Star Jayna Brown on Stunning 'Rise Up' Performance. 'America's Got Talent' star Jayna Brown talks about Louis Tomlinson pressing the Golden Buzzer and why she chose Andra Day's Rise Up for her audition."
+      ]
+    },
+    "agentic_canonical": {
+      "answer": "The rodeo clowns pick the speaker up when they are down.",
+      "latency": 1.7044990062713623,
+      "llm_calls": 1,
+      "contexts": [
+        "Just another night on the town. With the big man, money man, better then the other man. He got the plan, with the million dollar give a damn. What nobody understands. Become a smaller man, the bright lights keep flashin, Women keep on dancing with the clowns, Yeah, yeah, yeah, They pick me up when I'm down, Yeah, yeah, The rodeo clowns. Yeah, yeah, yeah, they pick me up when I'm down. The disco ball's spinnin', all the music and the women.",
+        "(x4) The rodeo clowns, yeah yeah yeah Pick me up when I'm down, yeah yeah The rodeo clowns, yeah yeah yeah Pick me up when I'm down, yeah yeah Sweepin' the floors, open up the doors, yeah Turn on the lights, getting' ready for the night Nobodies romancing cause its too early for dancing But here comes the music...",
+        "Google Home, like Amazon Alexa, is a Wi-Fi connected smart home hub and digital assistant. Home is a small speaker tower that contains far-field microphones designed to pick up speech at a distance as well as touch controls, a microphone mute button, and lights that let you know when it's listening.",
+        "Amazon Echo is a brand of smart speakers developed by Amazon.com. The devices connect to the voice-controlled intelligent personal assistant service Alexa, which responds to the name Alexa. This wake word can be changed by the user to Amazon, Echo or Computer. The device is capable of voice interaction, music playback, making to-do lists, setting alarms, streaming podcasts, playing audiobooks, and providing weather, traffic and other real-time information. It can also control several s",
+        "The task of giving a rehearsal dinner toast speech traditionally falls on the father of the groom as well as a select few other people in attendance.Depending on the etiquette you follow for your wedding, however, you may wind up with a variety of different speakers.upport the Couple. Giving a rehearsal dinner toast speech doesn't have to be chore. With a few simple guidelines, anyone asked to raise their glass to the happy couple can offer eloquent congratulations and support for their union.",
+        "The essence of the concierge job is to provide service. A hotel concierge is there to ensure that guests have everything they need during their stay. Typically, the concierge sits at a desk in the lobby, and guests can either stop by or call with their requests. In the next section, we'll look at personal concierges."
+      ]
+    },
+    "agentic_structural": {
+      "answer": "The rodeo clowns pick the speaker up when they are down.",
+      "latency": 1.1424520015716553,
+      "llm_calls": 0,
+      "contexts": [
+        "Just another night on the town. With the big man, money man, better then the other man. He got the plan, with the million dollar give a damn. What nobody understands. Become a smaller man, the bright lights keep flashin, Women keep on dancing with the clowns, Yeah, yeah, yeah, They pick me up when I'm down, Yeah, yeah, The rodeo clowns. Yeah, yeah, yeah, they pick me up when I'm down. The disco ball's spinnin', all the music and the women.",
+        "(x4) The rodeo clowns, yeah yeah yeah Pick me up when I'm down, yeah yeah The rodeo clowns, yeah yeah yeah Pick me up when I'm down, yeah yeah Sweepin' the floors, open up the doors, yeah Turn on the lights, getting' ready for the night Nobodies romancing cause its too early for dancing But here comes the music...",
+        "Google Home, like Amazon Alexa, is a Wi-Fi connected smart home hub and digital assistant. Home is a small speaker tower that contains far-field microphones designed to pick up speech at a distance as well as touch controls, a microphone mute button, and lights that let you know when it's listening.",
+        "Amazon Echo is a brand of smart speakers developed by Amazon.com. The devices connect to the voice-controlled intelligent personal assistant service Alexa, which responds to the name Alexa. This wake word can be changed by the user to Amazon, Echo or Computer. The device is capable of voice interaction, music playback, making to-do lists, setting alarms, streaming podcasts, playing audiobooks, and providing weather, traffic and other real-time information. It can also control several s",
+        "The task of giving a rehearsal dinner toast speech traditionally falls on the father of the groom as well as a select few other people in attendance.Depending on the etiquette you follow for your wedding, however, you may wind up with a variety of different speakers.upport the Couple. Giving a rehearsal dinner toast speech doesn't have to be chore. With a few simple guidelines, anyone asked to raise their glass to the happy couple can offer eloquent congratulations and support for their union.",
+        "The essence of the concierge job is to provide service. A hotel concierge is there to ensure that guests have everything they need during their stay. Typically, the concierge sits at a desk in the lobby, and guests can either stop by or call with their requests. In the next section, we'll look at personal concierges."
+      ]
+    }
+  }
+]

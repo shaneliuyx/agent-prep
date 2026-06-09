@@ -1,0 +1,15 @@
+
+# local secrets (never commit)
+.env
+
+# python / tooling
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+
+# external reference clone (has its own git history)
+agentic-rag-for-dummies/
+
+# throwaway run backups (real artifacts are committed; *.bak are not)
+results/*.bak.json
