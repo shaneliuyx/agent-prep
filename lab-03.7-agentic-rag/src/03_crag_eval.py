@@ -35,8 +35,9 @@ OUT_OF_CORPUS = [
 ]
 
 _ABSTAIN = ("don't know", "do not know", "not in the", "no relevant", "cannot find",
-            "unable to", "does not contain", "no information", "i'm not sure", "not provided",
-            "rewrite loop", "recursion limit")
+            "unable to", "does not contain", "do not contain", "not contain information",
+            "no information", "insufficient", "i'm not sure", "not provided", "do not have",
+            "does not provide", "do not mention", "no mention", "rewrite loop", "recursion limit")
 
 
 def answered(text: str) -> bool:
@@ -57,7 +58,13 @@ def _structural(q: str) -> str:
 
 
 def main() -> None:
-    src = os.getenv("DEV_SET")
+    import argparse
+    ap = argparse.ArgumentParser(description="CRAG vs single-pass vs structural on out-of-corpus")
+    ap.add_argument("--dev-set", default=os.getenv("DEV_SET"))
+    ap.add_argument("--show", action="store_true",
+                    help="print each arm's FULL answer per question (inspect hallucinations)")
+    args = ap.parse_args()
+    src = args.dev_set
     questions = ([json.loads(l)["question"] for l in open(os.path.expanduser(src)) if l.strip()]
                  if src else OUT_OF_CORPUS)
 
@@ -73,6 +80,11 @@ def main() -> None:
               f"st:{'ANS ' if answered(st) else 'abst'} "
               f"crag:{cr.get('source','corpus'):6} (s={cr.get('score',0):.2f}) "
               f"{'ANS' if answered(cr['answer']) else 'abst'}")
+        if args.show:
+            print(f"    Q: {q}")
+            print(f"    single-pass: {sp.strip()}")
+            print(f"    structural : {st.strip()}")
+            print(f"    CRAG ({cr.get('source','corpus')}): {cr['answer'].strip()}\n")
 
     web_routed = sum(1 for r in rows if r["source"] in ("web", "both"))
     crag_ans = sum(1 for r in rows if answered(r["crag"]))
