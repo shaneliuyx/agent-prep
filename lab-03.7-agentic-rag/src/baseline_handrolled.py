@@ -578,6 +578,23 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
                                     f"[{' '.join(web_log)}] → re-synthesized "
                                     f"({_n_bullets(wsy['answer'])} bullets)"})
 
+            # Re-grade against the WEB answer + web_hits so the top-level metrics describe what
+            # ACTUALLY shipped, not the discarded corpus pass. Without this, a grounded web answer
+            # sits next to a stale `grade_relevance: abstain` / `confidence: 0.0` (the corpus grade),
+            # and any consumer keying on those fields (MCP host, eval harness) wrongly rejects a
+            # correct answer. `out["hits"]` also flips to web_hits so the answer's [#N] citations
+            # resolve against the passages they actually cite.
+            out["hits"] = web_hits
+            out["selfrag"] = selfrag_checks(wsy["answer"], web_hits, query)
+            out["grade_hallucination"] = grade_hallucination(wsy["answer"], web_hits, query)
+            out["grade_relevance"] = grade_relevance(wsy["answer"], query)
+            out["drift_filtered"] = wsy.get("drift_filtered", 0)
+            steps.append({"step": "regrade_web",
+                          "result": f"conf={out['selfrag']['confidence']} | "
+                                    f"halluc={'PASS' if out['grade_hallucination']['pass'] else 'FAIL'} | "
+                                    f"rel={'PASS' if out['grade_relevance']['pass'] else 'FAIL'} "
+                                    f"(verdict={out['grade_relevance'].get('verdict', '?')})"})
+
     out.setdefault("source", "corpus")
     steps.append({"step": "finalize", "result": f"source={out['source']}"})
     return out
@@ -602,7 +619,8 @@ _STEP_LABELS = {
     "decide_complexity": "decide", "decompose": "decompose", "multi_retrieve": "retrieve",
     "execute_plan": "plan", "rerank": "rerank", "synthesize": "synth", "selfrag_checks": "selfrag",
     "grade_hallucination": "halluc", "grade_relevance": "rel",
-    "corrective_loop": "corrective", "web_fallback": "web", "finalize": "final",
+    "corrective_loop": "corrective", "web_fallback": "web", "regrade_web": "regrade",
+    "finalize": "final",
 }
 
 
