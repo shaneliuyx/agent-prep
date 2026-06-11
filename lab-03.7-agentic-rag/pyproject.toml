@@ -17,6 +17,7 @@ dependencies = [
   # "langchain-openai",
   # Phase 7 (MCP server wrapper)
   "fastmcp>=2.0",
+  "tavily-python>=0.7.26",
 ]
 
 [build-system]
