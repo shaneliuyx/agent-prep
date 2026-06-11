@@ -1,14 +1,18 @@
 {
-  "_comment": "Drop into Claude Desktop config at ~/Library/Application Support/Claude/claude_desktop_config.json (under 'mcpServers' key) or Cursor mcp.json. Restart the host. The 'rag' server then exposes rag_query, rag_status, rag_ingest as tools the host can call.",
+  "_comment": "Drop under the 'mcpServers' key in Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json — open via Settings > Developer > Edit Config) or Cursor mcp.json, then FULLY QUIT (Cmd+Q) and reopen the host. Uses `uv` so the server runs in the lab's venv — bare `python` uses system Python and won't find fastmcp/qdrant-client (ImportError). Exposes rag_query, rag_status, rag_decompose. Set the absolute --directory path + env for your machine.",
   "mcpServers": {
-    "rag": {
-      "command": "python",
+    "agentic-rag": {
+      "command": "uv",
       "args": [
-        "/Users/yuxinliu/code/agent-prep/lab-03.7-agentic-rag/src/mcp_server.py"
+        "--directory",
+        "/Users/yuxinliu/code/agent-prep/lab-03.7-agentic-rag",
+        "run",
+        "python",
+        "src/mcp_server.py"
       ],
       "env": {
         "OMLX_BASE_URL": "http://localhost:8000/v1",
-        "OMLX_API_KEY": "changeme",
+        "OMLX_API_KEY": "not-needed",
         "MODEL_SONNET": "gemma-4-26B-A4B-it-heretic-4bit",
         "QDRANT_URL": "http://127.0.0.1:6333",
         "QDRANT_COLLECTION": "bge_m3_hnsw"
