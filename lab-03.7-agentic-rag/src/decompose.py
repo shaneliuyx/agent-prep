@@ -1,4 +1,4 @@
-"""Standalone JSON sub-query planner (Phase 6 mini-lab).
+"""Standalone JSON sub-query planner (Phase 7 mini-lab).
 
 Ported from shaneliuyx/rag graph/nodes/decompose_llm.py — the original
 implemented this against Ollama-Gemma2:2b; this port adapts to oMLX
