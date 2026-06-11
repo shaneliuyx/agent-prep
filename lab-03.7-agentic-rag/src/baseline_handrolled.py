@@ -320,8 +320,12 @@ def web_search(query: str, k: int = 4) -> list[str]:
     """Real web search for the CRAG fallback. Tavily if TAVILY_API_KEY is set, else DuckDuckGo
     (free, no key), else a clear error. Mirrors crag_variant.py so the two CRAGs are comparable."""
     if os.getenv("TAVILY_API_KEY"):
-        from langchain_community.tools.tavily_search import TavilySearchResults
-        return [r["content"] for r in TavilySearchResults(max_results=k).invoke(query)]
+        # Official Tavily SDK (tavily-python) — replaces the sunset
+        # langchain_community.TavilySearchResults wrapper (deprecated in LC 0.3.25).
+        # Drops the langchain dependency from this file entirely (OpenAI client is raw).
+        from tavily import TavilyClient
+        resp = TavilyClient(api_key=os.environ["TAVILY_API_KEY"]).search(query, max_results=k)
+        return [r["content"] for r in resp.get("results", []) if r.get("content")]
     try:
         from ddgs import DDGS
     except ImportError:
@@ -412,7 +416,17 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
             # (was a SUGGESTION; now executed inline so the pipeline actually answers - like CRAG).
             try:
                 web_docs = web_search(query)
-            except Exception as e:  # noqa: BLE001
+            except ImportError as e:
+                # Missing web-search dependency is a CONFIG bug (affects EVERY query), not a
+                # per-query miss — fail loud with a fix hint instead of silently abstaining.
+                # (e.g. the Tavily branch needs `tavily`; running bare `python` against a venv
+                # that lacks it turns 10 questions into 10 confusing abstains.)
+                raise RuntimeError(
+                    f"web_search dependency missing: {type(e).__name__}: {e}. Install it, or "
+                    f"unset TAVILY_API_KEY to fall back to DuckDuckGo, or run the lab via "
+                    f"`uv run` (its venv has the deps)."
+                ) from e
+            except Exception as e:  # noqa: BLE001  — genuine per-query failure (network / API / no results)
                 web_docs, out["web_error"] = [], f"{type(e).__name__}: {e}"
             web_hits = [{"id": f"web{i}", "text": d, "payload": {}} for i, d in enumerate(web_docs)]
             wsy = synthesize(query, web_hits)
@@ -442,6 +456,26 @@ OUT_OF_CORPUS = [
 ]
 
 
+_STEP_LABELS = {
+    "decide_complexity": "decide", "decompose": "decompose", "multi_retrieve": "retrieve",
+    "rerank": "rerank", "synthesize": "synth", "selfrag_checks": "selfrag",
+    "grade_hallucination": "halluc", "grade_relevance": "rel",
+    "corrective_loop": "corrective", "web_fallback": "web", "finalize": "final",
+}
+
+
+def _fmt_steps(steps: list[dict[str, Any]]) -> str:
+    """Compact one-line render of the pipeline step trace: `label→result | label→result | ...`.
+    selfrag_checks' dict result is squeezed to its confidence (full numbers stay in out['steps'])."""
+    parts = []
+    for s in steps:
+        res = s["result"]
+        if isinstance(res, dict):
+            res = f"conf={res.get('confidence', '?')}"
+        parts.append(f"{_STEP_LABELS.get(s['step'], s['step'])}→{res}")
+    return " | ".join(parts)
+
+
 def run_out_of_corpus() -> None:
     """Run the hand-rolled Self-RAG + CRAG on out-of-corpus queries. Demonstrates that the
     corrective loop FIRES, TERMINATES (bounded `for range(max_rewrite)`, no runaway - contrast
@@ -465,6 +499,9 @@ def run_out_of_corpus() -> None:
               f"| {'ANSWERED' if ans_ok else 'abstain '}")
         if src == "web":
             print(f"    web answer: {out['answer'][:118].replace(chr(10), ' ')}")
+        print(f"    steps: {_fmt_steps(out['steps'])}")
+        if out.get("web_error"):
+            print(f"    web_error: {out['web_error']}")
     print(f"\nout-of-corpus (10 q): corrective fired {corr_fired}/10 | web search EXECUTED {web_exec}/10 "
           f"| answered via web {answered}/10")
 
@@ -475,3 +512,4 @@ if __name__ == "__main__":
     else:
         q = " ".join(sys.argv[1:]) or "What did Buffett write about non-controlled businesses in 2023?"
         print(json.dumps(answer(q), indent=2, default=str))
+

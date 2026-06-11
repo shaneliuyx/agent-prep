@@ -72,8 +72,11 @@ def retrieve_passages(query: str, k: int = 6, pool: int = 30) -> list[str]:
 # ── Web search: Tavily (if key) -> DuckDuckGo (free) -> clear error ──
 def web_search(query: str, k: int = 3) -> list[str]:
     if os.getenv("TAVILY_API_KEY"):
-        from langchain_community.tools.tavily_search import TavilySearchResults
-        return [r["content"] for r in TavilySearchResults(max_results=k).invoke(query)]
+        # Official Tavily SDK — replaces the sunset langchain_community wrapper
+        # (kept in sync with baseline_handrolled.web_search, see its note).
+        from tavily import TavilyClient
+        resp = TavilyClient(api_key=os.environ["TAVILY_API_KEY"]).search(query, max_results=k)
+        return [r["content"] for r in resp.get("results", []) if r.get("content")]
     try:
         from ddgs import DDGS                       # current package name
     except ImportError:
