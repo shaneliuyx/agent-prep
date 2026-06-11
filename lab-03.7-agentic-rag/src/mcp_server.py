@@ -44,9 +44,7 @@ except ImportError:
     print("ERROR: fastmcp not installed. Run: uv pip install -e .", file=sys.stderr)
     sys.exit(1)
 
-mcp = FastMCP("agentic-rag",
-              dependencies=["qdrant-client", "sentence-transformers",
-                            "FlagEmbedding", "openai", "python-dotenv"])
+mcp = FastMCP("agentic-rag")
 
 
 @mcp.tool()
@@ -72,6 +70,8 @@ def rag_query(query: str, k: int = 6, allow_corrective: bool = True) -> dict[str
         "grade_hallucination": out["grade_hallucination"],
         "grade_relevance": out["grade_relevance"],
         "decision": out["decision"],
+        "source": out.get("source", "corpus"),          # "corpus" | "web" — so the host sees what answered
+        "web_docs_found": len(out.get("web_docs", [])),  # >0 → the web fallback actually ran (and how many docs)
         "next_action": out.get("next_action"),
     }
 
