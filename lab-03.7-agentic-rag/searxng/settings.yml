@@ -1,0 +1,20 @@
+# SearXNG settings for the W3.7 agentic-RAG web fallback (local-only — see README.md).
+#
+# JSON API enabled + bot-limiter off so the pipeline's web_search() can query it
+# programmatically (GET /search?q=...&format=json). This is the free, no-key backend
+# web_search() prefers over Tavily/DuckDuckGo (§3.3 — it reranks across Google + Startpage
+# and surfaces free encyclopedic sources above paywalled aggregator snippets).
+use_default_settings: true
+
+server:
+  # Local-only instance (port bound to localhost via compose). A fixed key is fine for a
+  # dev lab that never leaves localhost; rotate with `openssl rand -hex 32` if you ever
+  # expose the port beyond your machine.
+  secret_key: "w3p7-agentic-rag-local-searxng-do-not-expose"
+  limiter: false        # disable bot-detection so in-process web_search() isn't blocked
+  image_proxy: false
+
+search:
+  formats:
+    - html
+    - json              # REQUIRED: default config omits json, which breaks the API client

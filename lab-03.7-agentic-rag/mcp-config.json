@@ -1,5 +1,6 @@
 {
   "_comment": "Drop under the 'mcpServers' key in Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json — open via Settings > Developer > Edit Config) or Cursor mcp.json, then FULLY QUIT (Cmd+Q) and reopen the host. Uses `uv` so the server runs in the lab's venv — bare `python` uses system Python and won't find fastmcp/qdrant-client (ImportError). Exposes rag_query, rag_status, rag_decompose. Set the absolute --directory path + env for your machine.",
+  "_comment_web": "Web fallback backend precedence: SEARXNG_URL → TAVILY_API_KEY → DuckDuckGo. SEARXNG_URL points at the free local metasearch (start: docker compose -f searxng/docker-compose.yml up -d); it ranks free sources above paywalled aggregators, so comparison queries ground real figures (§3.3). Drop SEARXNG_URL to fall back to Tavily (add TAVILY_API_KEY) or keyless DuckDuckGo.",
   "mcpServers": {
     "agentic-rag": {
       "command": "uv",
@@ -15,7 +16,8 @@
         "OMLX_API_KEY": "not-needed",
         "MODEL_SONNET": "gemma-4-26B-A4B-it-heretic-4bit",
         "QDRANT_URL": "http://127.0.0.1:6333",
-        "QDRANT_COLLECTION": "bge_m3_hnsw"
+        "QDRANT_COLLECTION": "bge_m3_hnsw",
+        "SEARXNG_URL": "http://localhost:8080"
       }
     }
   }

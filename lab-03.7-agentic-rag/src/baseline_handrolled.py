@@ -316,9 +316,29 @@ def corrective_loop(query: str, top_k: int = 6,
 
 # ---------- Pipeline orchestration -----------------------------------------
 
+def _searxng_search(base_url: str, query: str, k: int) -> list[str]:
+    """Query a SearXNG instance's JSON API (free, self-hosted, no key). Aggregates many
+    engines (Google, Startpage, ...) and — crucially for §3.3 — ranks free encyclopedic /
+    press sources ABOVE the Statista paywall snippet that Tavily and DuckDuckGo surface
+    first, so a figure like BHE's 2023 revenue (US$26.198B, Wikipedia) lands in a readable
+    snippet instead of a redacted `**** billion`. stdlib urllib only (no curl / no dep)."""
+    import urllib.parse
+    import urllib.request
+    url = base_url.rstrip("/") + "/search?" + urllib.parse.urlencode(
+        {"q": query, "format": "json"})
+    with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310 — operator-set local URL
+        results = json.load(resp).get("results", [])
+    return [r["content"] for r in results[:k] if r.get("content")]
+
+
 def web_search(query: str, k: int = 4) -> list[str]:
-    """Real web search for the CRAG fallback. Tavily if TAVILY_API_KEY is set, else DuckDuckGo
-    (free, no key), else a clear error. Mirrors crag_variant.py so the two CRAGs are comparable."""
+    """Real web search for the CRAG fallback. Backend precedence:
+      1. SEARXNG_URL  — free self-hosted metasearch, best free-source ranking (§3.3)
+      2. TAVILY_API_KEY — managed API (good, but ranks paywalled aggregators high)
+      3. DuckDuckGo   — free, no key, weakest ranking
+    else a clear error. Mirrors crag_variant.py so the two CRAGs are comparable."""
+    if os.getenv("SEARXNG_URL"):
+        return _searxng_search(os.environ["SEARXNG_URL"], query, k)
     if os.getenv("TAVILY_API_KEY"):
         # Official Tavily SDK (tavily-python) — replaces the sunset
         # langchain_community.TavilySearchResults wrapper (deprecated in LC 0.3.25).
@@ -332,6 +352,68 @@ def web_search(query: str, k: int = 4) -> list[str]:
         from duckduckgo_search import DDGS
     with DDGS() as ddg:
         return [r["body"] for r in ddg.text(query, max_results=k) if r.get("body")]
+
+
+# Per-sub-query web depth for the fanned-out fallback. Higher than web_search's k=4
+# default on purpose: a single atomic figure can rank below the top few (the §3.3 BHE
+# case — the authoritative free source, Wikipedia's US$26.198B, ranks ~3rd-4th on SearXNG;
+# at k=6 the synthesizer settled for an imprecise $25.6B, at k=8 it cites the exact figure).
+# Each sub-query is its own focused search, so the extra depth is cheap and only spent on
+# the rare web-fallback path.
+_FANOUT_PER_QUERY_K = int(os.getenv("WEB_FANOUT_K", "8"))
+
+
+def web_search_planned(query: str, decision: dict[str, Any],
+                       per_query_k: int = _FANOUT_PER_QUERY_K) -> tuple[list[str], list[str]]:
+    """Web fallback fanned out by query decomposition.
+
+    A comparison / multi-hop query fails as ONE web search: no single page holds both
+    figures (the §3.3 BNSF-vs-BHE case — "compare X and Y 2023 revenue" returns generic
+    hits, while "X 2023 revenue" and "Y 2023 revenue" each resolve cleanly). So when
+    decide_complexity says Complex, decompose into atomic sub-queries and web-search each
+    `lookup` independently (at per_query_k depth), unioning the passages. synthesize() then
+    sees both figures in one passage set. This mirrors execute_plan()'s corpus fan-out, but
+    on the WEB surface — because out-of-corpus answers live on the web, not in Qdrant.
+
+    Simple queries keep the single-shot path (one search, no planner cost). Degrades to a
+    single web_search(query) on any decompose error so the fallback always runs.
+
+    Returns (deduped_web_docs, fanout_log). web_search's own ImportError (missing ddgs /
+    tavily) is NOT caught here — it propagates so answer()'s config-bug handler fires.
+    """
+    if decision.get("label") != "Complex":
+        return web_search(query, k=per_query_k), [f"single:{query[:32]}"]
+    try:
+        from decompose import decompose_query  # type: ignore
+        plan = decompose_query(query)
+        lookups = [n for n in plan if n.get("type") != "synthesis"] or plan
+    except Exception as e:  # noqa: BLE001  — planner miss → single-shot, never block the fallback
+        return (web_search(query, k=per_query_k),
+                [f"single(decompose-failed:{type(e).__name__}):{query[:32]}"])
+
+    per_sub: list[list[str]] = []
+    log: list[str] = []
+    for n in lookups:
+        sub = (n.get("text") or "").strip() or query
+        hits = web_search(sub, k=per_query_k)   # ImportError here propagates by design
+        per_sub.append(hits)
+        log.append(f"{n.get('id', '?')}({sub[:24]}):{len(hits)}")
+    # Round-robin interleave (q1d1, q2d1, q1d2, q2d2, ...) so BOTH entities sit near the
+    # top of the union. synthesize() caps passages at 8000 chars; naive q1-then-q2
+    # concatenation would push the 2nd entity's best doc past the cap and bias every
+    # comparison toward whoever was searched first. Interleaving keeps it fair.
+    docs: list[str] = []
+    for i in range(max(map(len, per_sub), default=0)):
+        for hits in per_sub:
+            if i < len(hits):
+                docs.append(hits[i])
+    seen: set[str] = set()
+    uniq: list[str] = []
+    for d in docs:
+        if d not in seen:
+            seen.add(d)
+            uniq.append(d)
+    return uniq, log
 
 
 def _n_bullets(answer_text: str) -> int:
@@ -467,8 +549,13 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
         if not crag_pass:
             # REAL web fallback: search the web, then synthesize the answer from the results
             # (was a SUGGESTION; now executed inline so the pipeline actually answers - like CRAG).
+            # Fanned out by decomposition (web_search_planned): a Complex/comparison query
+            # searches each atomic sub-query independently and unions the passages, so a
+            # "compare X and Y" question lands BOTH figures in one passage set instead of
+            # issuing a single doomed comparison search (§3.3). Simple queries stay single-shot.
+            web_log: list[str] = []
             try:
-                web_docs = web_search(query)
+                web_docs, web_log = web_search_planned(query, decision)
             except ImportError as e:
                 # Missing web-search dependency is a CONFIG bug (affects EVERY query), not a
                 # per-query miss — fail loud with a fix hint instead of silently abstaining.
@@ -484,9 +571,11 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
             web_hits = [{"id": f"web{i}", "text": d, "payload": {}} for i, d in enumerate(web_docs)]
             wsy = synthesize(query, web_hits)
             out["answer"], out["source"] = wsy["answer"], "web"
-            out["web_docs"], out["next_action"] = web_docs, {"type": "web_search", "executed": True}
+            out["web_docs"] = web_docs
+            out["next_action"] = {"type": "web_search", "executed": True, "fanout": web_log}
             steps.append({"step": "web_fallback",
-                          "result": f"{len(web_docs)} web docs → re-synthesized "
+                          "result": f"{len(web_docs)} web docs from {len(web_log)} search(es) "
+                                    f"[{' '.join(web_log)}] → re-synthesized "
                                     f"({_n_bullets(wsy['answer'])} bullets)"})
 
     out.setdefault("source", "corpus")
