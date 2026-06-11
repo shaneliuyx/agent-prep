@@ -150,19 +150,20 @@ def rerank(query: str, hits: list[dict[str, Any]], top_k: int = 6) -> list[dict[
 
 SYNTHESIZE_PROMPT = """Use ONLY the passages below. Answer in 3-5 bullets.
 Each bullet MUST include a citation in the form [#N] where N is the passage
-number. Do not invent claims; if context is insufficient, say so.
+number. Do not invent claims. If the passages do not contain the answer, reply
+with EXACTLY this and nothing else: I don't know
 
 Passages:
 {passages}
 
 Question: {q}
 
-Answer (bullets with [#N] citations):"""
+Answer (bullets with [#N] citations, or "I don't know"):"""
 
 
 def synthesize(query: str, hits: list[dict[str, Any]]) -> dict[str, Any]:
     if not hits:
-        return {"answer": "insufficient context", "drift_filtered": 0}
+        return {"answer": "I don't know", "drift_filtered": 0}
     passages = "\n\n".join(f"[#{i+1}] {h['text']}" for i, h in enumerate(hits))
     resp = omlx.chat.completions.create(
         model=MODEL, temperature=0.0, max_tokens=400,
@@ -232,12 +233,33 @@ def grade_hallucination(answer: str, hits: list[dict[str, Any]],
     return {"pass": ok, "selfrag": sr}
 
 
+GRADE_RELEVANCE_PROMPT = """Does the ANSWER actually answer the QUESTION with specific information,
+or does it decline / say the context is insufficient / fail to provide the answer?
+Reply with ONE word: YES (it answers) or NO (it does not).
+
+Question: {q}
+Answer: {a}
+
+Verdict (YES/NO):"""
+
+
 def grade_relevance(answer: str, query: str) -> dict[str, Any]:
-    qk = set(re.findall(r"\w+", query.lower())) - {"the", "a", "an", "of", "to", "in"}
-    ak = set(re.findall(r"\w+", answer.lower()))
-    overlap = len(qk & ak) / max(len(qk), 1)
-    ok = overlap >= THRESHOLDS.relevance or "summarize" in query.lower()
-    return {"pass": ok, "overlap": round(overlap, 3)}
+    """LLM judge: did we actually ANSWER the question, or abstain?
+
+    The old keyword-overlap version was fooled by abstentions that echo the question
+    ("the passages do not contain information regarding <restates query>...") - overlap was
+    ~1.0 so it scored 'relevant' and the corrective loop never fired (§3.3). An LLM detects
+    'insufficient context' even when it restates the query, so the loop fires when it should -
+    matching crag_variant.py's LLM evaluator (apples-to-apples)."""
+    # Canonical abstention → not answered, deterministically (no LLM call, no Gemma flip-flop).
+    # synthesize() now emits exactly "I don't know" when the passages lack the answer.
+    if "i don't know" in answer.lower() or "i do not know" in answer.lower():
+        return {"pass": False, "verdict": "abstain"}
+    verdict = (omlx.chat.completions.create(
+        model=MODEL, temperature=0.0, max_tokens=5,
+        messages=[{"role": "user", "content": GRADE_RELEVANCE_PROMPT.format(q=query, a=answer)}],
+    ).choices[0].message.content or "").strip().lower()
+    return {"pass": verdict.startswith("y"), "verdict": verdict[:12]}
 
 
 # ---------- Node 8: CorrectiveRAG (rewrite + retry) -------------------------
@@ -280,6 +302,20 @@ def corrective_loop(query: str, top_k: int = 6,
 
 # ---------- Pipeline orchestration -----------------------------------------
 
+def web_search(query: str, k: int = 4) -> list[str]:
+    """Real web search for the CRAG fallback. Tavily if TAVILY_API_KEY is set, else DuckDuckGo
+    (free, no key), else a clear error. Mirrors crag_variant.py so the two CRAGs are comparable."""
+    if os.getenv("TAVILY_API_KEY"):
+        from langchain_community.tools.tavily_search import TavilySearchResults
+        return [r["content"] for r in TavilySearchResults(max_results=k).invoke(query)]
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        from duckduckgo_search import DDGS
+    with DDGS() as ddg:
+        return [r["body"] for r in ddg.text(query, max_results=k) if r.get("body")]
+
+
 def answer(query: str, top_k: int = 6) -> dict[str, Any]:
     """Top-level entry. Returns the full pipeline output."""
     decision = decide_complexity(query)
@@ -316,16 +352,66 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
         crag = corrective_loop(query, top_k=top_k)
         out["corrective"] = crag
         if not crag["grade_relevance"]["pass"]:
-            out["next_action"] = {
-                "type": "web_search",
-                "query": query,
-                "instructions": "Host can route to a web-search MCP tool, then "
-                                "re-feed results to this pipeline as additional context.",
-            }
+            # REAL web fallback: search the web, then synthesize the answer from the results
+            # (was a SUGGESTION; now executed inline so the pipeline actually answers - like CRAG).
+            try:
+                web_docs = web_search(query)
+            except Exception as e:  # noqa: BLE001
+                web_docs, out["web_error"] = [], f"{type(e).__name__}: {e}"
+            web_hits = [{"id": f"web{i}", "text": d, "payload": {}} for i, d in enumerate(web_docs)]
+            wsy = synthesize(query, web_hits)
+            out["answer"], out["source"] = wsy["answer"], "web"
+            out["web_docs"], out["next_action"] = web_docs, {"type": "web_search", "executed": True}
 
+    out.setdefault("source", "corpus")
     return out
 
 
+# 10 post-cutoff questions the 2018 MS-MARCO corpus cannot answer (mirrors src/03_crag_eval.py)
+OUT_OF_CORPUS = [
+    "What is the most capable Claude model Anthropic released in 2026?",
+    "Which team won the 2025 NBA Finals?",
+    "What is the official release date of GPT-5?",
+    "Who won the 2025 Nobel Prize in Physics?",
+    "What AI regulation did the European Union pass in 2025?",
+    "What is the newest Apple silicon chip announced in 2025?",
+    "What is the latest stable version of Python released in 2026?",
+    "Who is the CEO of OpenAI as of 2026?",
+    "What was the headline feature of the iPhone announced in 2025?",
+    "Which country hosted the 2025 G20 summit?",
+]
+
+
+def run_out_of_corpus() -> None:
+    """Run the hand-rolled Self-RAG + CRAG on out-of-corpus queries. Demonstrates that the
+    corrective loop FIRES, TERMINATES (bounded `for range(max_rewrite)`, no runaway - contrast
+    the LangGraph structural arm that hit GraphRecursionError, §3.2), and escalates to a
+    web fallback - which this pipeline now EXECUTES inline (Tavily/DuckDuckGo) and synthesizes a
+    real answer from, like crag_variant.py."""
+    print("=== hand-rolled Self-RAG + CRAG on 10 out-of-corpus questions (REAL web fallback) ===")
+    corr_fired = web_exec = answered = 0
+    abstained = lambda a: "i don't know" in (a or "").lower()
+    for q in OUT_OF_CORPUS:
+        out = answer(q)
+        corr = out.get("corrective")               # corrective_loop ran iff grade_relevance FAILED
+        n_rewrites = corr["iteration"] if corr else 0   # actual rewrite_query calls (the i>0 passes)
+        src = out.get("source", "corpus")
+        ans_ok = src == "web" and not abstained(out["answer"])
+        corr_fired += bool(corr)
+        web_exec += bool(out.get("next_action", {}).get("executed"))
+        answered += ans_ok
+        print(f"- {q[:46]:46} | grade:{str(out['grade_relevance'].get('verdict', '?')):7} "
+              f"| corr:{'y' if corr else 'n'} rw:{n_rewrites} | source:{src:6} "
+              f"| {'ANSWERED' if ans_ok else 'abstain '}")
+        if src == "web":
+            print(f"    web answer: {out['answer'][:118].replace(chr(10), ' ')}")
+    print(f"\nout-of-corpus (10 q): corrective fired {corr_fired}/10 | web search EXECUTED {web_exec}/10 "
+          f"| answered via web {answered}/10")
+
+
 if __name__ == "__main__":
-    q = " ".join(sys.argv[1:]) or "What did Buffett write about non-controlled businesses in 2023?"
-    print(json.dumps(answer(q), indent=2, default=str))
+    if "--out-of-corpus" in sys.argv or "-b" in sys.argv:
+        run_out_of_corpus()
+    else:
+        q = " ".join(sys.argv[1:]) or "What did Buffett write about non-controlled businesses in 2023?"
+        print(json.dumps(answer(q), indent=2, default=str))
