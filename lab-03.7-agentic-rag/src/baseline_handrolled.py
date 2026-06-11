@@ -339,6 +339,51 @@ def _n_bullets(answer_text: str) -> int:
     return len([ln for ln in answer_text.splitlines() if ln.strip()])
 
 
+def _dedup_hits(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Dedup retrieved hits by id, preserving first-seen order."""
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for h in hits:
+        if h["id"] in seen:
+            continue
+        seen.add(h["id"])
+        out.append(h)
+    return out
+
+
+def execute_plan(plan: list[dict[str, Any]], original_query: str,
+                 top_k: int = 6) -> tuple[list[dict[str, Any]], list[str]]:
+    """Execute a decomposed sub-query DAG (from decompose_query) in topological order.
+
+    - `lookup` nodes each run the full retrieve→rerank and keep their own passages.
+    - `synthesis` nodes inherit the deduped union of their `depends_on` passages —
+      they COMBINE upstream evidence rather than retrieving fresh.
+
+    All collected passages are deduped into one union, then reranked against the
+    ORIGINAL query to pick the final top-k. That single globally-numbered list is what
+    the downstream synthesize()/grading cite — i.e. citations are remapped across
+    sub-queries into one consistent passage set. Returns (final_hits, exec_log).
+    """
+    from decompose import topo_sort  # type: ignore
+
+    per_node: dict[str, list[dict[str, Any]]] = {}
+    exec_log: list[str] = []
+    for node in topo_sort(plan):
+        nid = node["id"]
+        if node.get("type") == "synthesis" and node.get("depends_on"):
+            evidence = [h for dep in node["depends_on"] for h in per_node.get(dep, [])]
+            per_node[nid] = _dedup_hits(evidence)
+            exec_log.append(f"{nid}[synth←{'+'.join(node['depends_on'])}]:{len(per_node[nid])}")
+        else:
+            hits = rerank(node["text"], multi_retrieve(node["text"]), top_k=top_k)
+            per_node[nid] = hits
+            exec_log.append(f"{nid}[lookup]:{len(hits)}")
+
+    union = _dedup_hits([h for nid in per_node for h in per_node[nid]])
+    final_hits = rerank(original_query, union, top_k=top_k) if union else []
+    return final_hits, exec_log
+
+
 def answer(query: str, top_k: int = 6) -> dict[str, Any]:
     """Top-level entry. Returns the full pipeline output.
 
@@ -369,14 +414,22 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
     steps.append({"step": "decompose",
                   "result": decompose_log, "sub_queries": len(sub_queries)})
 
-    # Run pipeline
-    hits = multi_retrieve(query)
-    steps.append({"step": "multi_retrieve",
-                  "result": f"{len(hits)} candidates after RRF fusion"})
-
-    rr = rerank(query, hits, top_k=top_k)
-    steps.append({"step": "rerank",
-                  "result": f"top-{len(rr)} kept", "top_ids": [h["id"] for h in rr]})
+    # Run pipeline — if decomposition produced a real sub-query DAG, execute it in
+    # topo order (lookups retrieve, synthesis combines, evidence merged + citations
+    # remapped); otherwise the original single-query path, unchanged.
+    if len(sub_queries) > 1:
+        rr, exec_log = execute_plan(sub_queries, query, top_k=top_k)
+        steps.append({"step": "execute_plan",
+                      "result": f"{len(sub_queries)} sub-queries topo-exec: "
+                                f"{' | '.join(exec_log)} → merged top-{len(rr)}",
+                      "top_ids": [h["id"] for h in rr]})
+    else:
+        hits = multi_retrieve(query)
+        steps.append({"step": "multi_retrieve",
+                      "result": f"{len(hits)} candidates after RRF fusion"})
+        rr = rerank(query, hits, top_k=top_k)
+        steps.append({"step": "rerank",
+                      "result": f"top-{len(rr)} kept", "top_ids": [h["id"] for h in rr]})
 
     sy = synthesize(query, rr)
     steps.append({"step": "synthesize",
@@ -458,7 +511,7 @@ OUT_OF_CORPUS = [
 
 _STEP_LABELS = {
     "decide_complexity": "decide", "decompose": "decompose", "multi_retrieve": "retrieve",
-    "rerank": "rerank", "synthesize": "synth", "selfrag_checks": "selfrag",
+    "execute_plan": "plan", "rerank": "rerank", "synthesize": "synth", "selfrag_checks": "selfrag",
     "grade_hallucination": "halluc", "grade_relevance": "rel",
     "corrective_loop": "corrective", "web_fallback": "web", "finalize": "final",
 }
