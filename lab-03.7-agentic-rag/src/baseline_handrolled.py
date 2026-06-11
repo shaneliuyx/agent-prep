@@ -379,7 +379,7 @@ def execute_plan(plan: list[dict[str, Any]], original_query: str,
             per_node[nid] = hits
             exec_log.append(f"{nid}[lookup]:{len(hits)}")
 
-    union = _dedup_hits([h for nid in per_node for h in per_node[nid]])
+    union = _dedup_hits([h for hits in per_node.values() for h in hits])
     final_hits = rerank(original_query, union, top_k=top_k) if union else []
     return final_hits, exec_log
 
