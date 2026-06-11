@@ -66,6 +66,24 @@ _qdrant = QdrantClient(url=QDRANT_URL, timeout=60)
 _encoder = DenseEncoder(autoconfig.encoder_config_for(BGE_M3))
 _reranker = CrossEncoderReranker(autoconfig.recommend(BGE_M3, BGE_RERANKER_V2_M3).reranker)
 
+# Function words stripped before keyword-overlap scoring (faithfulness / coverage /
+# drift filter) so overlap reflects content words, not grammatical glue. Shared so the
+# three overlap checks agree on "what counts as a meaningful word". Kept deliberately
+# small: overlap scoring should only drop the most content-free words, not question
+# words / auxiliaries (those still carry signal when comparing answer vs. passage).
+_STOPWORDS = frozenset({"the", "a", "an", "of", "to", "in"})
+
+# Aggressive stop set for building keyword-only RETRIEVAL queries (_keyword_variant).
+# Superset of _STOPWORDS: retrieval also drops question words / auxiliaries / pronouns
+# so the keyword search keys on distinctive content terms. Different job from scoring,
+# hence larger — expressed as `_STOPWORDS | {...}` so the shared core lives in one place.
+_KEYWORD_STOPWORDS = _STOPWORDS | {
+    "and", "or", "is", "are", "was", "were", "what", "who", "where", "when",
+    "why", "how", "did", "do", "does", "with", "for", "on", "at", "by",
+    "this", "that", "those", "these", "be", "been", "have", "has", "had",
+    "i", "you", "he", "she", "it", "we", "they", "my", "your", "their",
+}
+
 
 # ---------- Node 1: ComplexityDecider ----------------------------------------
 
@@ -93,12 +111,8 @@ def decide_complexity(query: str) -> dict[str, Any]:
 
 def _keyword_variant(query: str) -> str:
     """Strip stopwords / functional words to make a keyword-only variant."""
-    stop = {"the", "a", "an", "of", "to", "in", "and", "or", "is", "are", "was",
-            "were", "what", "who", "where", "when", "why", "how", "did", "do",
-            "does", "with", "for", "on", "at", "by", "this", "that", "those",
-            "these", "be", "been", "have", "has", "had", "i", "you", "he",
-            "she", "it", "we", "they", "my", "your", "their"}
-    return " ".join(w for w in re.findall(r"\w+", query.lower()) if w not in stop)
+    return " ".join(w for w in re.findall(r"\w+", query.lower())
+                    if w not in _KEYWORD_STOPWORDS)
 
 
 def _retrieve_qdrant(query: str, k: int = 30) -> list[dict[str, Any]]:
@@ -181,7 +195,7 @@ def synthesize(query: str, hits: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         n = int(m.group(1)) - 1
         if 0 <= n < len(hits):
-            bullet_kws = set(re.findall(r"\w+", b.lower())) - {"the", "a", "an", "of", "to", "in"}
+            bullet_kws = set(re.findall(r"\w+", b.lower())) - _STOPWORDS
             psg_kws = set(re.findall(r"\w+", hits[n]["text"].lower()))
             if bullet_kws & psg_kws:
                 kept.append(b)
@@ -207,13 +221,13 @@ def selfrag_checks(answer: str, hits: list[dict[str, Any]], query: str) -> dict[
             continue
         n = int(m.group(1)) - 1
         if 0 <= n < len(hits):
-            bk = set(re.findall(r"\w+", b.lower()))
-            pk = set(re.findall(r"\w+", hits[n]["text"].lower()))
+            bk = set(re.findall(r"\w+", b.lower())) - _STOPWORDS
+            pk = set(re.findall(r"\w+", hits[n]["text"].lower())) - _STOPWORDS
             if len(bk & pk) >= 3:
                 n_faithful += 1
     faithfulness_rate = n_faithful / n_total if n_cited else 0.0
     # Coverage: query keywords represented in answer
-    qk = set(re.findall(r"\w+", query.lower())) - {"the", "a", "an", "of"}
+    qk = set(re.findall(r"\w+", query.lower())) - _STOPWORDS
     ak = set(re.findall(r"\w+", answer.lower()))
     coverage = len(qk & ak) / max(len(qk), 1)
     return {
@@ -316,12 +330,29 @@ def web_search(query: str, k: int = 4) -> list[str]:
         return [r["body"] for r in ddg.text(query, max_results=k) if r.get("body")]
 
 
+def _n_bullets(answer_text: str) -> int:
+    """Count non-empty lines (bullets) in a synthesized answer."""
+    return len([ln for ln in answer_text.splitlines() if ln.strip()])
+
+
 def answer(query: str, top_k: int = 6) -> dict[str, Any]:
-    """Top-level entry. Returns the full pipeline output."""
+    """Top-level entry. Returns the full pipeline output.
+
+    `out["steps"]` is a step-by-step trace: each pipeline stage in execution order
+    with a compact result summary, so the decision path (corpus vs. corrective vs.
+    web) is inspectable without re-running. Summaries stay compact (counts / PASS-FAIL
+    / scores) — the full objects (hits, selfrag, grades) already live in `out`.
+    `steps` is the same list referenced by `out["steps"]`, so appends in the
+    conditional CRAG / web branch below still show up in the returned dict.
+    """
+    steps: list[dict[str, Any]] = []
+
     decision = decide_complexity(query)
+    steps.append({"step": "decide_complexity",
+                  "result": f"{decision['label']} (score={decision['score']})"})
+
     sub_queries = [{"id": "q1", "text": query}]
     decompose_log = "skipped (Simple OR ENABLE_DECOMPOSITION=0)"
-
     if os.getenv("ENABLE_DECOMPOSITION", "0") == "1" and decision["label"] == "Complex":
         try:
             from decompose import decompose_query  # type: ignore
@@ -331,27 +362,52 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
                 decompose_log = f"used LLM decomposition: {len(plan)} sub-queries"
         except Exception as e:  # noqa: BLE001
             decompose_log = f"decompose import failed: {type(e).__name__}: {e}"
+    steps.append({"step": "decompose",
+                  "result": decompose_log, "sub_queries": len(sub_queries)})
 
     # Run pipeline
     hits = multi_retrieve(query)
+    steps.append({"step": "multi_retrieve",
+                  "result": f"{len(hits)} candidates after RRF fusion"})
+
     rr = rerank(query, hits, top_k=top_k)
+    steps.append({"step": "rerank",
+                  "result": f"top-{len(rr)} kept", "top_ids": [h["id"] for h in rr]})
+
     sy = synthesize(query, rr)
+    steps.append({"step": "synthesize",
+                  "result": f"{_n_bullets(sy['answer'])} bullets, "
+                            f"{sy.get('drift_filtered', 0)} drift-filtered"})
+
     sr = selfrag_checks(sy["answer"], rr, query)
+    steps.append({"step": "selfrag_checks", "result": sr})
+
     gh = grade_hallucination(sy["answer"], rr, query)
+    steps.append({"step": "grade_hallucination",
+                  "result": f"{'PASS' if gh['pass'] else 'FAIL'} "
+                            f"(faithful={gh['selfrag']['faithfulness_rate']}, "
+                            f"cited={gh['selfrag']['citation_rate']})"})
+
     gr = grade_relevance(sy["answer"], query)
+    steps.append({"step": "grade_relevance",
+                  "result": f"{'PASS' if gr['pass'] else 'FAIL'} "
+                            f"(verdict={gr.get('verdict', '?')})"})
 
     out: dict[str, Any] = {
         "query": query, "decision": decision, "sub_queries": sub_queries,
         "decompose_log": decompose_log, "hits": rr, "answer": sy["answer"],
         "selfrag": sr, "grade_hallucination": gh, "grade_relevance": gr,
-        "drift_filtered": sy.get("drift_filtered", 0),
+        "drift_filtered": sy.get("drift_filtered", 0), "steps": steps,
     }
 
     # CRAG loop if grade_relevance fails
     if not gr["pass"]:
         crag = corrective_loop(query, top_k=top_k)
         out["corrective"] = crag
-        if not crag["grade_relevance"]["pass"]:
+        crag_pass = crag["grade_relevance"]["pass"]
+        steps.append({"step": "corrective_loop",
+                      "result": f"{'PASS' if crag_pass else 'FAIL'}"})
+        if not crag_pass:
             # REAL web fallback: search the web, then synthesize the answer from the results
             # (was a SUGGESTION; now executed inline so the pipeline actually answers - like CRAG).
             try:
@@ -362,8 +418,12 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
             wsy = synthesize(query, web_hits)
             out["answer"], out["source"] = wsy["answer"], "web"
             out["web_docs"], out["next_action"] = web_docs, {"type": "web_search", "executed": True}
+            steps.append({"step": "web_fallback",
+                          "result": f"{len(web_docs)} web docs → re-synthesized "
+                                    f"({_n_bullets(wsy['answer'])} bullets)"})
 
     out.setdefault("source", "corpus")
+    steps.append({"step": "finalize", "result": f"source={out['source']}"})
     return out
 
 
