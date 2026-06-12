@@ -321,22 +321,36 @@ def _searxng_search(base_url: str, query: str, k: int) -> list[str]:
     engines (Google, Startpage, ...) and — crucially for §3.3 — ranks free encyclopedic /
     press sources ABOVE the Statista paywall snippet that Tavily and DuckDuckGo surface
     first, so a figure like BHE's 2023 revenue (US$26.198B, Wikipedia) lands in a readable
-    snippet instead of a redacted `**** billion`. stdlib urllib only (no curl / no dep)."""
+    snippet instead of a redacted `**** billion`. stdlib urllib only (no curl / no dep).
+
+    STABILITY: SearXNG is non-deterministic by default — the same query returns a different
+    pool run-to-run, driven by (a) auto language detection from request headers and (b) a
+    rotating/timing-dependent engine set (Bing especially is noisy). We pin both: `language`
+    (env SEARXNG_LANGUAGE, default "en") and an optional `engines` allowlist (env
+    SEARXNG_ENGINES, e.g. "google,duckduckgo,wikipedia"). That removes the two biggest variance
+    sources with no recall loss for a fixed engine set. The cross-encoder rerank in answer()'s
+    web fallback then makes the FINAL top-k a deterministic function of whatever pool comes back.
+    """
     import urllib.parse
     import urllib.request
-    url = base_url.rstrip("/") + "/search?" + urllib.parse.urlencode(
-        {"q": query, "format": "json"})
+    params = {"q": query, "format": "json",
+              "language": os.getenv("SEARXNG_LANGUAGE", "en")}  # pin lang → no header-based drift
+    engines = os.getenv("SEARXNG_ENGINES", "").strip()
+    if engines:
+        params["engines"] = engines                            # pin engine set → stable pool
+    url = base_url.rstrip("/") + "/search?" + urllib.parse.urlencode(params)
     with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310 — operator-set local URL
         results = json.load(resp).get("results", [])
     return [r["content"] for r in results[:k] if r.get("content")]
 
 
-def web_search(query: str, k: int = 4) -> list[str]:
-    """Real web search for the CRAG fallback. Backend precedence:
+def _web_search_live(query: str, k: int) -> list[str]:
+    """The actual network call, backend precedence:
       1. SEARXNG_URL  — free self-hosted metasearch, best free-source ranking (§3.3)
       2. TAVILY_API_KEY — managed API (good, but ranks paywalled aggregators high)
       3. DuckDuckGo   — free, no key, weakest ranking
-    else a clear error. Mirrors crag_variant.py so the two CRAGs are comparable."""
+    Mirrors crag_variant.py so the two CRAGs are comparable. ImportError (missing tavily/ddgs)
+    propagates — answer()'s config-bug handler turns it into a loud, actionable error."""
     if os.getenv("SEARXNG_URL"):
         return _searxng_search(os.environ["SEARXNG_URL"], query, k)
     if os.getenv("TAVILY_API_KEY"):
@@ -352,6 +366,56 @@ def web_search(query: str, k: int = 4) -> list[str]:
         from duckduckgo_search import DDGS
     with DDGS() as ddg:
         return [r["body"] for r in ddg.text(query, max_results=k) if r.get("body")]
+
+
+# On-disk web-search cache → REPRODUCIBILITY. A metasearch is inherently non-deterministic: the
+# same query returns a different doc pool run-to-run because engines bot-block / time out / rotate
+# and language is header-inferred (§3.3 stability note). Pinning language + engines shrinks the
+# variance but can't remove it (e.g. Google's scraper is intermittently blocked, collapsing a
+# pinned pool to empty). So we cache the raw results keyed by (backend+config, k, query): the first
+# run hits the live web, every repeat replays the SAME pool → the SAME answer. Combined with the
+# cross-encoder rerank in answer()'s fallback (deterministic given a pool), repeated queries are
+# fully reproducible. Set WEB_CACHE=0 to force live calls (refresh), or delete the cache file.
+_WEB_CACHE_FILE = Path(os.getenv(
+    "WEB_CACHE_PATH", str(Path(__file__).resolve().parents[1] / ".web_cache.json")))
+
+
+def _web_cache_key(query: str, k: int) -> str:
+    """Key includes the backend + its determinism-affecting config, so switching engine / language
+    / backend invalidates stale entries instead of silently replaying a different source's pool."""
+    if os.getenv("SEARXNG_URL"):
+        backend = (f"searxng:{os.environ['SEARXNG_URL']}:{os.getenv('SEARXNG_LANGUAGE', 'en')}"
+                   f":{os.getenv('SEARXNG_ENGINES', '')}")
+    else:
+        backend = "tavily" if os.getenv("TAVILY_API_KEY") else "ddg"
+    return f"{backend}|k={k}|{query}"
+
+
+def _read_web_cache() -> dict[str, list[str]]:
+    try:
+        return json.loads(_WEB_CACHE_FILE.read_text()) if _WEB_CACHE_FILE.exists() else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def web_search(query: str, k: int = 4) -> list[str]:
+    """Cached wrapper over _web_search_live for reproducible runs (see the cache note above).
+    Cache hit → replay; miss → fetch live + persist. WEB_CACHE=0 disables (always live)."""
+    use_cache = os.getenv("WEB_CACHE", "1") == "1"
+    key = _web_cache_key(query, k)
+    if use_cache:
+        cache = _read_web_cache()
+        if key in cache:
+            return cache[key]
+    docs = _web_search_live(query, k)
+    if use_cache:
+        cache = _read_web_cache()
+        cache[key] = docs
+        try:
+            _WEB_CACHE_FILE.write_text(json.dumps(cache))
+        except OSError:
+            pass  # cache is best-effort; a write failure must never break the answer
+    return docs
 
 
 # Per-sub-query web depth for the fanned-out fallback. Higher than web_search's k=4
@@ -378,42 +442,79 @@ def web_search_planned(query: str, decision: dict[str, Any],
     Simple queries keep the single-shot path (one search, no planner cost). Degrades to a
     single web_search(query) on any decompose error so the fallback always runs.
 
+    REPRODUCIBILITY: the final deduped doc pool is cached on disk keyed by the ORIGINAL query,
+    so the same question always yields the same pool — even though the LLM decomposer's sub-query
+    PHRASING varies run-to-run (which would otherwise miss the per-sub-query web cache → different
+    pools → a drifting answer). This is the level the cache has to sit at: per-sub-query caching
+    alone isn't enough because the keys themselves (the planner's wording) aren't stable.
+
     Returns (deduped_web_docs, fanout_log). web_search's own ImportError (missing ddgs /
     tavily) is NOT caught here — it propagates so answer()'s config-bug handler fires.
     """
-    if decision.get("label") != "Complex":
-        return web_search(query, k=per_query_k), [f"single:{query[:32]}"]
-    try:
-        from decompose import decompose_query  # type: ignore
-        plan = decompose_query(query)
-        lookups = [n for n in plan if n.get("type") != "synthesis"] or plan
-    except Exception as e:  # noqa: BLE001  — planner miss → single-shot, never block the fallback
-        return (web_search(query, k=per_query_k),
-                [f"single(decompose-failed:{type(e).__name__}):{query[:32]}"])
+    use_cache = os.getenv("WEB_CACHE", "1") == "1"
+    pkey = f"planned|{decision.get('label')}|k={per_query_k}|{query}"
+    if use_cache:
+        hit = _read_web_cache().get(pkey)
+        if hit is not None:
+            return hit, [f"cache-hit:{query[:40]}"]
 
-    per_sub: list[list[str]] = []
-    log: list[str] = []
-    for n in lookups:
-        sub = (n.get("text") or "").strip() or query
-        hits = web_search(sub, k=per_query_k)   # ImportError here propagates by design
-        per_sub.append(hits)
-        log.append(f"{n.get('id', '?')}({sub[:24]}):{len(hits)}")
-    # Round-robin interleave (q1d1, q2d1, q1d2, q2d2, ...) so BOTH entities sit near the
-    # top of the union. synthesize() caps passages at 8000 chars; naive q1-then-q2
-    # concatenation would push the 2nd entity's best doc past the cap and bias every
-    # comparison toward whoever was searched first. Interleaving keeps it fair.
     docs: list[str] = []
-    for i in range(max(map(len, per_sub), default=0)):
-        for hits in per_sub:
-            if i < len(hits):
-                docs.append(hits[i])
-    seen: set[str] = set()
-    uniq: list[str] = []
-    for d in docs:
-        if d not in seen:
-            seen.add(d)
-            uniq.append(d)
-    return uniq, log
+    log: list[str] = []
+    if decision.get("label") != "Complex":
+        docs, log = web_search(query, k=per_query_k), [f"single:{query[:32]}"]
+    else:
+        lookups: list[dict[str, Any]] | None
+        try:
+            from decompose import decompose_query  # type: ignore
+            plan = decompose_query(query)
+            lookups = [n for n in plan if n.get("type") != "synthesis"] or plan
+        except Exception as e:  # noqa: BLE001  — planner miss → single-shot, never block the fallback
+            lookups = None
+            docs = web_search(query, k=per_query_k)   # ImportError here propagates by design
+            log = [f"single(decompose-failed:{type(e).__name__}):{query[:32]}"]
+        if lookups is not None:
+            per_sub: list[list[str]] = []
+            log = []
+            keep = max(3, per_query_k // 2)
+            for n in lookups:
+                sub = (n.get("text") or "").strip() or query
+                raw = web_search(sub, k=per_query_k)   # ImportError here propagates by design
+                # ACCURACY: rerank THIS sub-query's docs against THIS sub-query (not the overall
+                # comparison) and keep the top `keep`. Two reasons: (1) the passage that actually
+                # holds this entity's figure surfaces to the top; (2) both entities stay represented
+                # after interleave. A union-rerank against the whole "compare X and Y" query instead
+                # lets the more-relevant entity's docs dominate and silently drops the other's figure
+                # — the "stable but wrong" bug (3 BHE bullets, no BNSF number). Per-sub-query rerank
+                # makes each search yield its own valuable result.
+                hits = [{"id": f"{n.get('id', 'q')}_{i}", "text": d, "payload": {}}
+                        for i, d in enumerate(raw)]
+                ranked = [h["text"] for h in rerank(sub, hits, top_k=keep)]
+                per_sub.append(ranked)
+                log.append(f"{n.get('id', '?')}({sub[:24]}):{len(raw)}→top{len(ranked)}")
+            # Round-robin interleave (q1d1, q2d1, q1d2, q2d2, ...) so BOTH entities sit near the
+            # top of the union. synthesize() caps passages at 8000 chars; naive q1-then-q2
+            # concatenation would push the 2nd entity's best doc past the cap and bias every
+            # comparison toward whoever was searched first. Interleaving keeps it fair.
+            interleaved: list[str] = []
+            for i in range(max(map(len, per_sub), default=0)):
+                for hits in per_sub:
+                    if i < len(hits):
+                        interleaved.append(hits[i])
+            seen: set[str] = set()
+            docs = []
+            for d in interleaved:
+                if d not in seen:
+                    seen.add(d)
+                    docs.append(d)
+
+    if use_cache:
+        cache = _read_web_cache()
+        cache[pkey] = docs
+        try:
+            _WEB_CACHE_FILE.write_text(json.dumps(cache))
+        except OSError:
+            pass  # cache is best-effort; a write failure must never break the answer
+    return docs, log
 
 
 def _n_bullets(answer_text: str) -> int:
@@ -568,6 +669,11 @@ def answer(query: str, top_k: int = 6) -> dict[str, Any]:
                 ) from e
             except Exception as e:  # noqa: BLE001  — genuine per-query failure (network / API / no results)
                 web_docs, out["web_error"] = [], f"{type(e).__name__}: {e}"
+            # web_search_planned already reranked each sub-query's docs against its OWN sub-query
+            # and interleaved them, so both entities' figure-passages are present and balanced. Do
+            # NOT rerank the union against the comparison query here — that re-introduces the
+            # one-entity-dominates bug. Synthesize directly over the balanced pool. (Determinism
+            # comes from the on-disk cache in web_search_planned, not from a union-rerank.)
             web_hits = [{"id": f"web{i}", "text": d, "payload": {}} for i, d in enumerate(web_docs)]
             wsy = synthesize(query, web_hits)
             out["answer"], out["source"] = wsy["answer"], "web"
@@ -667,9 +773,25 @@ def run_out_of_corpus() -> None:
 
 
 if __name__ == "__main__":
-    if "--out-of-corpus" in sys.argv or "-b" in sys.argv:
+    args = sys.argv[1:]
+    if "--out-of-corpus" in args or "-b" in args:
         run_out_of_corpus()
     else:
-        q = " ".join(sys.argv[1:]) or "What did Buffett write about non-controlled businesses in 2023?"
-        print(json.dumps(answer(q), indent=2, default=str))
+        # --trace → print the step-by-step process trace + final answer; otherwise just the answer.
+        trace = "--trace" in args
+        q = " ".join(a for a in args if a != "--trace") \
+            or "What did Buffett write about non-controlled businesses in 2023?"
+        out = answer(q)
+        if trace:
+            print(f"source: {out['source']}  |  decision: {out['decision']['label']} "
+                  f"|  grade_relevance: {out['grade_relevance']}")
+            print("trace:")
+            for s in out["steps"]:
+                res = s["result"]
+                if isinstance(res, dict):
+                    res = f"conf={res.get('confidence', '?')}"
+                print(f"  {_STEP_LABELS.get(s['step'], s['step']):10} → {res}")
+            print(f"\nanswer:\n{out['answer']}")
+        else:
+            print(out["answer"])
 

@@ -13,3 +13,6 @@ agentic-rag-for-dummies/
 
 # throwaway run backups (real artifacts are committed; *.bak are not)
 results/*.bak.json
+
+# web-search result cache (reproducibility helper; machine-local, regenerated on demand)
+.web_cache.json
