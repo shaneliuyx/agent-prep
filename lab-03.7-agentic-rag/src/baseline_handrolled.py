@@ -22,7 +22,6 @@ Pipeline (single file, no LangGraph — that's Phase 1-4 of the lab):
 """
 from __future__ import annotations
 
-import json
 import os
 import re
 import sys
@@ -40,6 +39,9 @@ sys.path.insert(0, str(_REPO_ROOT / "shared"))
 from rag_hybrid import (  # noqa: E402
     BGE_M3, BGE_RERANKER_V2_M3,
     CrossEncoderReranker, DenseEncoder, autoconfig,
+)
+from web_search import (  # noqa: E402  — promoted infra (shared/web_search.py); see shared/README
+    cache_lookup, cache_store, rerank_results, web_search,
 )
 
 load_dotenv()
@@ -316,106 +318,11 @@ def corrective_loop(query: str, top_k: int = 6,
 
 # ---------- Pipeline orchestration -----------------------------------------
 
-def _searxng_search(base_url: str, query: str, k: int) -> list[str]:
-    """Query a SearXNG instance's JSON API (free, self-hosted, no key). Aggregates many
-    engines (Google, Startpage, ...) and — crucially for §3.3 — ranks free encyclopedic /
-    press sources ABOVE the Statista paywall snippet that Tavily and DuckDuckGo surface
-    first, so a figure like BHE's 2023 revenue (US$26.198B, Wikipedia) lands in a readable
-    snippet instead of a redacted `**** billion`. stdlib urllib only (no curl / no dep).
-
-    STABILITY: SearXNG is non-deterministic by default — the same query returns a different
-    pool run-to-run, driven by (a) auto language detection from request headers and (b) a
-    rotating/timing-dependent engine set (Bing especially is noisy). We pin both: `language`
-    (env SEARXNG_LANGUAGE, default "en") and an optional `engines` allowlist (env
-    SEARXNG_ENGINES, e.g. "google,duckduckgo,wikipedia"). That removes the two biggest variance
-    sources with no recall loss for a fixed engine set. The cross-encoder rerank in answer()'s
-    web fallback then makes the FINAL top-k a deterministic function of whatever pool comes back.
-    """
-    import urllib.parse
-    import urllib.request
-    params = {"q": query, "format": "json",
-              "language": os.getenv("SEARXNG_LANGUAGE", "en")}  # pin lang → no header-based drift
-    engines = os.getenv("SEARXNG_ENGINES", "").strip()
-    if engines:
-        params["engines"] = engines                            # pin engine set → stable pool
-    url = base_url.rstrip("/") + "/search?" + urllib.parse.urlencode(params)
-    with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310 — operator-set local URL
-        results = json.load(resp).get("results", [])
-    return [r["content"] for r in results[:k] if r.get("content")]
-
-
-def _web_search_live(query: str, k: int) -> list[str]:
-    """The actual network call, backend precedence:
-      1. SEARXNG_URL  — free self-hosted metasearch, best free-source ranking (§3.3)
-      2. TAVILY_API_KEY — managed API (good, but ranks paywalled aggregators high)
-      3. DuckDuckGo   — free, no key, weakest ranking
-    Mirrors crag_variant.py so the two CRAGs are comparable. ImportError (missing tavily/ddgs)
-    propagates — answer()'s config-bug handler turns it into a loud, actionable error."""
-    if os.getenv("SEARXNG_URL"):
-        return _searxng_search(os.environ["SEARXNG_URL"], query, k)
-    if os.getenv("TAVILY_API_KEY"):
-        # Official Tavily SDK (tavily-python) — replaces the sunset
-        # langchain_community.TavilySearchResults wrapper (deprecated in LC 0.3.25).
-        # Drops the langchain dependency from this file entirely (OpenAI client is raw).
-        from tavily import TavilyClient
-        resp = TavilyClient(api_key=os.environ["TAVILY_API_KEY"]).search(query, max_results=k)
-        return [r["content"] for r in resp.get("results", []) if r.get("content")]
-    try:
-        from ddgs import DDGS
-    except ImportError:
-        from duckduckgo_search import DDGS
-    with DDGS() as ddg:
-        return [r["body"] for r in ddg.text(query, max_results=k) if r.get("body")]
-
-
-# On-disk web-search cache → REPRODUCIBILITY. A metasearch is inherently non-deterministic: the
-# same query returns a different doc pool run-to-run because engines bot-block / time out / rotate
-# and language is header-inferred (§3.3 stability note). Pinning language + engines shrinks the
-# variance but can't remove it (e.g. Google's scraper is intermittently blocked, collapsing a
-# pinned pool to empty). So we cache the raw results keyed by (backend+config, k, query): the first
-# run hits the live web, every repeat replays the SAME pool → the SAME answer. Combined with the
-# cross-encoder rerank in answer()'s fallback (deterministic given a pool), repeated queries are
-# fully reproducible. Set WEB_CACHE=0 to force live calls (refresh), or delete the cache file.
-_WEB_CACHE_FILE = Path(os.getenv(
-    "WEB_CACHE_PATH", str(Path(__file__).resolve().parents[1] / ".web_cache.json")))
-
-
-def _web_cache_key(query: str, k: int) -> str:
-    """Key includes the backend + its determinism-affecting config, so switching engine / language
-    / backend invalidates stale entries instead of silently replaying a different source's pool."""
-    if os.getenv("SEARXNG_URL"):
-        backend = (f"searxng:{os.environ['SEARXNG_URL']}:{os.getenv('SEARXNG_LANGUAGE', 'en')}"
-                   f":{os.getenv('SEARXNG_ENGINES', '')}")
-    else:
-        backend = "tavily" if os.getenv("TAVILY_API_KEY") else "ddg"
-    return f"{backend}|k={k}|{query}"
-
-
-def _read_web_cache() -> dict[str, list[str]]:
-    try:
-        return json.loads(_WEB_CACHE_FILE.read_text()) if _WEB_CACHE_FILE.exists() else {}
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def web_search(query: str, k: int = 4) -> list[str]:
-    """Cached wrapper over _web_search_live for reproducible runs (see the cache note above).
-    Cache hit → replay; miss → fetch live + persist. WEB_CACHE=0 disables (always live)."""
-    use_cache = os.getenv("WEB_CACHE", "1") == "1"
-    key = _web_cache_key(query, k)
-    if use_cache:
-        cache = _read_web_cache()
-        if key in cache:
-            return cache[key]
-    docs = _web_search_live(query, k)
-    if use_cache:
-        cache = _read_web_cache()
-        cache[key] = docs
-        try:
-            _WEB_CACHE_FILE.write_text(json.dumps(cache))
-        except OSError:
-            pass  # cache is best-effort; a write failure must never break the answer
-    return docs
+# web_search backend (SearXNG → Tavily → DuckDuckGo) + on-disk reproducibility cache now live in
+# shared/web_search.py (promoted infra — both this file and crag_variant.py import it; see
+# shared/README). Imported at the top: `web_search`, `cache_lookup`, `cache_store`. What stays below
+# is the LAB-SPECIFIC orchestration — web_search_planned (decompose → per-sub-query rerank →
+# interleave) and execute_plan — the pieces that couple to decompose_query + rerank, not infra.
 
 
 # Per-sub-query web depth for the fanned-out fallback. Higher than web_search's k=4
@@ -451,12 +358,13 @@ def web_search_planned(query: str, decision: dict[str, Any],
     Returns (deduped_web_docs, fanout_log). web_search's own ImportError (missing ddgs /
     tavily) is NOT caught here — it propagates so answer()'s config-bug handler fires.
     """
-    use_cache = os.getenv("WEB_CACHE", "1") == "1"
+    # Cache at the ORIGINAL-query level (not per-sub-query): the LLM decomposer's sub-query phrasing
+    # varies run-to-run, so per-sub-query keys miss; the original question is the stable key. Cache
+    # API lives in shared/web_search.py (cache_lookup / cache_store honor WEB_CACHE).
     pkey = f"planned|{decision.get('label')}|k={per_query_k}|{query}"
-    if use_cache:
-        hit = _read_web_cache().get(pkey)
-        if hit is not None:
-            return hit, [f"cache-hit:{query[:40]}"]
+    hit = cache_lookup(pkey)
+    if hit is not None:
+        return hit, [f"cache-hit:{query[:40]}"]
 
     docs: list[str] = []
     log: list[str] = []
@@ -486,9 +394,7 @@ def web_search_planned(query: str, decision: dict[str, Any],
                 # lets the more-relevant entity's docs dominate and silently drops the other's figure
                 # — the "stable but wrong" bug (3 BHE bullets, no BNSF number). Per-sub-query rerank
                 # makes each search yield its own valuable result.
-                hits = [{"id": f"{n.get('id', 'q')}_{i}", "text": d, "payload": {}}
-                        for i, d in enumerate(raw)]
-                ranked = [h["text"] for h in rerank(sub, hits, top_k=keep)]
+                ranked = rerank_results(sub, raw, keep, _reranker)  # shared cross-encoder rerank
                 per_sub.append(ranked)
                 log.append(f"{n.get('id', '?')}({sub[:24]}):{len(raw)}→top{len(ranked)}")
             # Round-robin interleave (q1d1, q2d1, q1d2, q2d2, ...) so BOTH entities sit near the
@@ -507,13 +413,7 @@ def web_search_planned(query: str, decision: dict[str, Any],
                     seen.add(d)
                     docs.append(d)
 
-    if use_cache:
-        cache = _read_web_cache()
-        cache[pkey] = docs
-        try:
-            _WEB_CACHE_FILE.write_text(json.dumps(cache))
-        except OSError:
-            pass  # cache is best-effort; a write failure must never break the answer
+    cache_store(pkey, docs)
     return docs, log
 
 

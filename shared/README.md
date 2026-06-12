@@ -23,9 +23,12 @@ Everything below already had 2+ real call sites when extracted.
 | `llm.py` | py | OpenAI-compatible client, model-preset registry (`resolve`), `resilient` retry, `chat`, `judge`, `load_pass_criteria` | W3.5.96 `reader_ab.py`/`answer_route_ab.py`/`verify_arch.py` + W3.5.95 client pattern → any chapter doing gen/judge |
 | `gbrain_cli.py` | py | `gbrain_get` / `gbrain_query_slugs` wrappers + snippet-guarded `build_context` | W3.5.96 `ground_truth_ab.py`/`answer_route_ab.py` → any **GBrain** chapter |
 | `gbrain_engine.ts` | ts | `bootstrapEngine()` — the standard GBrain connect sequence (one place) | W3.5.96 `policy_eval.ts`/`route_eval.ts`/`query_policy.ts` → any **GBrain** chapter |
+| `web_search.py` | py | cached web-search backend (SearXNG → Tavily → DuckDuckGo) + on-disk reproducibility cache + `rerank_results` (cross-encoder rerank of result strings). `searxng/` ships a ready `docker-compose.yml` for the free local backend | W3.7 `baseline_handrolled.py` + `crag_variant.py` (CRAG web fallback) → any chapter with a web fallback |
 
-`llm.py` is provider-agnostic (every chapter can use it). `gbrain_*` is GBrain-specific — a
-non-GBrain chapter (e.g. W3.5.95) imports only `llm`.
+`llm.py` and `web_search.py` are provider-agnostic (every chapter can use them). `gbrain_*` is
+GBrain-specific — a non-GBrain chapter (e.g. W3.5.95) imports only `llm`. `web_search.py` keeps the
+reranker MODEL out (`rerank_results` takes it as a param) so the module stays light — the reranker
+lives in the `rag_hybrid/` package.
 
 ## API reference — every utility
 
@@ -41,6 +44,19 @@ non-GBrain chapter (e.g. W3.5.95) imports only `llm`.
 | `resilient` | `(fn, *args, retries=4, backoff=2.0)` | retry an LLM call through transient connection drops; raises `LLMUnavailable` if it never recovers. |
 | `LLMUnavailable` | `Exception` | endpoint refused after retries — caller should SKIP the item, not crash. |
 | `load_pass_criteria` | `(ground_truth_path) -> dict[str,str]` | question text → `pass_criteria`, from a W2.7-style `eval_ground_truth.json`. |
+
+### `web_search.py` (Python) — cached web-search backend *(promoted from W3.7)*
+| symbol | signature | what it does |
+|---|---|---|
+| `web_search` | `(query, k=4) -> list[str]` | cached backend call; precedence `SEARXNG_URL` → `TAVILY_API_KEY` → DuckDuckGo. Cache hit replays; miss fetches live + persists. |
+| `rerank_results` | `(query, docs, top_k, reranker) -> list[str]` | cross-encoder rerank of result STRINGS — the accuracy half of the web fallback (rerank each sub-query's docs against ITS sub-query so each entity's figure surfaces). `reranker` = a `rag_hybrid` CrossEncoderReranker, passed in to keep this module torch-free. |
+| `cache_lookup` / `cache_store` | `(key) -> list[str]\|None` / `(key, docs) -> None` | generic disk-cache access for callers that cache at a HIGHER level than one query (e.g. a fanned-out planned query whose whole pool replays as one unit). Honor `WEB_CACHE`. |
+| `web_cache_key` | `(query, k) -> str` | per-query cache key, backend+config aware (changing engine/language/backend invalidates). |
+| `web_cache_enabled` | `() -> bool` | the `WEB_CACHE` env toggle. |
+
+Determinism + accuracy rationale and the `searxng/` docker setup are documented in the W3.7
+chapter §3.3.1 and `searxng/README.md`. Env: `SEARXNG_URL`, `SEARXNG_LANGUAGE` (default `en`),
+`SEARXNG_ENGINES` (optional allowlist), `TAVILY_API_KEY`, `WEB_CACHE` (1/0), `WEB_CACHE_PATH`.
 
 ### `gbrain_cli.py` (Python) — GBrain CLI wrappers + read assembly *(GBrain chapters only)*
 | symbol | signature | what it does |

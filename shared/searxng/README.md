@@ -1,6 +1,7 @@
-# SearXNG — free web-fallback backend for the agentic-RAG pipeline
+# SearXNG — free web-fallback backend for `shared/web_search.py`
 
-`baseline_handrolled.web_search()` picks a backend by precedence:
+`shared/web_search.web_search()` picks a backend by precedence (used by both the hand-rolled
+`baseline_handrolled.py` and the LangGraph `crag_variant.py` — one source of truth):
 
 1. **`SEARXNG_URL`** — this local metasearch (free, no key, best free-source ranking)
 2. **`TAVILY_API_KEY`** — managed API (good, but ranks paywalled aggregators high)
@@ -9,7 +10,7 @@
 ## Run it
 
 ```bash
-docker compose -f searxng/docker-compose.yml up -d         # starts searxng-lab on :8080
+cd shared/searxng && docker compose up -d                  # from repo root; starts searxng-lab :8080
 # wait ~25s for first boot, then confirm the JSON API is live:
 python -c "import urllib.request,json; \
 print(len(json.load(urllib.request.urlopen('http://localhost:8080/search?q=test&format=json'))['results']))"
@@ -17,7 +18,7 @@ print(len(json.load(urllib.request.urlopen('http://localhost:8080/search?q=test&
 export SEARXNG_URL=http://localhost:8080                    # or add to .env / mcp-config.json env
 ```
 
-Stop / remove: `docker compose -f searxng/docker-compose.yml down`.
+Stop / remove: `docker compose down` (from `shared/searxng/`).
 
 ## Why it exists
 

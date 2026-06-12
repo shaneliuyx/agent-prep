@@ -38,6 +38,7 @@ from qdrant_client import QdrantClient  # noqa: E402
 from rag_hybrid import (  # noqa: E402
     BGE_M3, BGE_RERANKER_V2_M3, CrossEncoderReranker, DenseEncoder, autoconfig,
 )
+from web_search import web_search  # noqa: E402  — promoted infra (shared/web_search.py)
 
 # ── thresholds: score >= UPPER -> Correct; <= LOWER -> Incorrect; else Ambiguous ──
 CONF_UPPER = float(os.getenv("CRAG_UPPER", "0.7"))
@@ -69,24 +70,9 @@ def retrieve_passages(query: str, k: int = 6, pool: int = 30) -> list[str]:
     return [text for _doc_id, text, _score in _reranker.rerank(query, pts, top_k=k)]
 
 
-# ── Web search: Tavily (if key) -> DuckDuckGo (free) -> clear error ──
-def web_search(query: str, k: int = 3) -> list[str]:
-    if os.getenv("TAVILY_API_KEY"):
-        # Official Tavily SDK — replaces the sunset langchain_community wrapper
-        # (kept in sync with baseline_handrolled.web_search, see its note).
-        from tavily import TavilyClient
-        resp = TavilyClient(api_key=os.environ["TAVILY_API_KEY"]).search(query, max_results=k)
-        return [r["content"] for r in resp.get("results", []) if r.get("content")]
-    try:
-        from ddgs import DDGS                       # current package name
-    except ImportError:
-        try:
-            from duckduckgo_search import DDGS       # older package name
-        except ImportError as e:
-            raise RuntimeError(
-                "No web backend: set TAVILY_API_KEY, or `uv pip install ddgs`.") from e
-    with DDGS() as ddg:
-        return [r["body"] for r in ddg.text(query, max_results=k) if r.get("body")]
+# ── Web search: shared/web_search.py — SearXNG → Tavily → DuckDuckGo + on-disk cache. ──
+# Imported above. Same backend + reproducibility cache as baseline_handrolled.py (one source of
+# truth); importing it here also upgrades this file from Tavily/DDG-only to the SearXNG-first chain.
 
 
 # ── CRAG state ──
