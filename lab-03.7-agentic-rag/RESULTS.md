@@ -85,6 +85,50 @@ fire, no runaway).
 > (deterministic) over the per-arm "answered" tally (coarse); for true accuracy, judge each answer
 > against a web-sourced ground truth.
 
+## Phase 3.3.1 — web-fallback decomposition (multi-hop comparison)
+
+Phase 3's out-of-corpus questions were **single-entity** ("who won the 2025 NBA Finals?"). A
+**multi-hop comparison** exposes a failure single-entity hides: `Compare BNSF Railway and Berkshire
+Energy 2023 revenue` — no single web page holds both figures, so one web search abstains. Probes
+(`src/baseline_handrolled.py`, 2026-06-11/12, against a live SearXNG on `:8080`):
+
+| backend / path | BNSF 2023 | BHE 2023 | outcome |
+|---|---|---|---|
+| any, single-shot comparison search | — | — | full `I don't know` |
+| Tavily, fan-out (k=6) | `$23.876B` ✓ | `**** billion` (Statista paywall) | half-grounded |
+| DuckDuckGo, fan-out | `$23.876B` ✓ | `I don't know` | worse (DDG dropped BHE) |
+| **SearXNG, fan-out (k=8)** | **`$23.876B` ✓** | **`US$26.198B` ✓** | **both grounded + cited** |
+
+**The fixes (chapter §3.3.1, Fix 1-6):**
+- **Fan-out** (`web_search_planned`): decompose the comparison → web-search each atomic sub-query →
+  union. Turns the single-shot abstain into a grounded answer.
+- **Backend ranking matters.** Tavily AND DuckDuckGo both rank a *paywalled* Statista snippet
+  (`**** billion`) above the free Wikipedia figure for BHE — two engines sharing ranking signals
+  failing the same way is **not** proof it's unreachable. A SearXNG metasearch reranks across engines
+  and surfaces Wikipedia's `US$26.198B`. (A *wrong* conclusion of mine — "engine swap ruled out" —
+  corrected by running the third engine.)
+- **Accuracy > stability — per-sub-query rerank.** A union-rerank against the *whole* comparison query
+  let one entity dominate: **3 BHE bullets, BNSF's figure silently dropped** (stable but wrong once
+  cached). Reranking each sub-query's docs against *its own* sub-query (then interleave) yields one
+  grounded, cited figure **per entity**.
+- **Re-grade the shipped answer (Fix 5).** The web fallback overwrote `answer` but not the graders, so
+  a correct cited answer reported `grade_relevance: abstain`, `selfrag.confidence: 0.0` (the discarded
+  corpus pass). Re-grading against the web answer flips it to **`pass` / `confidence 0.875`**, text
+  unchanged.
+- **Reproducibility cache.** A metasearch is non-deterministic (engines bot-block / rotate; language
+  header-inferred), so results are cached on disk at the **original-query** level (the decomposer's
+  sub-query phrasing varies run-to-run, so per-sub-query keys miss). With the cache, 3 repeat runs of
+  the comparison were **byte-identical**.
+
+**Promotion to shared.** `web_search` (backend + cache) + `rerank_results` moved to
+`shared/web_search.py` (imported by both `baseline_handrolled.py` and `crag_variant.py`); the SearXNG
+docker setup moved to `shared/searxng/`.
+
+> Caveat: web ranking is non-deterministic — BHE's figure surfaces as `$26.198B` (Wikipedia, total) or
+> `$25.6B` (Statista, operating) depending on the run's top source. SearXNG makes the authoritative
+> free source *reachable in the top-k*, not *guaranteed first*; the pipeline grounds whatever the top
+> passages contain and abstains rather than fabricates when thin.
+
 ## Reproduce
 
 ```bash
@@ -94,4 +138,10 @@ uv run python src/02_comparison_harness.py            # 3-arm easy set → resul
 uv run python src/02b_ragas_eval.py                   # RAGAS → results/ragas_scores.json
 uv run python src/make_hard_dev_set.py --out data/hard_dev_set.jsonl   # §2.6 difficulty stratification
 uv run python src/03_crag_eval.py --show              # §3.2 CRAG out-of-corpus (TAVILY_API_KEY optional)
+
+# §3.3.1 web-fallback decomposition (free path needs a SearXNG backend):
+docker compose -f ../../shared/searxng/docker-compose.yml up -d   # free local SearXNG on :8080
+export SEARXNG_URL=http://localhost:8080
+uv run python src/baseline_handrolled.py --trace \
+  "Compare BNSF Railway and Berkshire Energy 2023 revenue."       # fan-out + per-sub rerank + re-grade
 ```
