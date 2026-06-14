@@ -2,8 +2,8 @@
 
 Reusable code extracted from the lab chapters, so later chapters stay lean. Two shapes live here:
 **flat infra modules** (LLM client/retry/presets, GBrain connect/read — documented below) and
-larger **packages** (`rag_hybrid/`, `tree_index/`, `phoenix_tracing/`, `agent_loop_tools/`, each
-its own folder with a README + tests). What does NOT live here: the **teaching primitives** —
+larger **packages** (`rag_hybrid/`, `tree_index/`, `phoenix_tracing/`, `agent_loop_tools/`,
+`web_toolkit/`, each its own folder with a README + tests). What does NOT live here: the **teaching primitives** —
 the metric/routing/reader/policy logic each chapter *introduces* stays in that chapter's lab so
 the reader sees the mechanism.
 
@@ -23,7 +23,7 @@ Everything below already had 2+ real call sites when extracted.
 | `llm.py` | py | OpenAI-compatible client, model-preset registry (`resolve`), `resilient` retry, `chat`, `judge`, `load_pass_criteria` | W3.5.96 `reader_ab.py`/`answer_route_ab.py`/`verify_arch.py` + W3.5.95 client pattern → any chapter doing gen/judge |
 | `gbrain_cli.py` | py | `gbrain_get` / `gbrain_query_slugs` wrappers + snippet-guarded `build_context` | W3.5.96 `ground_truth_ab.py`/`answer_route_ab.py` → any **GBrain** chapter |
 | `gbrain_engine.ts` | ts | `bootstrapEngine()` — the standard GBrain connect sequence (one place) | W3.5.96 `policy_eval.ts`/`route_eval.ts`/`query_policy.ts` → any **GBrain** chapter |
-| `web_search.py` | py | cached web-search backend (SearXNG → Tavily → DuckDuckGo) + on-disk reproducibility cache + `rerank_results` (cross-encoder rerank of result strings). `searxng/` ships a ready `docker-compose.yml` for the free local backend | W3.7 `baseline_handrolled.py` + `crag_variant.py` (CRAG web fallback) → any chapter with a web fallback |
+| `web_search.py` | py | cached web-search backend (SearXNG → Tavily → DuckDuckGo) + on-disk reproducibility cache + `rerank_results` (cross-encoder rerank of result strings). `searxng/` ships a ready `docker-compose.yml` for the free local backend. **For agent action-spaces** (structured results + fetch/batch-fetch/browse) see the `web_toolkit/` package | W3.7 `baseline_handrolled.py` + `crag_variant.py` (CRAG web fallback) → any chapter with a web fallback |
 
 `llm.py` and `web_search.py` are provider-agnostic (every chapter can use them). `gbrain_*` is
 GBrain-specific — a non-GBrain chapter (e.g. W3.5.95) imports only `llm`. `web_search.py` keeps the
@@ -84,6 +84,7 @@ README for its API; the table is the index.
 | `tree_index/` | PageIndex-pattern tree-index RAG primitives: `builder`, `summary_index`, `page_vector_index`, `entity_index`, `ensemble`, `agentic` search, `prompts` | W2.7 `lab-02-7-pageindex` (lifted tree judge 0.44 → 0.885) | `tree_index/README.md` |
 | `phoenix_tracing/` | one-call Phoenix observability — wraps `register()` + OpenAI/LangChain instrumentors + span helpers for any RAG/agent lab | W3 `lab-03-rag-eval/src/05_trace.py` | `phoenix_tracing/README.md` |
 | `agent_loop_tools/` | iterative agent-loop primitives: `interrupt_state` (pause/resume), `token_accounting` | ported from gnhf (MIT) → agent-loop labs | `agent_loop_tools/README.md` |
+| `web_toolkit/` | agent-facing web tools with structured results: `web_search` (SearXNG→Tavily→DDG, ranked), `web_fetch` + `web_batch_fetch` (scrapling CLI), `web_browse` (agent-browser CLI). CLI-driven backends, typed dataclass results, no torch | synthesized from `Wade11s/pi-web-toolkit` + promoted from `web_search.py` → W4+ ReAct / tool-harness labs | `web_toolkit/README.md` |
 
 **Loose helpers (repo-root of `shared/`):**
 - `guild_client.py` — Python wrapper over guild's MCP stdio interface (schema-verified against `list_tools()`).
