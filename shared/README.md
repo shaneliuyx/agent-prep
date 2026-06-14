@@ -23,12 +23,11 @@ Everything below already had 2+ real call sites when extracted.
 | `llm.py` | py | OpenAI-compatible client, model-preset registry (`resolve`), `resilient` retry, `chat`, `judge`, `load_pass_criteria` | W3.5.96 `reader_ab.py`/`answer_route_ab.py`/`verify_arch.py` + W3.5.95 client pattern → any chapter doing gen/judge |
 | `gbrain_cli.py` | py | `gbrain_get` / `gbrain_query_slugs` wrappers + snippet-guarded `build_context` | W3.5.96 `ground_truth_ab.py`/`answer_route_ab.py` → any **GBrain** chapter |
 | `gbrain_engine.ts` | ts | `bootstrapEngine()` — the standard GBrain connect sequence (one place) | W3.5.96 `policy_eval.ts`/`route_eval.ts`/`query_policy.ts` → any **GBrain** chapter |
-| `web_search.py` | py | cached web-search backend (SearXNG → Tavily → DuckDuckGo) + on-disk reproducibility cache + `rerank_results` (cross-encoder rerank of result strings). `searxng/` ships a ready `docker-compose.yml` for the free local backend. **For agent action-spaces** (structured results + fetch/batch-fetch/browse) see the `web_toolkit/` package | W3.7 `baseline_handrolled.py` + `crag_variant.py` (CRAG web fallback) → any chapter with a web fallback |
 
-`llm.py` and `web_search.py` are provider-agnostic (every chapter can use them). `gbrain_*` is
-GBrain-specific — a non-GBrain chapter (e.g. W3.5.95) imports only `llm`. `web_search.py` keeps the
-reranker MODEL out (`rerank_results` takes it as a param) so the module stays light — the reranker
-lives in the `rag_hybrid/` package.
+`llm.py` is provider-agnostic (every chapter can use it). `gbrain_*` is GBrain-specific — a
+non-GBrain chapter (e.g. W3.5.95) imports only `llm`. Web search now lives in the `web_toolkit/`
+package (see Packages): it keeps the reranker MODEL out (`rerank_results` takes it as a param) so
+the module stays torch-free — the reranker lives in the `rag_hybrid/` package.
 
 ## API reference — every utility
 
@@ -45,14 +44,20 @@ lives in the `rag_hybrid/` package.
 | `LLMUnavailable` | `Exception` | endpoint refused after retries — caller should SKIP the item, not crash. |
 | `load_pass_criteria` | `(ground_truth_path) -> dict[str,str]` | question text → `pass_criteria`, from a W2.7-style `eval_ground_truth.json`. |
 
-### `web_search.py` (Python) — cached web-search backend *(promoted from W3.7)*
-| symbol | signature | what it does |
+### web search → moved into the `web_toolkit/` package
+
+The old `web_search.py` was **merged into `web_toolkit/`** (see Packages + `web_toolkit/README.md`
+for the full API). The RAG web-fallback symbols the W3.7 labs import are preserved there, with the
+legacy contract intact and the original `web_cache_key` format kept so existing `.web_cache.json`
+pools replay identically:
+
+| symbol (import `from web_toolkit`) | signature | what it does |
 |---|---|---|
-| `web_search` | `(query, k=4) -> list[str]` | cached backend call; precedence `SEARXNG_URL` → `TAVILY_API_KEY` → DuckDuckGo. Cache hit replays; miss fetches live + persists. |
-| `rerank_results` | `(query, docs, top_k, reranker) -> list[str]` | cross-encoder rerank of result STRINGS — the accuracy half of the web fallback (rerank each sub-query's docs against ITS sub-query so each entity's figure surfaces). `reranker` = a `rag_hybrid` CrossEncoderReranker, passed in to keep this module torch-free. |
-| `cache_lookup` / `cache_store` | `(key) -> list[str]\|None` / `(key, docs) -> None` | generic disk-cache access for callers that cache at a HIGHER level than one query (e.g. a fanned-out planned query whose whole pool replays as one unit). Honor `WEB_CACHE`. |
-| `web_cache_key` | `(query, k) -> str` | per-query cache key, backend+config aware (changing engine/language/backend invalidates). |
-| `web_cache_enabled` | `() -> bool` | the `WEB_CACHE` env toggle. |
+| `web_search_text` | `(query, k=4) -> list[str]` | **legacy** content-string search (was `web_search.py:web_search`); precedence `SEARXNG_URL` → `TAVILY_API_KEY` → DuckDuckGo, single-page, original cache key. W3.7 imports it as `web_search_text as web_search`. |
+| `web_search` | `(query, *, results=10, language=None) -> list[SearchResult]` | **new** structured search (title/url/snippet/engine/score), paginated + de-duped — for agent action-spaces. |
+| `rerank_results` | `(query, docs, top_k, reranker) -> list[str]` | cross-encoder rerank of result STRINGS — the accuracy half of the web fallback; `reranker` passed in to keep the module torch-free. |
+| `cache_lookup` / `cache_store` | `(key) -> list\|None` / `(key, value) -> None` | generic disk-cache access for callers caching at a HIGHER level than one query. Honor `WEB_CACHE`. |
+| `web_cache_key` / `web_cache_enabled` | `(query, k) -> str` / `() -> bool` | legacy per-query cache key (backend+config aware) and the `WEB_CACHE` toggle. |
 
 Determinism + accuracy rationale and the `searxng/` docker setup are documented in the W3.7
 chapter §3.3.1 and `searxng/README.md`. Env: `SEARXNG_URL`, `SEARXNG_LANGUAGE` (default `en`),
@@ -84,7 +89,7 @@ README for its API; the table is the index.
 | `tree_index/` | PageIndex-pattern tree-index RAG primitives: `builder`, `summary_index`, `page_vector_index`, `entity_index`, `ensemble`, `agentic` search, `prompts` | W2.7 `lab-02-7-pageindex` (lifted tree judge 0.44 → 0.885) | `tree_index/README.md` |
 | `phoenix_tracing/` | one-call Phoenix observability — wraps `register()` + OpenAI/LangChain instrumentors + span helpers for any RAG/agent lab | W3 `lab-03-rag-eval/src/05_trace.py` | `phoenix_tracing/README.md` |
 | `agent_loop_tools/` | iterative agent-loop primitives: `interrupt_state` (pause/resume), `token_accounting` | ported from gnhf (MIT) → agent-loop labs | `agent_loop_tools/README.md` |
-| `web_toolkit/` | agent-facing web tools with structured results: `web_search` (SearXNG→Tavily→DDG, ranked), `web_fetch` + `web_batch_fetch` (scrapling CLI), `web_browse` (agent-browser CLI). CLI-driven backends, typed dataclass results, no torch | synthesized from `Wade11s/pi-web-toolkit` + promoted from `web_search.py` → W4+ ReAct / tool-harness labs | `web_toolkit/README.md` |
+| `web_toolkit/` | canonical web home. Agent tools with structured results: `web_search` (SearXNG→Tavily→DDG, ranked), `web_fetch` + `web_batch_fetch` (scrapling CLI), `web_browse` (agent-browser CLI); **plus** the merged RAG web-fallback primitives `web_search_text` / `rerank_results` / cache (legacy contract + original cache key kept for W3.7 reproducibility). CLI-driven, typed results, torch-free | synthesized from `Wade11s/pi-web-toolkit` + absorbed the former `web_search.py` (W3.7) → W3.7 CRAG labs + W4+ ReAct / tool-harness labs | `web_toolkit/README.md` |
 
 **Loose helpers (repo-root of `shared/`):**
 - `guild_client.py` — Python wrapper over guild's MCP stdio interface (schema-verified against `list_tools()`).

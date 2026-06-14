@@ -5,17 +5,25 @@ backends — no required API keys. Built for custom agent loops (W4+ ReAct / too
 where a tool call must return a typed payload, not a free-form string.
 
 Synthesized from [`Wade11s/pi-web-toolkit`](https://github.com/Wade11s/pi-web-toolkit)
-(architecture: SearXNG + scrapling + agent-browser) and promoted from this repo's own
-[`shared/web_search.py`](../web_search.py) (multi-backend precedence + on-disk reproducibility cache).
+(architecture: SearXNG + scrapling + agent-browser) and **absorbed the former `shared/web_search.py`**
+(multi-backend precedence + on-disk reproducibility cache + cross-encoder rerank).
 
-## Relationship to `shared/web_search.py`
+## Two contracts, one core (merge of the old `web_search.py`)
 
-`web_search.py` stays as-is — it is the **RAG web-fallback** primitive (returns `list[str]` of
-snippets + `rerank_results` cross-encoder rerank) imported by the W3.7 CRAG labs, and the
-provenance rule keeps finished chapters un-churned. `web_toolkit` is the **agent-facing** evolution:
-structured results (title/url/snippet/engine/score), page **fetch** + **batch-fetch** + interactive
-**browse**, no torch dependency. Use `web_search.py` inside a RAG retriever; use `web_toolkit` inside
-an agent's action space.
+`web_toolkit` is now the single canonical web home. It exposes two search contracts over one
+backend+cache core:
+
+- **`web_search(...) -> list[SearchResult]`** — agent-facing, structured (title/url/snippet/engine/
+  score), paginated + de-duped. Use inside an agent action-space.
+- **`web_search_text(query, k) -> list[str]`** — the legacy RAG web-fallback contract (was
+  `web_search.py:web_search`): single-page content strings, with the **original `web_cache_key`
+  format preserved** so existing `.web_cache.json` pools replay identically (W3.7 CRAG
+  reproducibility). The W3.7 labs import it as `web_search_text as web_search`.
+
+The RAG primitives the W3.7 labs depend on — `rerank_results` (torch-free; reranker injected),
+`cache_lookup`, `cache_store`, `web_cache_key`, `web_cache_enabled` — moved here unchanged. Use
+`web_search_text`/`rerank_results` inside a RAG retriever; use `web_search`/`web_fetch`/`web_browse`
+inside an agent's action space.
 
 ## Tools
 

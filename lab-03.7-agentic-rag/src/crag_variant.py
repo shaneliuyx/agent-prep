@@ -38,7 +38,7 @@ from qdrant_client import QdrantClient  # noqa: E402
 from rag_hybrid import (  # noqa: E402
     BGE_M3, BGE_RERANKER_V2_M3, CrossEncoderReranker, DenseEncoder, autoconfig,
 )
-from web_search import web_search  # noqa: E402  — promoted infra (shared/web_search.py)
+from web_toolkit import web_search_text as web_search  # noqa: E402  — merged infra (shared/web_toolkit)
 
 # ── thresholds: score >= UPPER -> Correct; <= LOWER -> Incorrect; else Ambiguous ──
 CONF_UPPER = float(os.getenv("CRAG_UPPER", "0.7"))

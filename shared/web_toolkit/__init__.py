@@ -32,9 +32,18 @@ from ._types import (
 )
 from .browse import BrowseError, agent_browser_available, web_browse
 from .fetch import FetchError, scrapling_available, web_batch_fetch, web_fetch
-from .search import SearchError, web_search, web_search_text
+from .search import (
+    SearchError,
+    cache_lookup,
+    cache_store,
+    rerank_results,
+    web_cache_enabled,
+    web_cache_key,
+    web_search,
+    web_search_text,
+)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # tools
@@ -56,5 +65,11 @@ __all__ = [
     # capability probes
     "scrapling_available",
     "agent_browser_available",
+    # RAG web-fallback primitives (merged from shared/web_search.py)
+    "rerank_results",
+    "cache_lookup",
+    "cache_store",
+    "web_cache_key",
+    "web_cache_enabled",
     "__version__",
 ]

@@ -30,3 +30,4 @@ last30days-x.env
 
 # Cloned external tool — has its own git history; referenced for MCP schemas, not lab content (added 2026-06-05)
 gbrain/
+.web_cache.json

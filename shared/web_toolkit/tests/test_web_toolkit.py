@@ -64,11 +64,64 @@ def test_search_cache_roundtrip(tmp_path, monkeypatch):
         calls["n"] += 1
         return [SearchResult(title="cached", url="https://c", snippet="hit")]
 
-    monkeypatch.setattr(s, "_live", fake_live)
+    monkeypatch.setattr(s, "_live_structured", fake_live)
     first = web_search("q", results=3)
     second = web_search("q", results=3)
     assert calls["n"] == 1            # second served from cache
     assert first[0].url == second[0].url == "https://c"
+
+
+# ---- legacy path (merged from web_search.py) — reproducibility ----------------
+
+def test_web_cache_key_legacy_format(monkeypatch):
+    """The legacy key format must be byte-identical to the old web_search.py so existing
+    .web_cache.json pools still hit (W3.7 reproducibility)."""
+    from web_toolkit import web_cache_key
+    monkeypatch.setenv("SEARXNG_URL", "http://localhost:8080")
+    monkeypatch.setenv("SEARXNG_LANGUAGE", "en")
+    monkeypatch.delenv("SEARXNG_ENGINES", raising=False)
+    assert web_cache_key("foo bar", 4) == "searxng:http://localhost:8080:en:|k=4|foo bar"
+    monkeypatch.delenv("SEARXNG_URL", raising=False)
+    monkeypatch.setenv("TAVILY_API_KEY", "x")
+    assert web_cache_key("q", 2) == "tavily|k=2|q"
+
+
+def test_web_search_text_replays_legacy_cache(tmp_path, monkeypatch):
+    """web_search_text replays an existing legacy-key cache entry WITHOUT hitting the network —
+    the guarantee that a finished W3.7 run reproduces after the merge."""
+    import json as _json
+    from web_toolkit import web_search_text, web_cache_key
+    monkeypatch.setenv("WEB_CACHE", "1")
+    monkeypatch.setenv("WEB_CACHE_PATH", str(tmp_path / "c.json"))
+    monkeypatch.setenv("SEARXNG_URL", "http://localhost:8080")
+    monkeypatch.setenv("SEARXNG_LANGUAGE", "en")
+    monkeypatch.delenv("SEARXNG_ENGINES", raising=False)
+
+    # Seed a cache entry exactly as the old web_search.py would have written it.
+    key = web_cache_key("berkshire revenue", 4)
+    (tmp_path / "c.json").write_text(_json.dumps({key: ["doc-A", "doc-B"]}))
+
+    # No network: if it tried to fetch localhost it would connection-refuse in CI.
+    out = web_search_text("berkshire revenue", k=4)
+    assert out == ["doc-A", "doc-B"]
+
+
+def test_rerank_results_orders_by_score():
+    from web_toolkit import rerank_results
+
+    class FakeReranker:
+        class _cfg:
+            class spec:
+                batch_size = 8
+        cfg = _cfg()
+        _model = None
+        def _ensure_loaded(self):
+            self._model = self
+        def predict(self, pairs, batch_size):  # higher = more relevant
+            return [len(d) for _, d in pairs]   # rank by doc length, descending
+
+    out = rerank_results("q", ["aa", "aaaa", "a"], top_k=2, reranker=FakeReranker())
+    assert out == ["aaaa", "aa"]
 
 
 # ---- live (skipped when backend unavailable) --------------------------------

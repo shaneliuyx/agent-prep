@@ -40,8 +40,8 @@ from rag_hybrid import (  # noqa: E402
     BGE_M3, BGE_RERANKER_V2_M3,
     CrossEncoderReranker, DenseEncoder, autoconfig,
 )
-from web_search import (  # noqa: E402  — promoted infra (shared/web_search.py); see shared/README
-    cache_lookup, cache_store, rerank_results, web_search,
+from web_toolkit import (  # noqa: E402  — merged infra (shared/web_toolkit); see shared/README
+    cache_lookup, cache_store, rerank_results, web_search_text as web_search,
 )
 
 load_dotenv()
