@@ -105,10 +105,28 @@ Confirms the loop terminates correctly on a `final_answer` (no `tool_calls`), th
 tool dispatch path works (0 errors), and the obs sidecar writes one event row per
 iteration. Source: `src/run.py` stdout + the SQLite event log.
 
+## Phase 5 — bad-case suite — 2026-06-15
+
+`uv run pytest tests/test_bad_cases.py` → **16 passed** (15 scenarios; Scenario 2
+has 2 cases). Covers: max-iter guard, hallucinated tool name, oversized-result
+truncation, malformed/missing args, premature stop, circular-reasoning detection,
+tool timeout, error-as-observation, context-window eviction, inconsistent tool
+schema, prose-instead-of-tool-call, nested tool calls, bounded retries, stale
+scratchpad.
+
+Two test bugs found + fixed on first green run (not loop bugs):
+- Scenario 08 (`test_python_repl_times_out`): `python_repl` was never imported
+  (a dead `autouse=False` fixture). Fix: import it at module top.
+- Scenario 10 (`test_context_guard_evicts_oldest_entries`): fixture stuffed only
+  30×500 chars (~3750 tokens) yet asserted it exceeded the 28k limit. Fix: 30×4000
+  chars (~30k tokens) and assert `> CONTEXT_TOKEN_LIMIT`.
+
+Note: Scenario 10 is a precondition + no-crash check; `Scratchpad` has no public
+evict method (eviction lives inside `agent_run`'s CTX_GUARD), so it does not assert
+oldest-entry drop directly — a deeper eviction test is a follow-up.
+
 ## Pending
 
-- Phase 5 — 15 engineered ReAct bad-case scenarios + `tests/test_bad_cases.py`
-  (not yet authored/run; the 15-row failure table will land here when measured).
 - A longer / multi-tool `agent_run()` (the run above exercised a single
   `python_repl` call; web_search + file tools in one trajectory not yet measured).
 - Re-measure if the oMLX engine version changes (tool parsing + memory ceiling are
