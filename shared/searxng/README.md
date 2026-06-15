@@ -1,6 +1,6 @@
-# SearXNG — free web-fallback backend for `shared/web_search.py`
+# SearXNG — free web-fallback backend for `shared/web_toolkit`
 
-`shared/web_search.web_search()` picks a backend by precedence (used by both the hand-rolled
+`shared/web_toolkit.web_search_text()` picks a backend by precedence (used by both the hand-rolled
 `baseline_handrolled.py` and the LangGraph `crag_variant.py` — one source of truth):
 
 1. **`SEARXNG_URL`** — this local metasearch (free, no key, best free-source ranking)

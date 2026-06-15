@@ -319,8 +319,8 @@ def corrective_loop(query: str, top_k: int = 6,
 # ---------- Pipeline orchestration -----------------------------------------
 
 # web_search backend (SearXNG → Tavily → DuckDuckGo) + on-disk reproducibility cache now live in
-# shared/web_search.py (promoted infra — both this file and crag_variant.py import it; see
-# shared/README). Imported at the top: `web_search`, `cache_lookup`, `cache_store`. What stays below
+# shared/web_toolkit (merged infra — both this file and crag_variant.py import it; see
+# shared/README). Imported at the top: `web_search_text as web_search`, `cache_lookup`, `cache_store`. What stays below
 # is the LAB-SPECIFIC orchestration — web_search_planned (decompose → per-sub-query rerank →
 # interleave) and execute_plan — the pieces that couple to decompose_query + rerank, not infra.
 
@@ -360,7 +360,7 @@ def web_search_planned(query: str, decision: dict[str, Any],
     """
     # Cache at the ORIGINAL-query level (not per-sub-query): the LLM decomposer's sub-query phrasing
     # varies run-to-run, so per-sub-query keys miss; the original question is the stable key. Cache
-    # API lives in shared/web_search.py (cache_lookup / cache_store honor WEB_CACHE).
+    # API lives in shared/web_toolkit (cache_lookup / cache_store honor WEB_CACHE).
     pkey = f"planned|{decision.get('label')}|k={per_query_k}|{query}"
     hit = cache_lookup(pkey)
     if hit is not None:

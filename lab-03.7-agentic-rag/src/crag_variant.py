@@ -70,7 +70,7 @@ def retrieve_passages(query: str, k: int = 6, pool: int = 30) -> list[str]:
     return [text for _doc_id, text, _score in _reranker.rerank(query, pts, top_k=k)]
 
 
-# ── Web search: shared/web_search.py — SearXNG → Tavily → DuckDuckGo + on-disk cache. ──
+# ── Web search: shared/web_toolkit — SearXNG → Tavily → DuckDuckGo + on-disk cache. ──
 # Imported above. Same backend + reproducibility cache as baseline_handrolled.py (one source of
 # truth); importing it here also upgrades this file from Tavily/DDG-only to the SearXNG-first chain.
 
