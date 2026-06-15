@@ -24,9 +24,21 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from openai import OpenAI
+
+# Optional observability sidecar (src/obs.py). Imported once at module load;
+# agent_run() still gates on its `obs` flag, but a no-op fallback keeps the loop
+# runnable (and type-clean) when the module is absent.
+try:
+    from src.obs import log_event
+    _OBS_AVAILABLE = True
+except ImportError:
+    _OBS_AVAILABLE = False
+
+    def log_event(*_args, **_kwargs) -> None:  # type: ignore[no-redef]  # no-op fallback
+        return None
 
 # ---------------------------------------------------------------------------
 # 1. Client setup
@@ -96,6 +108,7 @@ class ScratchpadEntry:
     content: str        # the raw text the model emitted, or the tool result
     tool_call_id: str = ""
     name: str = ""      # tool name, only for role=="tool"
+    _tool_calls: list = field(default_factory=list)  # raw tool_call objs (assistant turns)
 
 
 @dataclass
@@ -208,18 +221,19 @@ def call_llm(messages: list[dict]) -> LLMResponse:
     """Send messages to the model; return a structured response."""
     resp = _client.chat.completions.create(
         model=MODEL,
-        messages=messages,
-        tools=tool_schemas() or None,       # None disables tool_choice parsing
+        messages=cast(Any, messages),       # plain dicts are valid at runtime; SDK types are stricter
+        tools=cast(Any, tool_schemas() or None),  # None disables tool_choice parsing
         tool_choice="auto",
         temperature=0.0,                    # determinism; important for bad-case tests
         max_tokens=1024,
     )
     choice = resp.choices[0]
+    usage = resp.usage                      # may be None on some local backends
     return LLMResponse(
         content=choice.message.content or "",
         tool_calls=choice.message.tool_calls or [],
-        prompt_tokens=resp.usage.prompt_tokens,
-        completion_tokens=resp.usage.completion_tokens,
+        prompt_tokens=usage.prompt_tokens if usage else 0,
+        completion_tokens=usage.completion_tokens if usage else 0,
     )
 
 
@@ -319,16 +333,14 @@ def agent_run(
     Returns:
         The agent's final text answer.
     """
-    if obs:
-        try:
-            from src.obs import log_event
-        except ImportError:
-            obs = False   # graceful degradation if obs module not yet created
+    if obs and not _OBS_AVAILABLE:
+        obs = False   # obs sidecar absent → run without logging
 
     run_id = run_id or f"run_{int(time.time()*1000)}"
     scratchpad = Scratchpad()
     call_counts: dict[str, int] = {}
     last_tool_signature: tuple | None = None   # for circular-reasoning detection
+    llm_resp: LLMResponse | None = None        # bound in the loop; referenced by the DLQ msg
 
     for iteration in range(MAX_ITER):
 
@@ -363,6 +375,7 @@ def agent_run(
 
         for tc in llm_resp.tool_calls:
             tool_name = tc.function.name
+            tool_latency_ms = 0   # default; overwritten only when a tool actually runs
             try:
                 tool_args = json.loads(tc.function.arguments)
             except json.JSONDecodeError:
@@ -393,7 +406,7 @@ def agent_run(
                     tool_name=tool_name,
                     prompt_tokens=llm_resp.prompt_tokens,
                     completion_tokens=llm_resp.completion_tokens,
-                    tool_latency_ms=tool_latency_ms if "tool_latency_ms" in dir() else 0,
+                    tool_latency_ms=tool_latency_ms,
                     tool_error=tool_result if tool_result.startswith("ERROR") else None,
                 )
 
@@ -402,7 +415,7 @@ def agent_run(
     # MAX_ITER exhausted — dead-letter handling
     dlq_msg = (
         f"[AGENT STOPPED: reached maximum iterations ({MAX_ITER}) without a final answer. "
-        f"Last tool calls: {[tc.function.name for tc in llm_resp.tool_calls]}. "
+        f"Last tool calls: {[tc.function.name for tc in llm_resp.tool_calls] if llm_resp else []}. "
         "Check the scratchpad for stuck reasoning.]"
     )
     if obs:
