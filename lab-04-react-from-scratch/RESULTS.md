@@ -74,8 +74,12 @@ instr ≥ 0.5`. Source: `scripts/probe_fleet.py`, dumped to
   tokens → clipped verbose-but-correct derivations (`finish_reason="length"`). *Fix:*
   raise reason cap to 512 (reason recovered 0.00→0.83); `recommend()` cheap floor now
   requires `reason` AND `instr` so a reason-only-capable model isn't picked.
-- **`Qwen3.5-9B-OptiQ-4bit` is broken on oMLX** — `500` on every call (incompatible
-  quant build). *Fix:* not adopted; use a standard MLX 4-/8-bit Qwen3.5-9B instead.
+- **`Qwen3.5-9B-OptiQ-4bit` — `500` on every call, then "loads but dominated."**
+  First session it 500'd every call (intermittent — cleared after an oMLX reload,
+  the same disk-vs-served registration gremlin). Re-probed once loadable: it is
+  *dominated by the 4 GB Qwen3.5-4B on every axis* — slower (384 vs 245 ms), bigger,
+  and weaker (reason 0.67 vs 0.83, instr 0.33 vs 1.00; tool/json tied). *Fix:* not
+  adopted — bigger ≠ better; the probe overrides the intuition.
 - **SearXNG container `not a directory` mount error.** A bind-mount pointed at a
   non-existent `/tmp/searxng-cfg/settings.yml`, so Docker created it as a directory
   and couldn't mount a dir onto the container's file. *Fix:* remove the bogus dir +
