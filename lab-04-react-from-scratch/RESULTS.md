@@ -1,0 +1,94 @@
+# Lab 04 — ReAct From Scratch: Results
+
+Stack: MacBook M5 Pro (48 GB), local **oMLX** engine on `:8000` (one OpenAI- +
+Anthropic-compatible endpoint, model-routed by the `model:` field). All numbers
+measured on this hardware unless noted. Raw probe data:
+`data/fleet_probe_20260615_omlx.json`.
+
+> Status: scaffold + tools + fleet probe complete and measured. The Phase 5
+> 15-failure ReAct bad-case suite and an end-to-end `agent_run()` task are **not
+> yet run** — see [Pending](#pending).
+
+## Fleet probe — 2026-06-15 (oMLX migration, reason cap 512)
+
+Single run, 3 trials/probe. `recommend()` cheap-role floor = `reason ≥ 0.5 AND
+instr ≥ 0.5`. Source: `scripts/probe_fleet.py`, dumped to
+`data/fleet_probe_20260615_omlx.json`.
+
+| Tier | Model | Ping (ms) | Tool | JSON | Reason | Instr |
+|---|---|---|---|---|---|---|
+| sonnet | `gemma-4-26B-A4B-it-heretic-4bit` | 317 | 1.00 | 1.00 | 1.00 | 1.00 |
+| haiku | `MLX-Qwen3.5-35B-A3B-…-Reasoning-Distilled-4bit` | 152 | 1.00 | 0.00 | 0.83 | 0.00 |
+| fast | `Qwen3.5-4B-MLX-4bit` (4 GB) | 236 | 1.00 | 1.00 | 0.83 | 1.00 |
+| opus_qwen | `Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit` | 726 | 1.00 | 0.00 | 0.83 | 0.00 |
+| opus_lazy | `gemma-4-31B-uncensored-heretic` (`Gemma4-31`) | — | — | — | — | — |
+
+- `opus_lazy` cannot load: oMLX memory_guard `507` (projected 47.60 GB > 37.44 GB
+  ceiling) once another model is hot — only one heavy model is resident at a time.
+- `fast` tool calls are **structured** (Qwen3.5 is server-parsed); the previous
+  `Qwen2.5-Coder-7B` fast tier was text-parsed and needed the client fallback.
+
+### Role map (driven by the table → `src/models.py::ROLE_MAP`)
+
+| Role | Model | Why |
+|---|---|---|
+| loop, tool_arg, reason, compose, finisher | Gemma-26B | only all-1.00 model |
+| classify | Qwen3.5-4B (`fast`) | 235 ms, all 4 dims, structured tools |
+| hard_loop | Qwen3.5-27B-Distilled | only other loadable tool-capable model |
+
+## Tool smoke test (4/4 green)
+
+`set -a; source .env; set +a; uv run python -c "import src.tools; …"` from the lab root:
+
+| Tool | Result |
+|---|---|
+| registration | `['web_search', 'python_repl', 'read_file', 'write_file']` |
+| `web_search("python list comprehension site:docs.python.org")` | `[1] 5. Data Structures — Python 3.14.6 documentation …` (live SearXNG) |
+| `python_repl("print(2 ** 10)")` | `1024` |
+| `write_file` + `read_file` round-trip | `hello from the agent` |
+
+- `web_search` delegates to `shared/web_toolkit` (introduced W3.7); backend SearXNG
+  via `docker compose -f shared/searxng/docker-compose.yml up -d`.
+- `python_repl` hardening verified separately: a parent `SECRET_TOKEN` is **absent**
+  in the child (env stripped via `env=_REPL_ENV`); `RLIMIT_CPU`/`RLIMIT_AS` set
+  best-effort (`RLIMIT_AS` is a no-op on macOS, swallowed). Not a sandbox — see the
+  SECURITY BOUNDARY note in `src/tools.py`; real isolation deferred to W11.5.
+
+## Bad cases (what broke + the fix)
+
+- **vMLX → oMLX migration.** The lab's original multi-port vMLX fleet + its headline
+  model (`MLX-Qwen3.5-9B-GLM5.1-Distill`) no longer exist. Re-pointed everything at
+  the single oMLX `:8000` endpoint (model-routed). *Fix:* `OMLX_URL` + bare served
+  ids; `src/models.py` + `scripts/probe_fleet.py` rewritten.
+- **Tool calling is a model × server-parser pairing.** `Qwen2.5-Coder-{7B,14B}` form
+  correct calls but oMLX has no parser for that family → leaked as `<tools>`/
+  `<function>` text on **both** API surfaces; `tool=0.00`. Gemma / Qwen3 / gpt-oss
+  parse. *Fix:* prefer a parsed family; client fallback
+  `scripts/probe_fleet.py::extract_text_tool_calls` recovers text → `tool_calls`.
+  (Also overturned the old "heretic destroyed tool calling" claim — that was a vMLX
+  artifact; heretic tool-calls fine on oMLX.)
+- **Reasoning-distilled format collapse.** `tool=1.00` but `json=instr=0.00` for the
+  35B-A3B / 27B reasoning models — `<think>` blocks bust tight format caps. *Fix:*
+  route format-sensitive roles to the non-reasoning Gemma-26B; or disable thinking.
+- **Probe token-cap manufactured a false `reason=0`.** The reason probe capped at 64
+  tokens → clipped verbose-but-correct derivations (`finish_reason="length"`). *Fix:*
+  raise reason cap to 512 (reason recovered 0.00→0.83); `recommend()` cheap floor now
+  requires `reason` AND `instr` so a reason-only-capable model isn't picked.
+- **`Qwen3.5-9B-OptiQ-4bit` is broken on oMLX** — `500` on every call (incompatible
+  quant build). *Fix:* not adopted; use a standard MLX 4-/8-bit Qwen3.5-9B instead.
+- **SearXNG container `not a directory` mount error.** A bind-mount pointed at a
+  non-existent `/tmp/searxng-cfg/settings.yml`, so Docker created it as a directory
+  and couldn't mount a dir onto the container's file. *Fix:* remove the bogus dir +
+  use the canonical `shared/searxng/docker-compose.yml` (mounts `./settings.yml`).
+- **Smoke test `ModuleNotFoundError: src.react`.** Ran the system `python`, not the
+  lab venv. *Fix:* `uv run python …` from the lab root (`src/` is a namespace
+  package; no `__init__.py`).
+
+## Pending
+
+- Phase 5 — 15 engineered ReAct bad-case scenarios + `tests/test_bad_cases.py`
+  (not yet authored/run; the 15-row failure table will land here when measured).
+- End-to-end `agent_run()` on a real multi-tool task (wall time, iterations,
+  tool-latency rows from `src/obs.py` SQLite).
+- Re-measure if the oMLX engine version changes (tool parsing + memory ceiling are
+  engine-version-dependent).
