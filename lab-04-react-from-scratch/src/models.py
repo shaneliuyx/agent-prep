@@ -32,9 +32,9 @@ Probe-driven mapping as of 2026-06-15 (oMLX :8000, M5 Pro 48 GB) — see
 data/fleet_probe_20260615_omlx.json for raw scores:
   loop, tool_arg, reason, compose, finisher -> Gemma-26B
       (the ONLY model scoring 1.00 across tool+json+reason+instr)
-  classify -> Qwen2.5-Coder-7B (fast 4 GB, ~241 ms, reason=1.00) — cheap
-      non-tool triage; format is loose and tools need the client parser,
-      neither of which matters for plain classification
+  classify -> Qwen3.5-4B (fast 4 GB, ~260 ms) — clears all four dims
+      (tool 1.00 STRUCTURED, json/instr 1.00, reason 3/3); server-parsed,
+      so unlike the old Qwen2.5-Coder-7B it needs no client tool parser
   hard_loop -> Qwen3.5-27B-Claude-Distilled
       (the only OTHER loadable tool-capable model; larger reasoning attempt)
 
@@ -75,7 +75,7 @@ _OMLX_URL = os.getenv("OMLX_URL", "http://127.0.0.1:8000/v1")
 _SONNET_MODEL = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
 _HAIKU_MODEL = os.getenv("MODEL_HAIKU", "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit")
 _OPUS_MODEL = os.getenv("MODEL_OPUS", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
-_FAST_MODEL = os.getenv("MODEL_FAST", "Qwen2.5-Coder-7B-Instruct-MLX-4bit")
+_FAST_MODEL = os.getenv("MODEL_FAST", "Qwen3.5-4B-MLX-4bit")
 
 API_KEY = os.getenv("OMLX_API_KEY", "not-needed")  # oMLX ignores; SDK requires non-empty
 
@@ -109,11 +109,9 @@ ROLE_MAP: dict[str, Endpoint] = {
     # format, so they cannot safely own compose/classify/reason.
     "loop":      Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=30),
     "tool_arg":  Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=30),
-    # classify is cheap, high-frequency, non-tool triage → the fast 7B tier
-    # (4 GB, ~241 ms, reason=1.00). It does NOT call tools, so the Qwen2.5
-    # no-server-parser limitation is irrelevant here; if you ever route a
-    # tool-bearing role to _FAST_MODEL, the caller MUST apply the client-side
-    # text parser (scripts/probe_fleet.py::extract_text_tool_calls) first.
+    # classify is cheap, high-frequency triage → the fast 4 GB Qwen3.5-4B
+    # (~260 ms, all four dims). Qwen3.5 is server-parsed, so this tier can
+    # also tool-call structured if a future tool-bearing role routes here.
     "classify":  Endpoint(_OMLX_URL, _FAST_MODEL, timeout_s=15),
     "reason":    Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=45),
     "compose":   Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=45),

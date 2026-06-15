@@ -6,7 +6,7 @@
       "url": "http://127.0.0.1:8000/v1",
       "reachable": true,
       "scores": {
-        "ping": 0.7391049689530266,
+        "ping": 0.7590309740592206,
         "tool": 1.0,
         "json": 1.0,
         "reason": 1.0,
@@ -14,7 +14,7 @@
       },
       "notes": {
         "ping": [
-          "median 353 ms over 3 runs"
+          "median 317 ms over 3 runs"
         ],
         "tool": [
           "3/3 get_weather calls (3 structured, 0 text-parsed)"
@@ -36,15 +36,15 @@
       "url": "http://127.0.0.1:8000/v1",
       "reachable": true,
       "scores": {
-        "ping": 0.8702327116095387,
+        "ping": 0.868398165768796,
         "tool": 1.0,
         "json": 0.0,
-        "reason": 0.0,
+        "reason": 0.8333333333333334,
         "instr": 0.0
       },
       "notes": {
         "ping": [
-          "median 149 ms over 3 runs"
+          "median 152 ms over 3 runs"
         ],
         "tool": [
           "3/3 get_weather calls (3 structured, 0 text-parsed)"
@@ -55,9 +55,7 @@
           "unparseable: 'I need to analyze this request carefully. The user is asking'"
         ],
         "reason": [
-          "wrong: want 6, got 'Let me work through this problem step by'",
-          "wrong: want 150, got 'Let me work through this problem step by'",
-          "wrong: want 15, got 'Let me work through this problem step by'"
+          "verbose-correct: '**Solution:**\\n\\nTo find the cost of 5 wid'"
         ],
         "instr": [
           "wanted 3 words, got 13: 'Thinking Process:\\n\\n1.  **Analyze the Req'",
@@ -67,41 +65,32 @@
       }
     },
     {
-      "tier": "opus_lazy",
-      "model": "Gemma4-31",
+      "tier": "fast",
+      "model": "Qwen3.5-4B-MLX-4bit",
       "url": "http://127.0.0.1:8000/v1",
       "reachable": true,
       "scores": {
-        "ping": 0.0,
-        "tool": 0.0,
-        "json": 0.0,
-        "reason": 0.0,
-        "instr": 0.0
+        "ping": 0.8088821458895172,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 0.8333333333333334,
+        "instr": 1.0
       },
       "notes": {
         "ping": [
-          "failed: InternalServerError: Error code: 507 - {'error': {'message': 'Cannot load gemma-4-31B-uncensored-heretic-mlx-4bit: projected memory 47.60GB would exceed the memory ceiling 37.44GB (current: 19.42GB, model: 28.18GB). Free system memory or lower memory_guard_tier.', 'type': 'server_error', 'param': None, 'code': None}}"
+          "median 236 ms over 3 runs"
         ],
         "tool": [
-          "0/3 get_weather calls (0 structured, 0 text-parsed)",
-          "Tokyo: InternalServerError",
-          "Beijing: InternalServerError",
-          "Berlin: InternalServerError"
+          "3/3 get_weather calls (3 structured, 0 text-parsed)"
         ],
         "json": [
-          "err: InternalServerError",
-          "err: InternalServerError",
-          "err: InternalServerError"
+          "3/3 produced valid JSON"
         ],
         "reason": [
-          "err: InternalServerError",
-          "err: InternalServerError",
-          "err: InternalServerError"
+          "verbose-correct: 'To find the cost of 5 widgets, we can fo'"
         ],
         "instr": [
-          "err: InternalServerError",
-          "err: InternalServerError",
-          "err: InternalServerError"
+          "3/3 exact word counts"
         ]
       }
     },
@@ -111,15 +100,15 @@
       "url": "http://127.0.0.1:8000/v1",
       "reachable": true,
       "scores": {
-        "ping": 0.5838142463779913,
+        "ping": 0.5792883417463376,
         "tool": 1.0,
         "json": 0.0,
-        "reason": 0.3333333333333333,
+        "reason": 0.8333333333333334,
         "instr": 0.0
       },
       "notes": {
         "ping": [
-          "median 713 ms over 3 runs"
+          "median 726 ms over 3 runs"
         ],
         "tool": [
           "3/3 get_weather calls (3 structured, 0 text-parsed)"
@@ -130,8 +119,7 @@
           "unparseable: 'The user is asking me to reply with valid JSON only, with a '"
         ],
         "reason": [
-          "wrong: want 150, got 'The problem asks for the distance a trai'",
-          "wrong: want 15, got 'I need to find the cost of 5 widgets whe'"
+          "verbose-correct: '**Step 1: Find the cost per widget**\\n\\n$3'"
         ],
         "instr": [
           "wanted 3 words, got 22: 'The user wants a description of the ocea'",

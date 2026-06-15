@@ -60,13 +60,13 @@ FLEET: list[dict] = [
         "url": GATEWAY_URL,
     },
     {
-        # Smallest full model (4 GB). Fastest text answers with reason=1.00, so
-        # it suits cheap simple-case triage. Tool calls only via the client
-        # parser below (Qwen2.5 family is NOT server-parsed); json/instr are
-        # loose (markdown-fenced JSON, no exact word counts).
+        # Smallest full model (4 GB), ~260 ms. Clears ALL four dims: tool 1.00
+        # STRUCTURED (Qwen3.5 is server-parsed by oMLX — no client parser),
+        # json 1.00, instr 1.00, reason 3/3 (given a generous token cap).
+        # Replaced Qwen2.5-Coder-7B (text-parsed tools, loose json/instr) 2026-06-15.
         "tier": "fast",
-        "label": "Qwen2.5-Coder-7B-Instruct-MLX-4bit (4 GB; fast simple-case tier; tools need client parser)",
-        "model": "Qwen2.5-Coder-7B-Instruct-MLX-4bit",
+        "label": "Qwen3.5-4B-MLX-4bit (4 GB; fast tier, all 4 dims, structured tools)",
+        "model": "Qwen3.5-4B-MLX-4bit",
         "url": GATEWAY_URL,
     },
     # Larger 31B variants — oMLX loads on demand.
@@ -318,7 +318,10 @@ def probe_reasoning(c: OpenAI, model: str) -> tuple[float, list[str]]:
             r = c.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": q}],
-                max_tokens=64,
+                # Generous cap: reasoning is about correctness, not terseness.
+                # A 64-token cap unfairly fails verbose-but-correct models that
+                # show their work (e.g. Qwen3.5-4B derived 150 then got clipped).
+                max_tokens=512,
                 temperature=0.0,
             )
             txt = (r.choices[0].message.content or "").strip()
@@ -413,10 +416,15 @@ def recommend(results: list[FleetResult]) -> dict[str, str]:
 
     # "Cheap" roles want the FASTEST model that can still emit a usable answer.
     # Pure argmax(ping) is a trap: a reasoning-distilled model can ping fastest
-    # yet score reason=0 (think-blocks bury the answer), making it useless for
-    # classification. Floor on reason first, then pick fastest among the capable.
-    CHEAP_REASON_FLOOR = 0.5
-    capable = [r for r in alive if r.scores.get("reason", 0) >= CHEAP_REASON_FLOOR]
+    # yet be useless for classification. A cheap classifier must BOTH reason
+    # (pick the right answer) AND follow output format (emit a clean label), so
+    # floor on reason AND instr. Reason alone is insufficient: a reasoning-
+    # distilled model clears reason=0.83 but scores instr=0 (think-blocks eat
+    # the format), so it would be picked yet produce unparseable labels.
+    CHEAP_FLOOR = 0.5
+    capable = [r for r in alive
+               if r.scores.get("reason", 0) >= CHEAP_FLOOR
+               and r.scores.get("instr", 0) >= CHEAP_FLOOR]
     fastest_capable = max(capable or alive,
                           key=lambda r: r.scores.get("ping", 0)).model
     return {
