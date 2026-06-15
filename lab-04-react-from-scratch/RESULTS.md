@@ -105,10 +105,24 @@ Confirms the loop terminates correctly on a `final_answer` (no `tool_calls`), th
 tool dispatch path works (0 errors), and the obs sidecar writes one event row per
 iteration. Source: `src/run.py` stdout + the SQLite event log.
 
+### Multi-tool trajectory — 2026-06-15
+
+Task: *"web_search the year Python was first released, python_repl to add 10, write_file the result."*
+Final answer: **"…first released in 1991. Adding 10 gives 2001, saved to `py_plus10.txt`."** (correct)
+
+| iter | event | tool | latency |
+|---|---|---|---|
+| 0 | tool_call | web_search | 3065 ms (SearXNG) |
+| 1 | tool_call | python_repl | 55 ms |
+| 2 | tool_call | write_file | 0 ms |
+| 3 | final_answer | — | — |
+
+Summary: 3 tool calls, **0 errors**, 4096 prompt + 119 completion tokens, max latency 3065 ms (web_search). Confirms the loop chains all three tool *types* in one trajectory and the model reads each tool result before choosing the next call — the defining ReAct property. Source: `agent_run(..., obs=True)` + SQLite.
+
 ## Phase 5 — bad-case suite — 2026-06-15
 
-`uv run pytest tests/test_bad_cases.py` → **16 passed** (15 scenarios; Scenario 2
-has 2 cases). Covers: max-iter guard, hallucinated tool name, oversized-result
+`uv run pytest tests/test_bad_cases.py` → **17 passed** (15 scenarios + Scenario 2's
+second case + a deeper oldest-drop eviction test). Covers: max-iter guard, hallucinated tool name, oversized-result
 truncation, malformed/missing args, premature stop, circular-reasoning detection,
 tool timeout, error-as-observation, context-window eviction, inconsistent tool
 schema, prose-instead-of-tool-call, nested tool calls, bounded retries, stale
@@ -121,13 +135,15 @@ Two test bugs found + fixed on first green run (not loop bugs):
   30×500 chars (~3750 tokens) yet asserted it exceeded the 28k limit. Fix: 30×4000
   chars (~30k tokens) and assert `> CONTEXT_TOKEN_LIMIT`.
 
-Note: Scenario 10 is a precondition + no-crash check; `Scratchpad` has no public
-evict method (eviction lives inside `agent_run`'s CTX_GUARD), so it does not assert
-oldest-entry drop directly — a deeper eviction test is a follow-up.
+Eviction is now genuinely tested: the inline CTX_GUARD was extracted into
+`react.py::_evict_if_over_limit(scratchpad)`, and `test_evict_drops_oldest_tool_result_first`
+asserts the **oldest** tool result is dropped first, order is preserved, repeated
+calls converge under the limit, and it is a no-op when under — not just "the loop
+didn't crash."
 
 ## Pending
 
-- A longer / multi-tool `agent_run()` (the run above exercised a single
-  `python_repl` call; web_search + file tools in one trajectory not yet measured).
 - Re-measure if the oMLX engine version changes (tool parsing + memory ceiling are
   engine-version-dependent).
+- `react.py` carries pre-existing `reportPossiblyUnbound` / typing pyright lint
+  (`llm_resp`, `tool_latency_ms`, `log_event`) — runtime-safe; cleanup deferred.
