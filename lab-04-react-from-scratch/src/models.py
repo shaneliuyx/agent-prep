@@ -1,14 +1,14 @@
 """
 src/models.py — model routing for the ReAct lab.
 
-Loads the vMLX fleet config from the environment, exposes a per-role lookup,
+Loads the oMLX fleet config from the environment, exposes a per-role lookup,
 and provides a lazy-load post-loop composer.
 
 Why this lives in its own module:
   src/react.py is the loop. The loop should not know which model is "best at
   reasoning" or "best at tool calling" — that is a fleet-tuning concern. By
   isolating role -> (url, model) mapping here, swapping a tier (e.g. when the
-  vMLX engine is upgraded and Sonnet's latency changes) is a one-file edit
+  oMLX engine is upgraded and a model's latency changes) is a one-file edit
   and does not touch the loop logic.
 
 Routing decisions are anchored to the empirical findings in
@@ -21,25 +21,38 @@ Roles (used by src/react.py and Week 5 pattern zoo):
   reason    : math / multi-step reasoning sub-step.
   compose   : post-loop final answer composition (no tools needed).
   finisher  : lazy-loaded long-form output (post-loop polish).
-  hard_loop : in-loop fallback for tasks where Distill 9B's reasoning is
-              insufficient AND tool calling is still required.
+  hard_loop : in-loop fallback for a larger reasoning attempt that still
+              needs tool calling.
 
-All requests route through the MLX Studio API gateway on :8080/v1, with the
-specific model selected by the `model:` field. Gateway-vs-direct-port adds
-zero measurable overhead (Sonnet 207->203 ms, Haiku 448->430 ms — within
-noise; see data/fleet_probe_*v9_gateway.json).
+Engine: oMLX exposes one OpenAI-compatible endpoint on :8000/v1 and routes
+internally by the `model:` field — it IS the gateway (no per-model ports).
+Models are addressed by bare served id (GET /v1/models), no `models/` prefix.
 
-Probe-driven mapping as of 2026-05-05 (vMLX gateway, M5 Pro 48 GB):
-  loop, tool_arg, classify  -> Distill 9B (1.00 across 5 runs, only stable)
-  reason, compose           -> Gemma-26B  (reason+instr 1.00 when warm)
-  finisher, hard_loop       -> JANG_4M-CRACK (lazy; tool=1.00 + 4M context)
+Probe-driven mapping as of 2026-06-15 (oMLX :8000, M5 Pro 48 GB) — see
+data/fleet_probe_20260615_omlx.json for raw scores:
+  loop, tool_arg, reason, compose, finisher -> Gemma-26B
+      (the ONLY model scoring 1.00 across tool+json+reason+instr)
+  classify -> Qwen2.5-Coder-7B (fast 4 GB, ~241 ms, reason=1.00) — cheap
+      non-tool triage; format is loose and tools need the client parser,
+      neither of which matters for plain classification
+  hard_loop -> Qwen3.5-27B-Claude-Distilled
+      (the only OTHER loadable tool-capable model; larger reasoning attempt)
 
-Why JANG_4M-CRACK over gemma-31B-uncensored-heretic-mlx-4bit:
-  Both 31B Gemma-4 4-bit dense fine-tunes. heretic scored tool=0.00 —
-  the uncensored fine-tune destroyed function-call alignment. JANG scored
-  tool=1.00, json=1.00, reason=1.00, instr=1.00 with 2135 ms median ping.
-  Same parameter scale, same quant, opposite agent-usability.
-  See data/fleet_probe_20260504_1758_v5_jang.json for raw scores.
+Why one workhorse instead of a fleet of specialists (measured, not aspired):
+  - Gemma-26B (sonnet): tool=json=reason=instr=1.00, ping ~353 ms. Reliable.
+  - 35B-A3B / 27B (reasoning-distilled): tool=1.00 BUT json/reason/instr≈0 —
+    they emit <think> blocks that break strict-format output. Safe only for
+    raw tool-call emission, not for formatted text. Kept as MODEL_HAIKU (fast
+    tool-only, ping ~149 ms) but NOT on any format-sensitive role.
+  - Gemma-31B-uncensored-heretic: cannot load — oMLX memory_guard rejects it
+    (projected 47.6 GB > 37.44 GB ceiling) once other models are warm. The
+    48 GB box holds one heavy model hot at a time.
+
+NOTE on tool calling: oMLX parses structured tool_calls per MODEL FAMILY
+(Gemma / Qwen3 / gpt-oss yes; Qwen2.5-Coder NO — it leaks <tools>/<function>
+text on both the OpenAI and Anthropic surfaces). If you route a non-parsed
+family here, src/react.py must apply a client-side text fallback parser (see
+scripts/probe_fleet.py::extract_text_tool_calls) before reading tool_calls.
 """
 
 from __future__ import annotations
@@ -51,20 +64,31 @@ from typing import Literal
 from openai import OpenAI
 
 # ---------------------------------------------------------------------------
-# Fleet endpoint defaults. Override via env when running tier experiments.
+# Fleet endpoint default. Override via env when running tier experiments.
 # ---------------------------------------------------------------------------
-# MLX Studio API gateway: all vMLX models accessible through one endpoint.
-# Route by `model:` field in the request body. Gateway adds zero overhead vs.
-# direct-port routing (verified in data/fleet_probe_*v9_gateway.json).
-# Override with VMLX_GATEWAY_URL to point at a different host (e.g. LAN).
-_GATEWAY_URL = os.getenv("VMLX_GATEWAY_URL", "http://localhost:8080/v1")
+# oMLX OpenAI-compatible surface: all models behind one endpoint, selected by
+# the `model:` field (no per-model ports — oMLX routes internally).
+# Override with OMLX_URL to point at a different host (e.g. LAN).
+_OMLX_URL = os.getenv("OMLX_URL", "http://127.0.0.1:8000/v1")
 
-# Model identifiers carry the `models/` prefix expected by the gateway router.
-_HAIKU_MODEL = os.getenv("MODEL_HAIKU", "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit")
-_SONNET_MODEL = os.getenv("MODEL_SONNET", "models/gemma-4-26B-A4B-it-heretic-4bit")
-_OPUS_LAZY_MODEL = os.getenv("MODEL_OPUS_LAZY", "models/Gemma-4-31B-JANG_4M-CRACK")
+# Bare served ids (GET /v1/models) — no `models/` prefix on oMLX.
+_SONNET_MODEL = os.getenv("MODEL_SONNET", "gemma-4-26B-A4B-it-heretic-4bit")
+_HAIKU_MODEL = os.getenv("MODEL_HAIKU", "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit")
+_OPUS_MODEL = os.getenv("MODEL_OPUS", "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit")
+_FAST_MODEL = os.getenv("MODEL_FAST", "Qwen2.5-Coder-7B-Instruct-MLX-4bit")
 
-API_KEY = os.getenv("VMLX_API_KEY", "not-needed")  # vMLX ignores; SDK requires non-empty
+API_KEY = os.getenv("OMLX_API_KEY", "not-needed")  # oMLX ignores; SDK requires non-empty
+
+# Probed tiers (env-overridable). Used by §5 + Week-5 tier-comparison
+# experiments. `haiku` is the fast tool-only option (ping ~149 ms, tool=1.00)
+# deliberately kept OUT of ROLE_MAP: its <think> blocks fail format-sensitive
+# roles, so it is opt-in for raw tool-call emission only.
+TIER_MODELS: dict[str, str] = {
+    "sonnet": _SONNET_MODEL,
+    "haiku": _HAIKU_MODEL,
+    "opus": _OPUS_MODEL,
+    "fast": _FAST_MODEL,
+}
 
 
 Role = Literal["loop", "tool_arg", "classify", "reason", "compose",
@@ -79,17 +103,27 @@ class Endpoint:
 
 
 ROLE_MAP: dict[str, Endpoint] = {
-    "loop":      Endpoint(_GATEWAY_URL, _HAIKU_MODEL,     timeout_s=30),
-    "tool_arg":  Endpoint(_GATEWAY_URL, _HAIKU_MODEL,     timeout_s=30),
-    "classify":  Endpoint(_GATEWAY_URL, _HAIKU_MODEL,     timeout_s=10),
-    "reason":    Endpoint(_GATEWAY_URL, _SONNET_MODEL,    timeout_s=45),
-    "compose":   Endpoint(_GATEWAY_URL, _SONNET_MODEL,    timeout_s=45),
-    "finisher":  Endpoint(_GATEWAY_URL, _OPUS_LAZY_MODEL, timeout_s=90),
-    # Use when Distill 9B's reasoning is insufficient AND tool calling is
-    # still required. JANG_4M-CRACK preserves tool calling at 31B scale
-    # (tool=1.00 in isolated probe); heretic could not serve this role
-    # because its uncensored fine-tune scored tool=0.00.
-    "hard_loop": Endpoint(_GATEWAY_URL, _OPUS_LAZY_MODEL, timeout_s=60),
+    # Gemma-26B is the measured workhorse: the only model with tool, json,
+    # reason, AND instr all at 1.00 (2026-06-15 probe). Every reliable role
+    # routes here. The reasoning-distilled models pass tool but fail strict
+    # format, so they cannot safely own compose/classify/reason.
+    "loop":      Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=30),
+    "tool_arg":  Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=30),
+    # classify is cheap, high-frequency, non-tool triage → the fast 7B tier
+    # (4 GB, ~241 ms, reason=1.00). It does NOT call tools, so the Qwen2.5
+    # no-server-parser limitation is irrelevant here; if you ever route a
+    # tool-bearing role to _FAST_MODEL, the caller MUST apply the client-side
+    # text parser (scripts/probe_fleet.py::extract_text_tool_calls) first.
+    "classify":  Endpoint(_OMLX_URL, _FAST_MODEL, timeout_s=15),
+    "reason":    Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=45),
+    "compose":   Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=45),
+    "finisher":  Endpoint(_OMLX_URL, _SONNET_MODEL, timeout_s=60),
+    # Larger reasoning attempt that still needs tool calling. Qwen3.5-27B is
+    # the only OTHER loadable tool-capable model (tool=1.00). Its format
+    # scores are poor (think-blocks), so use it for tool-driven reasoning,
+    # not for formatted output. The 31B heretic that would have served this
+    # role OOMs on the 37.44 GB oMLX memory ceiling.
+    "hard_loop": Endpoint(_OMLX_URL, _OPUS_MODEL, timeout_s=90),
 }
 
 
@@ -115,12 +149,11 @@ def get_client(role: Role) -> tuple[OpenAI, str]:
 
 def compose_final_answer(raw_answer: str, user_query: str,
                          system: str | None = None) -> str:
-    """Lazy-spin the `finisher` model for high-quality post-loop polishing.
+    """Spin the `finisher` model for high-quality post-loop polishing.
 
-    Routes via `ROLE_MAP["finisher"]` — currently JANG_4M-CRACK on :8001.
-    Only invoke after `agent_run()` returns. Cold-start tax ~5-15 s on the
-    first call; subsequent calls are ~1.7-2 s median. Tool calling is
-    intentionally NOT requested — this is plain-text-in, plain-text-out.
+    Routes via `ROLE_MAP["finisher"]` — currently Gemma-26B (the reliable
+    workhorse). Tool calling is intentionally NOT requested — this is plain-
+    text-in, plain-text-out.
 
     Returns the polished answer, or `raw_answer` unchanged on any error
     (broad except is deliberate: optional polish must never block the
@@ -146,5 +179,5 @@ def compose_final_answer(raw_answer: str, user_query: str,
         return raw_answer
 
 
-__all__ = ["Role", "Endpoint", "ROLE_MAP", "get_client",
+__all__ = ["Role", "Endpoint", "ROLE_MAP", "TIER_MODELS", "get_client",
            "compose_final_answer", "API_KEY"]

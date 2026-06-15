@@ -1,0 +1,153 @@
+{
+  "fleet": [
+    {
+      "tier": "sonnet",
+      "model": "gemma-4-26B-A4B-it-heretic-4bit",
+      "url": "http://127.0.0.1:8000/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.7391049689530266,
+        "tool": 1.0,
+        "json": 1.0,
+        "reason": 1.0,
+        "instr": 1.0
+      },
+      "notes": {
+        "ping": [
+          "median 353 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 get_weather calls (3 structured, 0 text-parsed)"
+        ],
+        "json": [
+          "3/3 produced valid JSON"
+        ],
+        "reason": [
+          "3/3 correct integer answers"
+        ],
+        "instr": [
+          "3/3 exact word counts"
+        ]
+      }
+    },
+    {
+      "tier": "haiku",
+      "model": "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit",
+      "url": "http://127.0.0.1:8000/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.8702327116095387,
+        "tool": 1.0,
+        "json": 0.0,
+        "reason": 0.0,
+        "instr": 0.0
+      },
+      "notes": {
+        "ping": [
+          "median 149 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 get_weather calls (3 structured, 0 text-parsed)"
+        ],
+        "json": [
+          "unparseable: 'Thinking Process:\\n\\n1.  **Analyze the Request:**\\n    *   Inpu'",
+          "unparseable: 'I need to analyze this request carefully. The user is asking'",
+          "unparseable: 'I need to analyze this request carefully. The user is asking'"
+        ],
+        "reason": [
+          "wrong: want 6, got 'Let me work through this problem step by'",
+          "wrong: want 150, got 'Let me work through this problem step by'",
+          "wrong: want 15, got 'Let me work through this problem step by'"
+        ],
+        "instr": [
+          "wanted 3 words, got 13: 'Thinking Process:\\n\\n1.  **Analyze the Req'",
+          "wanted 5 words, got 13: 'Thinking Process:\\n\\n1.  **Analyze the Req'",
+          "wanted 4 words, got 15: 'Thinking Process:\\n\\n1.  **Analyze the Req'"
+        ]
+      }
+    },
+    {
+      "tier": "opus_lazy",
+      "model": "Gemma4-31",
+      "url": "http://127.0.0.1:8000/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.0,
+        "tool": 0.0,
+        "json": 0.0,
+        "reason": 0.0,
+        "instr": 0.0
+      },
+      "notes": {
+        "ping": [
+          "failed: InternalServerError: Error code: 507 - {'error': {'message': 'Cannot load gemma-4-31B-uncensored-heretic-mlx-4bit: projected memory 47.60GB would exceed the memory ceiling 37.44GB (current: 19.42GB, model: 28.18GB). Free system memory or lower memory_guard_tier.', 'type': 'server_error', 'param': None, 'code': None}}"
+        ],
+        "tool": [
+          "0/3 get_weather calls (0 structured, 0 text-parsed)",
+          "Tokyo: InternalServerError",
+          "Beijing: InternalServerError",
+          "Berlin: InternalServerError"
+        ],
+        "json": [
+          "err: InternalServerError",
+          "err: InternalServerError",
+          "err: InternalServerError"
+        ],
+        "reason": [
+          "err: InternalServerError",
+          "err: InternalServerError",
+          "err: InternalServerError"
+        ],
+        "instr": [
+          "err: InternalServerError",
+          "err: InternalServerError",
+          "err: InternalServerError"
+        ]
+      }
+    },
+    {
+      "tier": "opus_qwen",
+      "model": "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
+      "url": "http://127.0.0.1:8000/v1",
+      "reachable": true,
+      "scores": {
+        "ping": 0.5838142463779913,
+        "tool": 1.0,
+        "json": 0.0,
+        "reason": 0.3333333333333333,
+        "instr": 0.0
+      },
+      "notes": {
+        "ping": [
+          "median 713 ms over 3 runs"
+        ],
+        "tool": [
+          "3/3 get_weather calls (3 structured, 0 text-parsed)"
+        ],
+        "json": [
+          "unparseable: 'The user is asking me to return a specific JSON object with '",
+          "unparseable: 'Let me think about how to approach this coding problem.\\n\\nPro'",
+          "unparseable: 'The user is asking me to reply with valid JSON only, with a '"
+        ],
+        "reason": [
+          "wrong: want 150, got 'The problem asks for the distance a trai'",
+          "wrong: want 15, got 'I need to find the cost of 5 widgets whe'"
+        ],
+        "instr": [
+          "wanted 3 words, got 22: 'The user wants a description of the ocea'",
+          "wanted 5 words, got 17: 'Let me think through this carefully.\\n\\nTh'",
+          "wanted 4 words, got 19: 'Let me think through this carefully.\\n\\nTh'"
+        ]
+      }
+    }
+  ],
+  "recommendation": {
+    "main_react_loop": "gemma-4-26B-A4B-it-heretic-4bit",
+    "tool_arg_synthesis": "gemma-4-26B-A4B-it-heretic-4bit",
+    "final_answer_composer": "gemma-4-26B-A4B-it-heretic-4bit",
+    "json_extractor": "gemma-4-26B-A4B-it-heretic-4bit",
+    "math_or_reasoning_step": "gemma-4-26B-A4B-it-heretic-4bit",
+    "cheap_classifier": "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit",
+    "obs_summarizer_sidecar": "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit"
+  }
+}

@@ -1,5 +1,5 @@
 """
-probe_fleet.py — score the local vMLX fleet on five dimensions, then
+probe_fleet.py — score the local oMLX fleet on five dimensions, then
 recommend a role assignment for src/react.py.
 
 Five probes (run against each model):
@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import socket
 import statistics
 import sys
@@ -36,50 +38,59 @@ from openai.types.chat import ChatCompletionToolParam
 # ---------------------------------------------------------------------------
 # Fleet definition. Edit if you swap models on a port.
 # ---------------------------------------------------------------------------
-# All vMLX models accessible through the MLX Studio gateway on :8080/v1.
-# Route by `model:` field in the request body. Cold-state models (the gateway
-# UI shows them as "sleeping") wake on first request — first call to a sleeping
-# model adds ~10-30s cold-start tax; subsequent calls hit the warm path.
-GATEWAY_URL = "http://localhost:8080/v1"
+# All models accessible through oMLX's OpenAI-compatible surface on :8000/v1.
+# Route by `model:` field in the request body (bare IDs as listed by GET /v1/models —
+# no `models/` or `lmstudio-community/` prefix). Larger on-demand models load on first
+# request — first call adds ~10-30s cold-start tax; subsequent calls hit the warm path.
+# Override with OMLX_URL if you run oMLX elsewhere.
+GATEWAY_URL = os.getenv("OMLX_URL", "http://127.0.0.1:8000/v1")
 
 FLEET: list[dict] = [
     # Stable always-hot fleet (fits within 48 GB unified memory).
     {
         "tier": "sonnet",
         "label": "gemma-4-26B-A4B-it-heretic-4bit (dense 26B, 4-bit quant, mid)",
-        "model": "models/gemma-4-26B-A4B-it-heretic-4bit",
+        "model": "gemma-4-26B-A4B-it-heretic-4bit",
         "url": GATEWAY_URL,
     },
     {
         "tier": "haiku",
-        "label": "MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit (smallest, fastest)",
-        "model": "models/MLX-Qwen3.5-9B-GLM5.1-Distill-v1-8bit",
+        "label": "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit (MoE 35B/3B-active; tool-capable, fast decode)",
+        "model": "MLX-Qwen3.5-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-4bit",
         "url": GATEWAY_URL,
     },
-    # Lazy-loaded uncensored 31B variants — gateway wakes on demand.
+    {
+        # Smallest full model (4 GB). Fastest text answers with reason=1.00, so
+        # it suits cheap simple-case triage. Tool calls only via the client
+        # parser below (Qwen2.5 family is NOT server-parsed); json/instr are
+        # loose (markdown-fenced JSON, no exact word counts).
+        "tier": "fast",
+        "label": "Qwen2.5-Coder-7B-Instruct-MLX-4bit (4 GB; fast simple-case tier; tools need client parser)",
+        "model": "Qwen2.5-Coder-7B-Instruct-MLX-4bit",
+        "url": GATEWAY_URL,
+    },
+    # Larger 31B variants — oMLX loads on demand.
     {
         "tier": "opus_lazy",
-        "label": "gemma-4-31B-uncensored-heretic-mlx-4bit (lazy; uncensored)",
-        "model": "models/gemma-4-31B-uncensored-heretic-mlx-4bit",
+        "label": "gemma-4-31B-uncensored-heretic-mlx-4bit (uncensored 31B; on-demand)",
+        "model": "Gemma4-31",  # served tag/alias for gemma-4-31B-uncensored-heretic-mlx-4bit
         "url": GATEWAY_URL,
     },
-    {
-        "tier": "opus_jang",
-        "label": "Gemma-4-31B-JANG_4M-CRACK (lazy; 4M-context uncensored)",
-        "model": "models/Gemma-4-31B-JANG_4M-CRACK",
-        "url": GATEWAY_URL,
-    },
-    # MoE 35B-A3B (~3B active params per token; sparse fast decode).
+    # NOTE: opus_jang (Gemma-4-31B-JANG_4M-CRACK) removed 2026-06-15 — the
+    # "4M-CRACK" build 500s on oMLX under both API surfaces (and its dealignai--
+    # alias too); it was also redundant with opus_lazy (Gemma 31B uncensored).
+    # Re-add a tier here if a loadable 4M-context variant becomes available.
+    # Dense 27B distilled from Claude-4.6-Opus reasoning traces.
     {
         "tier": "opus_qwen",
-        "label": "Qwen3.6-35B-A3B-nvfp4 (MoE 35B/3B-active)",
-        "model": "models/Qwen3.6-35B-A3B-nvfp4",
+        "label": "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit (dense 27B; opus-distilled)",
+        "model": "Qwen3.5-27B-Claude-4.6-Opus-Distilled-MLX-4bit",
         "url": GATEWAY_URL,
     },
 ]
-DEFAULT_TIERS = {"sonnet", "haiku"}  # lazy/opus tiers excluded — load on demand
+DEFAULT_TIERS = {"sonnet", "haiku", "fast"}  # always-hot; lazy/opus tiers load on demand
 
-API_KEY = "not-needed"  # vMLX ignores; SDK requires non-empty
+API_KEY = "not-needed"  # oMLX ignores; SDK requires non-empty
 REACH_TIMEOUT_S = 2  # fail fast when port is dead
 PROBE_TIMEOUT_S = 60  # generous once we know the server is up
 
@@ -140,9 +151,99 @@ TOOL_SCHEMA: list[ChatCompletionToolParam] = cast(list[ChatCompletionToolParam],
 }])
 
 
+# ---------------------------------------------------------------------------
+# Client-side tool-call recovery.
+#
+# Some local models form a correct tool call but the server has no parser for
+# that model family, so it falls through as plain TEXT instead of populating
+# `message.tool_calls`. Observed leak wrappers (same model, different surfaces):
+#   <tool_call>...</tool_call>   Qwen/Hermes native
+#   <tools>...</tools>           oMLX OpenAI-compatible surface
+#   <function>...</function>     oMLX Anthropic-compatible surface (close tag often missing)
+# This recovers {name, arguments} from that text so a text-only model is still
+# usable in the loop. Lift this into src/react.py to actually drive such a model.
+# ---------------------------------------------------------------------------
+_TOOL_TAGS = ("tool_call", "tools", "function", "tool")
+
+
+def _first_json_obj(s: str) -> dict | None:
+    """Return the first balanced {...} that parses as JSON, else None.
+    Brace-matched (not regex) so a nested `arguments` object isn't truncated,
+    and string-aware so braces inside a JSON string value (e.g. arguments
+    serialized as a JSON-encoded string, the OpenAI form) don't miscount."""
+    start = s.find("{")
+    while start != -1:
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(s)):
+            ch = s[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                continue
+            if ch == '"':
+                in_str = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(s[start:i + 1])
+                    except json.JSONDecodeError:
+                        break  # malformed; advance to next candidate brace
+        start = s.find("{", start + 1)
+    return None
+
+
+def _normalize_call(obj: object) -> dict | None:
+    """Coerce a parsed object into {name, arguments: dict}. None if not a
+    dict or missing a name (json.loads may yield a list/scalar)."""
+    if not isinstance(obj, dict):
+        return None
+    name = obj.get("name")
+    if name is None:
+        return None
+    args = obj.get("arguments", obj.get("parameters", obj.get("input", {})))
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except json.JSONDecodeError:
+            args = {"_raw": args}
+    return {"name": name, "arguments": args if isinstance(args, dict) else {}}
+
+
+def extract_text_tool_calls(content: str | None) -> list[dict]:
+    """Best-effort recovery of tool calls the server left as text.
+    Returns [{name, arguments}, ...]; [] when nothing tool-shaped is found."""
+    if not content:
+        return []
+    calls: list[dict] = []
+    for tag in _TOOL_TAGS:
+        # inner text runs to the close tag OR end-of-string (close tag may be absent)
+        for m in re.finditer(rf"<{tag}>\s*(.*?)(?:</{tag}>|\Z)", content,
+                             re.DOTALL | re.IGNORECASE):
+            call = _normalize_call(_first_json_obj(m.group(1)))
+            if call:
+                calls.append(call)
+    if not calls:  # untagged: a bare {name, arguments} blob
+        call = _normalize_call(_first_json_obj(content))
+        if call:
+            calls.append(call)
+    return calls
+
+
 def probe_tool_calling(c: OpenAI, model: str) -> tuple[float, list[str]]:
-    """P2: 3 trials of structured tool call. Pass = tool_calls non-empty."""
+    """P2: 3 trials of structured tool call. Pass = a get_weather call is
+    obtained, either as structured `tool_calls` or recovered from text."""
     passes = 0
+    structured = 0
+    text_parsed = 0
     notes = []
     for city in ["Tokyo", "Beijing", "Berlin"]:
         try:
@@ -154,18 +255,25 @@ def probe_tool_calling(c: OpenAI, model: str) -> tuple[float, list[str]]:
                 max_tokens=128,
                 temperature=0.0,
             )
-            tcs = r.choices[0].message.tool_calls or []
+            msg = r.choices[0].message
+            tcs = msg.tool_calls or []
             # Tool call may be ChatCompletionMessageFunctionToolCall (.function.name)
             # or a custom variant — use getattr to stay compatible.
             fn = getattr(tcs[0], "function", None) if tcs else None
             name = getattr(fn, "name", None)
             if name == "get_weather":
                 passes += 1
+                structured += 1
+            elif any(rc["name"] == "get_weather" for rc in extract_text_tool_calls(msg.content)):
+                # server didn't parse it; client-side recovery succeeded
+                passes += 1
+                text_parsed += 1
             else:
-                notes.append(f"{city}: no get_weather tool_call (got name={name!r})")
+                notes.append(f"{city}: no get_weather call (structured name={name!r})")
         except OpenAIError as e:
             notes.append(f"{city}: {type(e).__name__}")
-    return passes / 3.0, notes or [f"{passes}/3 calls produced get_weather tool_call"]
+    summary = f"{passes}/3 get_weather calls ({structured} structured, {text_parsed} text-parsed)"
+    return passes / 3.0, [summary] + notes
 
 
 def probe_json_only(c: OpenAI, model: str) -> tuple[float, list[str]]:
@@ -299,30 +407,38 @@ def recommend(results: list[FleetResult]) -> dict[str, str]:
     """Pick a tier per scenario based on probe scores."""
     alive = [r for r in results if r.reachable]
     if not alive:
-        return {"_error": "no models reachable; start vMLX servers first"}
+        return {"_error": "no models reachable; start oMLX first"}
     # ping is already scored as 1/(1+median_s), so larger = faster.
-    # "best at X" and "fastest" are both just argmax over the relevant axis.
     best_at = lambda key: max(alive, key=lambda r: r.scores.get(key, 0)).model
-    fastest = best_at("ping")
+
+    # "Cheap" roles want the FASTEST model that can still emit a usable answer.
+    # Pure argmax(ping) is a trap: a reasoning-distilled model can ping fastest
+    # yet score reason=0 (think-blocks bury the answer), making it useless for
+    # classification. Floor on reason first, then pick fastest among the capable.
+    CHEAP_REASON_FLOOR = 0.5
+    capable = [r for r in alive if r.scores.get("reason", 0) >= CHEAP_REASON_FLOOR]
+    fastest_capable = max(capable or alive,
+                          key=lambda r: r.scores.get("ping", 0)).model
     return {
         "main_react_loop":         best_at("tool"),    # tool calling is the loop's hot path
         "tool_arg_synthesis":      best_at("tool"),
         "final_answer_composer":   best_at("instr"),   # follows formatting instructions
         "json_extractor":          best_at("json"),
         "math_or_reasoning_step":  best_at("reason"),
-        "cheap_classifier":        fastest,            # used for pre-loop intent triage
-        "obs_summarizer_sidecar":  fastest,
+        "cheap_classifier":        fastest_capable,    # fast AND able to answer
+        "obs_summarizer_sidecar":  fastest_capable,
     }
 
 
 def format_table(results: list[FleetResult]) -> str:
-    headers = ["tier", "model", "ping", "tool", "json", "reason", "instr"]
+    probe_keys = [name for name, _ in PROBES]
+    headers = ["tier", "model"] + probe_keys
     rows = [headers]
     for r in results:
         if not r.reachable:
-            rows.append([r.tier, r.model[:38], "DOWN", "-", "-", "-", "-"])
+            rows.append([r.tier, r.model[:38], "DOWN"] + ["-"] * (len(probe_keys) - 1))
             continue
-        rows.append([r.tier, r.model[:38]] + [f"{r.scores.get(k,0):.2f}" for k in ["ping","tool","json","reason","instr"]])
+        rows.append([r.tier, r.model[:38]] + [f"{r.scores.get(k, 0):.2f}" for k in probe_keys])
     widths = [max(len(str(row[i])) for row in rows) for i in range(len(headers))]
     out = []
     for row in rows:
@@ -346,7 +462,11 @@ def main():
         print(f"No fleet entries match tiers={tiers}", file=sys.stderr)
         sys.exit(2)
 
-    print(f"Probing vMLX fleet ({len(FLEET)} model(s))... cold-call latency on a 35B MoE is ~5s/probe.\n", file=sys.stderr)
+    lazy_present = any(e["tier"].startswith("opus") for e in FLEET)
+    note = ("lazy/cold models in this set wake on first call (~10-30s cold-start tax, then warm)."
+            if lazy_present
+            else "all selected models are always-hot; probes should be fast.")
+    print(f"Probing oMLX fleet ({len(FLEET)} model(s))... {note}\n", file=sys.stderr)
     results = run()
 
     if args.json:
