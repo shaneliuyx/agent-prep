@@ -84,11 +84,32 @@ instr ≥ 0.5`. Source: `scripts/probe_fleet.py`, dumped to
   lab venv. *Fix:* `uv run python …` from the lab root (`src/` is a namespace
   package; no `__init__.py`).
 
+## End-to-end agent run — 2026-06-15
+
+First full `agent_run()` via `src/run.py` (default loop model Gemma-26B; obs
+sidecar logging one row per iteration to SQLite, `src/obs.py`).
+
+Task: *"What is the square root of 144? Use the python_repl tool to verify."*
+Final answer: **"The square root of 144 is 12."**
+
+| Metric | Value |
+|---|---|
+| iterations | 2 (iter 0 `tool_call` python_repl → iter 1 `final_answer`) |
+| tool calls / errors | 1 / 0 |
+| python_repl latency | 31 ms |
+| prompt tokens (total) | 1296 |
+| completion tokens (total) | 42 |
+| avg / max tool latency | 15.5 ms / 31 ms |
+
+Confirms the loop terminates correctly on a `final_answer` (no `tool_calls`), the
+tool dispatch path works (0 errors), and the obs sidecar writes one event row per
+iteration. Source: `src/run.py` stdout + the SQLite event log.
+
 ## Pending
 
 - Phase 5 — 15 engineered ReAct bad-case scenarios + `tests/test_bad_cases.py`
   (not yet authored/run; the 15-row failure table will land here when measured).
-- End-to-end `agent_run()` on a real multi-tool task (wall time, iterations,
-  tool-latency rows from `src/obs.py` SQLite).
+- A longer / multi-tool `agent_run()` (the run above exercised a single
+  `python_repl` call; web_search + file tools in one trajectory not yet measured).
 - Re-measure if the oMLX engine version changes (tool parsing + memory ceiling are
   engine-version-dependent).
