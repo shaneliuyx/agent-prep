@@ -9,7 +9,6 @@
 
   "executionEnvironments": [
     {
-      "comment": "lab-04 src files use `from src.x import` + import web_toolkit; root at the lab dir so both resolve, and tests/ resolve `src.*` too",
       "root": "lab-04-react-from-scratch",
       "extraPaths": [
         "../shared",

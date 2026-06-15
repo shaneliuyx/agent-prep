@@ -438,6 +438,33 @@ class TestScenario10ContextWindowLimit:
         result = agent_run("A long task.", obs=False)
         assert isinstance(result, str)
 
+    def test_evict_drops_oldest_tool_result_first(self):
+        """Eviction policy is FIFO over tool results: the OLDEST tool entry is
+        dropped, order is preserved, and repeated calls converge under the
+        limit. Tests the extracted `_evict_if_over_limit` helper directly so we
+        assert oldest-drop, not merely 'the loop didn't crash'."""
+        from src.react import Scratchpad, _evict_if_over_limit, CONTEXT_TOKEN_LIMIT
+
+        sp = Scratchpad()
+        for i in range(30):
+            sp.append_tool_result(f"tc_{i:03d}", "web_search", "x" * 4000)
+        assert sp.estimated_tokens() > CONTEXT_TOKEN_LIMIT
+        ids_before = [e.tool_call_id for e in sp.entries if e.role == "tool"]
+
+        evicted = _evict_if_over_limit(sp)
+        assert evicted is not None and evicted.tool_call_id == "tc_000"  # oldest
+        ids_after = [e.tool_call_id for e in sp.entries if e.role == "tool"]
+        assert "tc_000" not in ids_after
+        assert ids_after == ids_before[1:]  # only the oldest removed, order kept
+
+        # One drop per call → repeated calls bring it under the limit.
+        guard = 0
+        while sp.estimated_tokens() > CONTEXT_TOKEN_LIMIT and guard < 60:
+            _evict_if_over_limit(sp)
+            guard += 1
+        assert sp.estimated_tokens() <= CONTEXT_TOKEN_LIMIT
+        assert _evict_if_over_limit(sp) is None  # under limit → no-op
+
 
 # ---------------------------------------------------------------------------
 # Scenario 11: Tool returns inconsistent schemas across calls
