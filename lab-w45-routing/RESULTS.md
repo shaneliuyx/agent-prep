@@ -225,6 +225,30 @@ then did success discriminate (heavy 0.78 / router2 0.57 / random 0.43) and the 
 become meaningful. Lesson: a passing eval is worthless if the grader saturates or the
 executor is starved — validate the instrument before trusting the metric.
 
+### Phase 6 — privacy router (offline, rules-only) — 2026-06-16
+
+`tests/test_privacy_router.py`, hand-built probe set, n=12 (8 S2/S3 positives + 4 S1
+negatives), LLM detector stubbed (`use_llm_detector=False`). Runs in <0.01 s, $0, no oMLX.
+
+| metric | value | meaning |
+|---|---|---|
+| leak rate (false negative) | **0/8** | no secret-bearing prompt scored S1 / escaped to cloud |
+| S3 detection | 5/5 exact | the critical class is caught precisely |
+| false-positive rate | **1/4** | one benign S1 prompt over-restricted to local |
+
+Headline metric is the leak rate (false negative), NOT accuracy — a leaked secret is
+irreversible, an over-restricted benign prompt is merely costly. Rules alone hit 0 leaks.
+
+**BCJ-10 — a benign prompt over-restricted to local (privacy keyword over-trigger).**
+*Symptom:* "how do password managers store credentials safely" — no secret, just the topic —
+scored S2 (`keyword:password`) → routed to local instead of passthrough. FP rate 1/4 on the
+S1 negatives.
+*Root cause:* the S2 keyword list matches the bare token `password`/`credential` regardless of
+context; a prompt that *discusses* secrets trips the same rule as one that *contains* one.
+*Fix:* safe failure direction (forfeits a cloud tier, does not leak) → measured-not-gated.
+Reduce by requiring secret-shaped context around a keyword + wiring `_llm_flags_sensitive()`
+to the local detector as the novel-phrasing recall backstop. Treat each FP as a keyword to tighten.
+
 ## Reproduce
 
 ```bash
@@ -232,4 +256,5 @@ uv venv --python 3.11 && source .venv/bin/activate
 uv pip install "openai>=1.40" pytest
 python -m src.smoke_test                          # Phase 1 fleet ping
 RUN_INTEGRATION=1 python -m pytest tests/ -v      # Phase 3 accuracy (xfail at current ceiling)
+python -m pytest tests/test_privacy_router.py -v -s   # Phase 6 privacy router (offline, $0, no oMLX)
 ```
