@@ -1,0 +1,60 @@
+{"prompt": "What is 247 * 13?", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "arithmetic"}
+{"prompt": "Summarize this paragraph in one sentence: <paragraph>", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "summarization"}
+{"prompt": "What does git rebase --interactive do?", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "factual-recall"}
+{"prompt": "What's the capital of France?", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "factual-recall"}
+{"prompt": "Convert 72 degrees Fahrenheit to Celsius.", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "arithmetic"}
+{"prompt": "What HTTP status code means Not Found?", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "factual-recall"}
+{"prompt": "Define idempotency in one sentence.", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "What is the default TCP port for PostgreSQL?", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "factual-recall"}
+{"prompt": "Find the prime factorization of 18,723 and show your work.", "expected_tier": "haiku", "expected_mode": "react", "domain": "math-multistep"}
+{"prompt": "Compute the 10th Fibonacci number, showing each intermediate term.", "expected_tier": "haiku", "expected_mode": "react", "domain": "math-multistep"}
+{"prompt": "Sort these ascending and show each pass: 5, 2, 9, 1, 7, 3, 8, 4.", "expected_tier": "haiku", "expected_mode": "react", "domain": "math-multistep"}
+{"prompt": "Convert 0xFF to decimal and then to binary, step by step.", "expected_tier": "haiku", "expected_mode": "react", "domain": "math-multistep"}
+{"prompt": "Count the vowels in the word onomatopoeia, listing each one.", "expected_tier": "haiku", "expected_mode": "react", "domain": "text-multistep"}
+{"prompt": "Given [3, 1, 4, 1, 5, 9, 2, 6], compute the running sum after each element.", "expected_tier": "haiku", "expected_mode": "react", "domain": "math-multistep"}
+{"prompt": "Give an ordered 3-step plan to rotate a single API key for one service without downtime.", "expected_tier": "haiku", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Outline the ordered steps to safely delete an unused Git branch locally and on the remote.", "expected_tier": "haiku", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Explain the difference between TCP and UDP for a backend developer.", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "Explain what a database index does and when it hurts write throughput.", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "Explain the difference between a process and a thread.", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "What is the CAP theorem and what does it force you to trade off?", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "Explain how JWT-based authentication works at a high level.", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "What's the difference between REST and gRPC for service-to-service calls?", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "Explain Python's GIL and its effect on CPU-bound threads.", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "Summarize the trade-offs between optimistic and pessimistic locking.", "expected_tier": "sonnet", "expected_mode": "minimal", "domain": "concept-explanation"}
+{"prompt": "Why is my Python script hanging on this asyncio.gather? <code snippet, 30 lines>", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-debug"}
+{"prompt": "Refactor this function to reduce nested conditionals: <code, 50 lines>", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-refactor"}
+{"prompt": "This SQL query is slow: <100-line query + EXPLAIN output>. Find the missing index.", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-debug"}
+{"prompt": "My Docker build fails at the pip install layer: <Dockerfile + error>. Diagnose it.", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-debug"}
+{"prompt": "Add input validation and unit tests to this REST handler: <code, 60 lines>.", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-write"}
+{"prompt": "This regex misses some valid emails: <regex + failing cases>. Fix it and verify.", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-debug"}
+{"prompt": "Trace why this React component re-renders on every keystroke: <component, 40 lines>.", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-debug"}
+{"prompt": "Convert this synchronous file-processing loop to async and benchmark the difference.", "expected_tier": "sonnet", "expected_mode": "react", "domain": "code-refactor"}
+{"prompt": "Design a rate limiter for an API gateway; compare token-bucket vs sliding-window.", "expected_tier": "sonnet", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Propose a caching strategy for a read-heavy product catalog and justify the TTLs.", "expected_tier": "sonnet", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Plan a feature-flag rollout for a risky payment change, with rollback gates.", "expected_tier": "sonnet", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Design a retry-and-dead-letter strategy for a flaky webhook consumer.", "expected_tier": "sonnet", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Outline a test strategy for a new pricing engine: unit, integration, and property tests.", "expected_tier": "sonnet", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Compare three approaches to a zero-downtime schema migration and recommend one.", "expected_tier": "sonnet", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "State the consistency guarantees of Spanner's TrueTime and why they hold.", "expected_tier": "opus", "expected_mode": "minimal", "domain": "deep-explanation"}
+{"prompt": "Explain why Raft cannot serve linearizable reads from followers without a read-index or lease.", "expected_tier": "opus", "expected_mode": "minimal", "domain": "deep-explanation"}
+{"prompt": "Why does Paxos need two phases, and what breaks if you use only one?", "expected_tier": "opus", "expected_mode": "minimal", "domain": "deep-explanation"}
+{"prompt": "Explain the memory-ordering guarantee provided by a C++ acquire-release pair.", "expected_tier": "opus", "expected_mode": "minimal", "domain": "deep-explanation"}
+{"prompt": "Given this stack trace, locate the bug in our authentication middleware: <trace + 200 LOC>", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "Given this distributed trace plus 300 LOC across 3 services, find the latency root cause.", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "Debug this intermittent deadlock in our connection pool: <code + logs, 250 LOC>.", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "Our Kafka consumer lags under load: <consumer config + metrics>. Find and fix the cause.", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "Reproduce and fix this data race in the scheduler: <Go code, 200 LOC + race detector output>.", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "This service leaks 5MB/min: <heap diff + service code>. Localize the leak.", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "Find why our idempotency keys occasionally collide: <code + DB schema + trace>.", "expected_tier": "opus", "expected_mode": "react", "domain": "code-debug-deep"}
+{"prompt": "Design a Postgres schema for a multi-tenant SaaS billing system. Cover row-level security, plan tiers, usage metering.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Walk through how Raft consensus handles leader election with a split brain. Include diagrams.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "deep-explanation"}
+{"prompt": "Plan a 3-week migration from Mongo to Postgres for an e-commerce checkout service. Identify rollback gates.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Design a globally distributed, strongly consistent inventory system for flash sales. Cover sharding, hotspots, and reconciliation.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Architect a multi-region active-active Postgres setup; address conflict resolution and failover.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Plan the decomposition of a 500k-LOC monolith into services, sequenced to avoid a big-bang cutover.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Design an exactly-once event-processing pipeline across Kafka and a database sink; justify each guarantee.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Propose a zero-downtime cutover from a legacy auth system to OAuth2/OIDC for 10M users.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "Design a tiered storage and retention architecture for 1PB of logs with sub-second recent queries.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "architecture"}
+{"prompt": "Plan a 6-week migration of a payments ledger to double-entry accounting with auditability and rollback.", "expected_tier": "opus", "expected_mode": "deliberate", "domain": "planning"}
+{"prompt": "What does the chmod 755 permission setting mean?", "expected_tier": "haiku", "expected_mode": "minimal", "domain": "factual-recall"}
