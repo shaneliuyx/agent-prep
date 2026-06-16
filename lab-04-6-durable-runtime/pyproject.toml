@@ -1,0 +1,19 @@
+[project]
+name = "lab-04-6-durable-runtime"
+version = "0.1.0"
+description = "Durable agent-graph runtime: SQLite state machine, file-lock claims, async worker pool, four-topology throughput bench."
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that require a live oMLX endpoint (skipped by default offline)",
+]
+testpaths = ["tests"]
