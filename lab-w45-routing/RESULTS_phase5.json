@@ -1,0 +1,26 @@
+{
+  "heavy_always": {
+    "n": 23,
+    "success_rate": 1.0,
+    "p50_wall_ms": 8376.682166999672,
+    "p95_wall_ms": 9289.910292005516,
+    "mean_cost_usd": 0.0061580869565217395,
+    "pct_routed_haiku": 0.0
+  },
+  "router2": {
+    "n": 23,
+    "success_rate": 1.0,
+    "p50_wall_ms": 8396.371583992732,
+    "p95_wall_ms": 9700.995124992914,
+    "mean_cost_usd": 0.005909130434782609,
+    "pct_routed_haiku": 0.30434782608695654
+  },
+  "random": {
+    "n": 23,
+    "success_rate": 1.0,
+    "p50_wall_ms": 5923.273624997819,
+    "p95_wall_ms": 8606.948458997067,
+    "mean_cost_usd": 0.0031076086956521743,
+    "pct_routed_haiku": 0.7391304347826086
+  }
+}

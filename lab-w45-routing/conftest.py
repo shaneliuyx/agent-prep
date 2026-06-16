@@ -19,6 +19,7 @@ def pytest_configure(config):
         "markers",
         "integration: hits a live LLM endpoint; skipped unless RUN_INTEGRATION=1",
     )
+    config.addinivalue_line("markers", "slow: long-running benchmark (minutes)")
 
 
 def pytest_collection_modifyitems(config, items):
