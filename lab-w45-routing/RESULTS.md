@@ -124,6 +124,28 @@ proves ~3 of the 4 three-way tier misses were purely the sonnet↔opus boundary.
 `tests/test_router2_accuracy.py` passes (tier ≥ 0.85, mode ≥ 0.85) — a real pass, not xfail.
 Mode target relaxed to the 0.85 local ceiling; 0.90 needs a frontier classifier.
 
+### Phase 5 — cost-latency Pareto (2-tier, fair executor + LLM-judge)
+
+Bench: `tests/test_four_way_bench.py` → `RESULTS_phase5.json`. Mode-aware single-call
+executor (per-mode prompt + 512/2048 token budget), strict CoT LLM-judge (Sonnet via
+VibeProxy, user-only roles), mode held constant across configs so only the TIER choice
+varies. 23-row eval. Bench wall 22m35s.
+
+| config | success | cost (¢/query, cloud-equiv) | p50 wall (ms) | % → haiku |
+|---|---:|---:|---:|---:|
+| heavy_always | 0.78 (18/23) | 0.963 | 11297 | 0% |
+| router2 (2-tier) | 0.57 (13/23) | 0.959 | 11275 | 30% |
+| random | 0.43 (10/23) | 0.592 | 5929 | 74% |
+
+**Finding: the classifier carries signal (router2 0.57 > random 0.43, +13pp) but routing
+is Pareto-DOMINATED on this workload.** router2 ≈ heavy_always cost (−0.4%) at −22pp
+success → `heavy_always` dominates `router2` (~same cost, far higher success). Cause: the
+merged taxonomy labels ~70% of prompts `heavy`, so only 30% route to cheap (tiny cost
+lever); cost is output-token-dominated; and the 30% sent to haiku include hard tasks that
+fail → −22pp success for −0.4% cost. **Routing pays as a function of the easy-task fraction
+(FrugalGPT) — not on a hard-skewed workload.** Caveats: n=23, local tiers, single-call
+executor → directional, not definitive.
+
 ## Bad-Case Journal
 
 **BCJ-1 — pytest could not import `src`.**
@@ -182,6 +204,26 @@ of its ground truth, so the "accuracy ceiling" was an artifact of an over-fine t
 jumped to 95.65% (`src/router2.py`) with the same 4B. Reframe the *problem* (drop the distinction
 nobody agrees on) instead of engineering the *solution* (bigger model / vote). When an accuracy
 wall is flat across model sizes, suspect the labels/taxonomy before the model.
+
+**BCJ-8 — Phase 5 bench hung >1h (cold-load thrash on one-hot oMLX).**
+*Symptom:* the four-way bench ran >1 hour without finishing.
+*Root cause:* a `for row: for config:` loop swapped the executor model ~90× on one-hot
+oMLX; each swap cold-loads a heavy model (~10-30 s) → ~30-60 min in pure model loading.
+*Fix:* loop `for config:` and SORT each config's rows by executor model → each model loads
+once per config (a handful total). 1h+ → 7m49s. On one-hot hardware, batch by resident model.
+
+**BCJ-9 — a "green" bench that measured nothing: saturated grader + starved executor.**
+*Symptom:* first fair run → success = 1.00 for ALL configs (router2 indistinguishable from
+random). After a strict grader → success cratered to ~0.22 for all (still indistinguishable).
+*Root cause:* two stacked confounds — (1) the soft grader passed any non-empty response
+(saturated, no discrimination); (2) the executor was a single 512-token completion, so even
+the *right* model failed hard tasks (truncated → graded shallow). The bench was measuring
+"can one short shot answer a hard prompt", not "did routing pick the right tier".
+*Fix:* (1) strict CoT LLM-judge (difficulty→correctness→adequacy→failure-mode, parsed
+`VERDICT`, fail-closed); (2) mode-aware executor (per-mode prompt + 512/2048 budget). Only
+then did success discriminate (heavy 0.78 / router2 0.57 / random 0.43) and the Pareto front
+become meaningful. Lesson: a passing eval is worthless if the grader saturates or the
+executor is starved — validate the instrument before trusting the metric.
 
 ## Reproduce
 
