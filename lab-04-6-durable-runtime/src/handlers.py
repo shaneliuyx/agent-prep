@@ -10,17 +10,23 @@ core. The durability test (tests/test_durability.py) leans on exactly this: it
 runs the runtime with a deterministic `tool_handler` so a kill-and-recover test
 has zero LLM nondeterminism.
 
-WHY we call the raw OpenAI client and not shared/llm.chat:
-shared/llm.chat returns only the text and DISCARDS `response.usage`. This lab's
-headline number is *real* token counts summed across a topology, so we must read
-`usage.prompt_tokens` / `usage.completion_tokens` off the raw response ourselves.
+WHY token counts are real:
+this lab's headline number is *real* token counts summed across a topology. We
+get them from `shared/llm.chat_usage`, which returns `(text, usage)` in one call
+(usage = prompt/completion/total tokens off `response.usage`) — so the handler
+never has to hand-roll a raw client just to keep the usage the cost story needs.
 """
 from __future__ import annotations
 
+import os
+import sys
 import time
 from typing import Any, Callable
 
-from graph_store import Node
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "shared"))
+
+from graph_store import Node  # noqa: E402
+from llm import chat_usage  # noqa: E402
 
 # Tiny generation budget: this lab measures topology/throughput, not output
 # quality. Short prompts + small max_tokens keep oMLX from thrashing and keep
@@ -46,10 +52,11 @@ def make_llm_handler(
 ) -> Callable[[Node], dict[str, Any]]:
     """Build a handler that calls oMLX for one node and captures REAL usage.
 
-    `client` is a raw `openai.OpenAI` pointed at oMLX :8000 (so we get
-    `response.usage`). If `cost_meter` is passed, the call is wrapped in
-    `cost_meter.meter(...)` keyed by (run_id, node, attempt) so retries don't
-    double-bill. Returns {"tokens": total, "ms": wall, "text": ...}."""
+    `client` is an `openai.OpenAI` pointed at oMLX :8000; the call goes through
+    `shared/llm.chat_usage`, which returns `(text, usage)` so we get real token
+    counts without re-reading `response.usage` by hand. If `cost_meter` is passed,
+    the call is wrapped in `cost_meter.meter(...)` keyed by (run_id, node, attempt)
+    so retries don't double-bill. Returns {"tokens": total, "ms": wall, "text": ...}."""
 
     def handler(node: Node) -> dict[str, Any]:
         prompt = node.payload.get("prompt", "Reply with the single word: ok.")
@@ -57,18 +64,15 @@ def make_llm_handler(
 
         def _call() -> dict[str, Any]:
             start = time.perf_counter()
-            resp = client.chat.completions.create(
-                model=node_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,
-                max_tokens=_MAX_TOKENS,
-            )
+            text, usage = chat_usage(client, prompt, node_model,
+                                     temperature=0.0, max_tokens=_MAX_TOKENS)
             ms = (time.perf_counter() - start) * 1000.0
-            usage = resp.usage
-            t_in = getattr(usage, "prompt_tokens", 0) or 0
-            t_out = getattr(usage, "completion_tokens", 0) or 0
-            text = resp.choices[0].message.content or ""
-            return {"_t_in": t_in, "_t_out": t_out, "ms": ms, "text": text}
+            return {
+                "_t_in": usage["prompt_tokens"],
+                "_t_out": usage["completion_tokens"],
+                "ms": ms,
+                "text": text,
+            }
 
         if cost_meter is not None:
             with cost_meter.meter(node.run_id, node.name, node.attempts,

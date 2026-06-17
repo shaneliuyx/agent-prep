@@ -37,7 +37,8 @@ the module stays torch-free — the reranker lives in the `rag_hybrid/` package.
 | `make_client` | `(base_url=None, api_key=None) -> OpenAI` | OpenAI-compatible client; unset args fall back through `LLM_BASE_URL`→`OPENROUTER_BASE_URL`→`OMLX_BASE_URL` (key similar, non-empty `EMPTY` sentinel so it builds with no `.env`). |
 | `PROFILES` | `dict[str, (base,key,model)]` | named model presets: `haiku`, `opus` (VibeProxy→Claude), `14b`, `qwen` (oMLX). Add a model = one line. |
 | `resolve` | `(role, default_profile) -> (client, model, label)` | resolve a ROLE (e.g. `"GEN"`/`"JUDGE"`) with no code change: `<ROLE>=haiku` preset, or raw `<ROLE>_MODEL` (+ optional `<ROLE>_BASE_URL`/`_API_KEY`). |
-| `chat` | `(client, prompt_or_messages, model, temperature=0.0) -> str` | one completion; accepts a raw prompt string or a messages list. |
+| `chat` | `(client, prompt_or_messages, model, temperature=0.0) -> str` | one completion → text only (usage discarded); accepts a raw prompt string or a messages list. |
+| `chat_usage` | `(client, prompt_or_messages, model, temperature=0.0, max_tokens=None) -> (str, dict)` | one completion → `(text, usage)` where `usage` is `{prompt_tokens, completion_tokens, total_tokens}` (zeros if the endpoint omits it). Use when you need REAL token counts (cost metering, throughput benches); `chat` is the thin text-only wrapper over this. Introduced by W4.6 (durable-runtime cost meter). |
 | `judge` | `(client, answer, criteria, model) -> bool` | LLM judge — PASS/FAIL of `answer` against `criteria` (retries through drops). |
 | `JUDGE_TMPL` | `str` | the judge prompt template (`{criteria}`, `{answer}`). |
 | `resilient` | `(fn, *args, retries=4, backoff=2.0)` | retry an LLM call through transient connection drops; raises `LLMUnavailable` if it never recovers. |

@@ -91,13 +91,39 @@ def resilient(fn, *args, retries: int = 4, backoff: float = 2.0):
 
 
 # ── chat + LLM judge ──────────────────────────────────────────────────────────
-def chat(client: OpenAI, prompt_or_messages, model: str, temperature: float = 0.0) -> str:
-    """One completion. Accepts a raw prompt string or a messages list. temp 0 by default."""
+def chat_usage(client: OpenAI, prompt_or_messages, model: str,
+               temperature: float = 0.0,
+               max_tokens: int | None = None) -> tuple[str, dict[str, int]]:
+    """One completion, returning (text, usage). `usage` is a dict with
+    prompt_tokens / completion_tokens / total_tokens (zeros if the endpoint omits
+    usage). Use this when you need REAL token counts — cost metering, throughput
+    benches — instead of re-reading `response.usage` off a raw client. Plain
+    chat() drops usage for the common text-only path. `max_tokens` caps generation
+    when set (left to the server default when None)."""
     messages: list[ChatCompletionMessageParam] = (
         [{"role": "user", "content": prompt_or_messages}]
         if isinstance(prompt_or_messages, str) else prompt_or_messages)
-    r = client.chat.completions.create(model=model, messages=messages, temperature=temperature)
-    return (r.choices[0].message.content or "").strip()
+    if max_tokens is not None:
+        r = client.chat.completions.create(model=model, messages=messages,
+                                           temperature=temperature, max_tokens=max_tokens)
+    else:
+        r = client.chat.completions.create(model=model, messages=messages,
+                                           temperature=temperature)
+    text = (r.choices[0].message.content or "").strip()
+    u = getattr(r, "usage", None)
+    usage = {
+        "prompt_tokens": getattr(u, "prompt_tokens", 0) or 0,
+        "completion_tokens": getattr(u, "completion_tokens", 0) or 0,
+        "total_tokens": getattr(u, "total_tokens", 0) or 0,
+    }
+    return text, usage
+
+
+def chat(client: OpenAI, prompt_or_messages, model: str, temperature: float = 0.0) -> str:
+    """One completion → text only (usage discarded). Accepts a raw prompt string or
+    a messages list. temp 0 by default. For real token counts use chat_usage()."""
+    text, _ = chat_usage(client, prompt_or_messages, model, temperature)
+    return text
 
 
 JUDGE_TMPL = (

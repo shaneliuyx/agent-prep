@@ -44,7 +44,7 @@ from topologies import (  # noqa: E402
 from worker_pool import run_graph  # noqa: E402
 
 OMLX_BASE = "http://localhost:8000/v1"
-REPEATS = 2
+REPEATS = int(os.environ.get("BENCH_REPEATS", "5"))  # wall-clock mean; >=5 for stable seq
 HARDWARE = "Apple M5 Pro, 48GB"
 
 _BUILDERS = {
@@ -139,16 +139,18 @@ def _measure_recovery(tmp: str) -> float:
     return recovery_s
 
 
-def _render_table(rows: list[dict], recovery_s: float) -> str:
+def _render_table(rows: list[dict]) -> str:
+    # Recovery is intentionally NOT a column here: it's a property of the
+    # GraphStore+scheduler layer (shared by all four topologies), measured once
+    # on a dedicated linear chain — not a per-topology result. Reported separately.
     lines = [
-        "| topology | mean wall-clock (s) | total tokens | peak concurrency | recovery time (s) |",
-        "|---|---|---|---|---|",
+        "| topology | mean wall-clock (s) | total tokens | peak concurrency |",
+        "|---|---|---|---|",
     ]
     for r in rows:
-        rec = f"{recovery_s:.3f}" if r["topology"] == "sequential" else "—"
         lines.append(
             f"| {r['topology']} | {r['mean_wall_s']:.3f} | {r['tokens_total']} | "
-            f"{r['peak_concurrency']} | {rec} |"
+            f"{r['peak_concurrency']} |"
         )
     return "\n".join(lines)
 
@@ -166,8 +168,13 @@ def main() -> None:
     print("  recovery (SIGKILL mid-run, tool nodes)...", flush=True)
     recovery_s = _measure_recovery(tmp)
 
-    table = _render_table(rows, recovery_s)
-    print("\n" + table + "\n")
+    table = _render_table(rows)
+    recovery_line = (
+        f"**Recovery** (topology-agnostic — single probe on a dedicated linear "
+        f"tool-node chain, not tied to any row above): "
+        f"**{recovery_s:.3f}s** from fresh-store `recover_run` to run done."
+    )
+    print("\n" + table + "\n\n" + recovery_line + "\n")
 
     results = f"""# RESULTS — Durable Runtime: Four-Topology Throughput
 
@@ -178,14 +185,18 @@ def main() -> None:
 - **Constant node count:** 5 per topology (only the edges differ).
 - **Repeats:** {REPEATS} per topology; wall-clock is the mean. Token counts are
   summed REAL usage from oMLX `response.usage` (deterministic at temperature 0).
-- **Recovery measurement:** a deterministic tool-node chain is drained by a child
-  process, hard-killed with SIGKILL mid-run, then a fresh `GraphStore` calls
-  `recover_run` and finishes the remaining nodes. Reported time is the recovery
-  phase only (fresh-store → run done).
+- **Recovery measurement:** recovery is a property of the `GraphStore`+scheduler
+  layer, *shared identically by all four topologies* (a topology is only an edge
+  set fed to the same store), so it is measured ONCE — not per row. A deterministic
+  tool-node chain is drained by a child process, hard-killed with SIGKILL mid-run,
+  then a fresh `GraphStore` calls `recover_run` and finishes the remaining nodes.
+  Reported time is the recovery phase only (fresh-store → run done).
 - **Hardware:** {HARDWARE}. **Date:** {date.today().isoformat()}.
 
 ## Results
 {table}
+
+{recovery_line}
 
 ## Interpretation (honest)
 - **sequential** is the throughput floor: concurrency=1, every node waits on its
@@ -197,11 +208,17 @@ def main() -> None:
   the sequential floor.
 - Token totals are within noise of each other across topologies — node count and
   prompt are constant, confirming we isolated *structure*, not work volume.
-- **Recovery** completed the remaining nodes after a real SIGKILL with zero lost
-  or double-done work (asserted in tests/test_durability.py via the event log);
-  the measured recovery time is dominated by the residual tool-node sleeps, i.e.
-  the cost of *finishing* the run, not of recovering it (recover_run itself is a
-  single table update).
+- **Recovery** is available to *every* topology identically — it lives in
+  `recover_run` (flip orphaned RUNNING→READY) + `_promote_downstream` (resume by
+  `deps_json`), one layer below topology shape. It completed the remaining nodes
+  after a real SIGKILL with zero lost or double-done work (asserted in
+  tests/test_durability.py via the event log). The measured time is dominated by
+  the residual tool-node sleeps — the cost of *finishing*, not of recovering
+  (recover_run itself is a single table update). Note: recovery *time* (unlike
+  capability) would track the same critical-path logic as wall-clock above — a
+  parallel remainder finishes faster than a sequential one — but we probe it once
+  on a linear chain rather than per-topology, since the durability guarantee is
+  what's under test, not its shape-dependent finish cost.
 """
     out = os.path.join(_HERE, "RESULTS.md")
     with open(out, "w") as fh:
