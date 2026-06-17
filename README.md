@@ -9,6 +9,8 @@ Each `lab-NN-*/` subdirectory is a self-contained week. Every lab follows the sa
 | Week | Lab | Status |
 |---|---|---|
 | 0 | `lab-00-env-setup` — local-first MLX stack bring-up (oMLX + vMLX + Qdrant + Phoenix); chapter shipped (W0 Environment Setup), no lab dir | pending |
+| 0.3 | `Week 0.3 — Agent History and Foundational Narrative` (vault chapter; no lab dir) | 📄 chapter |
+| 0.5 | `Week 0.5 — LLM Internals Speedrun` (vault chapter; no lab dir) | 📄 chapter |
 | 1 | [`lab-01-vector-baseline`](./lab-01-vector-baseline) — embedding + HNSW config ablation on MS MARCO 10K-doc slice | ✅ complete |
 | 2 | [`lab-02-rerank-compress`](./lab-02-rerank-compress) — BGE-reranker lift + context compression A/B + chunking sweep | ✅ complete |
 | 2b | [`lab-02b-production-libs`](./lab-02b-production-libs) — port lab-02 to `langchain-qdrant` + `rerankers` + `ranx` | ✅ complete |
@@ -24,17 +26,44 @@ Each `lab-NN-*/` subdirectory is a self-contained week. Every lab follows the sa
 | 3.5.96 | [`lab-03-5-96-gbrain`](./lab-03-5-96-gbrain) — self-wiring markdown knowledge graph over GBrain via smolagents + MCP; deterministic edge extraction + measured keyword/vector/hybrid-RRF (**pure-vector > RRF on the 19-page corpus** — the 83→95 lift is corpus-dependent, not universal) + Ground-Truth Hierarchy A/B (ClaudioDrews/memory-os); [`RESULTS.md`](./lab-03-5-96-gbrain/RESULTS.md) | ✅ complete |
 | 3.7 | [`lab-03.7-agentic-rag`](./lab-03.7-agentic-rag) — hand-rolled Self-RAG + CRAG vs canonical/structural LangGraph + FastMCP server (first MCP-server pattern). **Measured: the canonical skip-allowed graph is mis-built — faithfulness 0.876 vs single-pass 0.980, 15/50 retrieval skips, 1.93× latency; a structural always-retrieve edge recovers to 1.000 at parity.** CRAG web fallback decomposes comparison queries (per-sub-query rerank + interleave) over a SearXNG backend, answers 10/10 out-of-corpus where single-pass abstains; [`RESULTS.md`](./lab-03.7-agentic-rag/RESULTS.md) | ✅ complete |
 | 4 | [`lab-04-react-from-scratch`](./lab-04-react-from-scratch) — ReAct loop (~150 lines) + tool registry + model-fleet probe. **Measured: tools 4/4 green, fleet probe (oMLX, 3 trials/probe), end-to-end `agent_run()` (single + 3-tool trajectory, 0 errors), Phase 5 bad-case suite 17 passed (15 scenarios + extras, re-confirmed 2026-06-17)**; [`RESULTS.md`](./lab-04-react-from-scratch/RESULTS.md) | ✅ complete |
+| 4.5 | [`lab-w45-routing`](./lab-w45-routing) — model routing + effort tiering: route per task to haiku / sonnet / opus tiers on a single oMLX endpoint; measured on the M5 Pro fleet; [`RESULTS.md`](./lab-w45-routing/RESULTS.md) | ✅ complete |
 | 4.6 | [`lab-04-6-durable-runtime`](./lab-04-6-durable-runtime) — durable agent runtime: SQLite-backed DAG store + append-only event log, external-trigger scheduler (manual / webhook / cron), asyncio worker pool with file-lock mutex, cost meter; four 5-node process topologies (sequential / parallel / hierarchical / workflow) benchmarked at constant model + node count so **structure is the only variable**, plus a real SIGKILL-mid-run recovery proof (`recover_run` resets orphaned RUNNING → READY, zero lost / double-done work). **Measured (repeats=5, M5 Pro): 195 tokens/topology, peak concurrency 1/4/3/1, recovery 1.227s (topology-agnostic single probe)**; [`RESULTS.md`](./lab-04-6-durable-runtime/RESULTS.md) | ✅ complete |
 | 5 | `lab-05-pattern-zoo` — ReAct vs Plan-and-Solve vs Reflexion vs Orchestrator-Worker | pending |
+| 5.5 | `Week 5.5 — Metacognition` (vault chapter; no lab dir) | 📄 chapter |
+| 5.6 | `Week 5.6 — ISA-Driven Metacognition` (vault chapter; no lab dir; SPEC draft) | 📄 chapter |
 | 6 | `lab-06-claude-code-map` — Claude Code source-dive subsystem study sheets | pending |
+| 6.4 | `Week 6.4 — Low-Code Agent Platforms` (vault chapter; no lab dir) | 📄 chapter |
+| 6.5 | `Week 6.5 — Hermes Agent Hands-On` (vault chapter; no lab dir) | 📄 chapter |
+| 6.6 | `Week 6.6 — MCP Schema Bridge` (vault chapter; no lab dir; SPEC draft) | 📄 chapter |
+| 6.65 | `Week 6.65 — MCP Production Transports` (vault chapter; no lab dir; SPEC draft) | 📄 chapter |
+| 6.7 | `Week 6.7 — Authoring Agent Skills` (vault chapter; no lab dir) | 📄 chapter |
+| 6.75 | `Week 6.75 — Skill Optimization (SkillOpt)` (vault chapter; no lab dir) | 📄 chapter |
+| 6.85 | `Week 6.85 — Prompt Template Engineering Patterns` (vault chapter; no lab dir) | 📄 chapter |
+| 6.9 | `Week 6.9 — Context Engineering and Todo Mechanisms` (vault chapter; no lab dir) | 📄 chapter |
+| 6.95 | `Week 6.95 — A2A Protocol` (vault chapter; no lab dir) | 📄 chapter |
 | 7 | `lab-07-tool-harness` — generic ToolHarness with 20-scenario bad-case suite | pending |
 | 7.3 | `lab-07-3-prod-infra` — LiteLLM gateway routing Claude + GPT + local oMLX through one endpoint; Anthropic + OpenAI prompt caching + GPTCache semantic cache + LangSmith cost-attribution metadata + circuit-breaker provider fallback + end-to-end re-run of W3 RAG eval through gateway; fills Akshay 6-area rubric areas 2+5 (inference + production infra); chapter shipped | pending |
+| 7.5 | `Week 7.5 — Computer Use and Browser Agents` (vault chapter; no lab dir) | 📄 chapter |
+| 7.6 | `Week 7.6 — Small-Model Agent Stacks (MagenticLite + Fara1.5)` (vault chapter; no lab dir) | 📄 chapter |
+| 7.7 | [`lab-07-7-quantization`](./lab-07-7-quantization) — quantization + inference optimization (chapter shipped; lab dir scaffolded, no RESULTS yet) | pending |
+| 7.8 | [`lab-07-8-code-agent`](./lab-07-8-code-agent) — code-agent patterns / AST coverage mocks (chapter shipped; lab dir scaffolded, no RESULTS yet) | pending |
 | 8 | `lab-08-schema-bench` — 5-strategy × 5-model schema reliability matrix | pending |
+| 8.5 | `Week 8.5 — Voice AI Agents` (vault chapter; no lab dir) | 📄 chapter |
+| 8.7 | [`lab-08-7-genmedia`](./lab-08-7-genmedia) — generative media + fine-tuning (chapter shipped; lab dir scaffolded, no RESULTS yet) | pending |
 | 9 | `lab-09-faithfulness-checker` — claim split + NLI + SelfCheckGPT-lite + abstention | pending |
+| 9.3 | `Week 9.3 — Agent Performance Evaluation` (vault chapter; no lab dir) | 📄 chapter |
 | 9.5 | `lab-09-5-agentic-rl` — agentic RL fine-tuning (SFT + GRPO) on small open model; chapter shipped (W9.5 Agentic RL Fine-Tuning), cloud-GPU optional ($0–30) | pending |
 | 10 | `lab-10-framework-shootout` — same task in LangGraph / LlamaIndex / OpenAI Agents SDK | pending |
 | 11 | `lab-11-system-design` — system-design interview drills + reference architectures (multi-tenant agent platform, cost-bounded RAG, low-latency tool-use); chapter shipped (W11 System Design) | pending |
+| 11.5 | `Week 11.5 — Agent Security` (vault chapter; no lab dir) | 📄 chapter |
+| 11.55 | `Week 11.55 — Content Provenance and AI Regulatory` (vault chapter; no lab dir) | 📄 chapter |
+| 11.6 | [`lab-11-6-tracing`](./lab-11-6-tracing) — production tracing + cost telemetry (chapter shipped; lab dir scaffolded, no RESULTS yet) | pending |
+| 11.7 | `Week 11.7 — Take-Home Dress Rehearsal` (vault chapter; no lab dir) | 📄 chapter |
+| 11.8 | [`lab-11-8-ct`](./lab-11-8-ct) — continuous training + MLOps pipelines (chapter shipped; lab dir scaffolded, no RESULTS yet) | pending |
 | 12 | `lab-12-capstone` — capstone project + mock interviews; lives in separate repo for portfolio framing ([`shaneliuyx/capstone`](../capstone) parallel to agent-prep); chapter shipped (W12 Capstone and Mocks) | pending |
+| 12.5 | `Week 12.5 — Multimodal Agents (Vision-Language + Cross-Modal RAG)` (vault chapter; no lab dir) | 📄 chapter |
+
+_Status legend: **✅ complete** = lab dir with tracked source + `RESULTS.md`; **in progress** / **pending** = lab dir exists or planned, not yet measured; **📄 chapter** = narrative/interview-prep chapter that lives only in the companion vault (no lab dir in this repo)._
 
 Companion narrative + interview-prep chapters live in [`shaneliuyx/agent-development-curriculum`](https://github.com/shaneliuyx/agent-development-curriculum) (Obsidian vault). The capstone (Week 12) lives in a separate repo for portfolio framing.
 
