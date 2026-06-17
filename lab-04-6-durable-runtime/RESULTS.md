@@ -46,3 +46,32 @@
   parallel remainder finishes faster than a sequential one — but we probe it once
   on a linear chain rather than per-topology, since the durability guarantee is
   what's under test, not its shape-dependent finish cost.
+
+## End-to-end demo — `examples/example_graph.py` (live oMLX, 2026-06-17)
+
+One full durable run through the public path: `topologies.parallel(llm=True)` → `create_graph` → `Scheduler.trigger_manually` → `run_graph` (4 async workers) → `cost_report`. Model `Qwen2.5-Coder-7B-Instruct-MLX-4bit` on oMLX `:8000`.
+
+| field | value |
+|---|---|
+| graph / run | `g_b651c363be17` (5 nodes) / `r_bc350dfff2be` (trigger=manual) |
+| final node states | n1..n5 all `done`; run status `done` |
+| wall-clock | 1.366 s |
+| peak concurrency | 4 (the parallel fan-out) |
+| nodes done | 5 |
+| tokens | in 185 + out 10 = **195 total** (5 nodes billed) |
+| summed handler latency | `ms_total` 2784.79 ms |
+| cloud-equivalent cost | $0.000188 |
+
+Reading it: `peak_concurrency: 4` matches the fan-out's maximum parallelism, and `tokens_total: 195` matches the four-topology bench (same model + 5 nodes + prompt) — the demo and the bench agree. The single-run wall-clock (1.366 s) is higher than the parallel row's `repeats=5` mean (0.903 s) because a one-shot pays first-call warmup. The clearest overlap evidence is `ms_total` (2784.79 ms, the *sum* of all five node handler latencies) being ~2× the 1.366 s wall-clock — the four leaves ran concurrently, so summed work far exceeds elapsed time.
+
+Per-node ledger (`cost.csv`):
+
+| node | attempt | tokens_in | tokens_out | ms |
+|---|---|---|---|---|
+| n1 (root) | 1 | 37 | 2 | 649.7 |
+| n2 | 1 | 37 | 2 | 178.6 |
+| n3 | 1 | 37 | 2 | 645.0 |
+| n4 | 1 | 37 | 2 | 644.2 |
+| n5 | 1 | 37 | 2 | 667.3 |
+
+Every node bills 37 in + 2 out = 39 tokens, identical model, `attempt 1` (no retries); the rows sum to the 185 / 10 / 2784.79 ms totals above. **The Amdahl signature is right in the numbers:** wall-clock 1366 ms ≈ `n1` (649.7 — the serial root, runs alone) + the slowest leaf (`n5` 667.3) = **1317 ms**, *not* the 2784.79 ms sum. The four leaves (n2–n5) overlapped, so elapsed time is `t(root) + max(t(leaf))`; the ~50 ms gap is scheduler/claim overhead. This is the fan-out throughput win measured at node granularity — the exact behavior the §4 walkthrough's timeline predicts.
