@@ -1,12 +1,12 @@
 """src/run.py — smoke-test entrypoint. Run one agent task and print the event log."""
-import os, sys
+import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import src.tools   # must import before agent_run to register tools
 from src.react import agent_run
 from src.obs import query_run, run_summary
 
-RUN_ID = "smoke_run_001"
+RUN_ID = f"smoke_{int(time.time())}"  # unique per run; a constant aliased every run onto one id
 TASK = "What is the square root of 144? Use the python_repl tool to verify."
 
 print(f"Task: {TASK}\n")

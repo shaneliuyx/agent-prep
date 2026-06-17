@@ -5,9 +5,15 @@ Anthropic-compatible endpoint, model-routed by the `model:` field). All numbers
 measured on this hardware unless noted. Raw probe data:
 `data/fleet_probe_20260615_omlx.json`.
 
-> Status: scaffold + tools + fleet probe complete and measured. The Phase 5
-> 15-failure ReAct bad-case suite and an end-to-end `agent_run()` task are **not
-> yet run** — see [Pending](#pending).
+> Status: **complete + measured (2026-06-15).** Scaffold, tools (4/4 green), fleet
+> probe, end-to-end `agent_run()` (single + 3-tool trajectory, 0 errors), and the
+> Phase 5 bad-case suite (**17 passed**, re-confirmed 2026-06-17) are all run and
+> measured below. _Banner corrected 2026-06-17 — it previously read "not yet run"
+> while the e2e + suite sections below were already filled in on 06-15._ Obs fix
+> 2026-06-17: `src/run.py` now uses a unique per-run id, so `run_summary` no longer
+> aliases repeated smoke runs onto one id (a reused constant had doubled the
+> summary; the re-run reproduced the 06-15 e2e numbers — 1296 prompt / 42
+> completion — exactly).
 
 ## Fleet probe — 2026-06-15 (oMLX migration, reason cap 512)
 
