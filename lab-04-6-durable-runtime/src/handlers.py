@@ -56,7 +56,8 @@ def make_llm_handler(
     `shared/llm.chat_usage`, which returns `(text, usage)` so we get real token
     counts without re-reading `response.usage` by hand. If `cost_meter` is passed,
     the call is wrapped in `cost_meter.meter(...)` keyed by (run_id, node, attempt)
-    so retries don't double-bill. Returns {"tokens": total, "ms": wall, "text": ...}."""
+    so a crash-replayed (node, attempt) isn't re-billed; genuine retries get a fresh
+    attempt and bill once each. Returns {"tokens": total, "ms": wall, "text": ...}."""
 
     def handler(node: Node) -> dict[str, Any]:
         prompt = node.payload.get("prompt", "Reply with the single word: ok.")
