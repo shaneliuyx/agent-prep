@@ -75,3 +75,30 @@ Per-node ledger (`cost.csv`):
 | n5 | 1 | 37 | 2 | 667.3 |
 
 Every node bills 37 in + 2 out = 39 tokens, identical model, `attempt 1` (no retries); the rows sum to the 185 / 10 / 2784.79 ms totals above. **The Amdahl signature is right in the numbers:** wall-clock 1366 ms ≈ `n1` (649.7 — the serial root, runs alone) + the slowest leaf (`n5` 667.3) = **1317 ms**, *not* the 2784.79 ms sum. The four leaves (n2–n5) overlapped, so elapsed time is `t(root) + max(t(leaf))`; the ~50 ms gap is scheduler/claim overhead. This is the fan-out throughput win measured at node granularity — the exact behavior the §4 walkthrough's timeline predicts.
+
+## Subagent status contract + polling-timeout safety-net (deer-flow pattern #1, 2026-06-22)
+
+Additive phase: `src/subagent.py`. A parent that spawns an async/background subagent cannot trust the child's self-reported `running` forever — a wedged child reports `running` indefinitely and the task's *own* timeout never fires. The fix is **two independent timers** (the task budget vs. the parent's poll-loop patience) plus a **closed status contract** (`parse_status`: `completed/failed/cancelled/timed_out/polling_timed_out`) parsed identically on both sides. `poll_until_terminal(poll, poll_timeout=…)` returns `polling_timed_out` once the child has claimed `running` for longer than `poll_timeout`.
+
+| probe | poll_timeout | result | elapsed |
+|---|---|---|---|
+| stuck child (always `running`), real wall-clock | 0.3 s | `polling_timed_out` | **0.32 s** |
+| stuck child, injected fake clock (zero real wait) | 1.0 s | `polling_timed_out` | ≥ 1.0 s (deterministic) |
+| healthy child (terminal on 3rd poll) | 10 s | `completed` | safety-net never fires |
+
+`tests/test_subagent.py` — **10 passed in 0.23 s** (parametrized contract parse + the three probes above + terminal-returns-immediately). The safety-net fires in ~`poll_timeout` of real time; the fake-clock test proves the same logic with no real waiting (advance a clock the injected `sleep` ticks). Source: bytedance/deer-flow `subagents/status_contract.py` + `task_tool.py` (EDP Pattern 38). The agentkit shared lib carries the productionised mirror at `agentkit/runtime/subagent.py` (measured 0.31 s — same ~`poll_timeout` behaviour, host noise).
+
+## Concurrent artifact writes: lock the RMW + atomic publish (deer-flow pattern #5, 2026-06-22)
+
+Additive phase: `src/artifact_writer.py`. A concurrent-write bug is *either* a lost update (interleaved read-modify-write) *or* a torn read (reader sees a half-written file) — different failures, different fixes. `locked_update` serializes the whole RMW under Phase 3's `FileLock`; `atomic_write` publishes via `tempfile.mkstemp` + `os.replace` so a reader never sees a partial.
+
+Probe: 8 threads × 50 read-modify-write increments on one shared counter file, with a 0.5 ms gap widening the read→write window so the race is real (not luck). Run 3×:
+
+| variant | run 1 | run 2 | run 3 | invariant |
+|---|---|---|---|---|
+| **locked** (`locked_update`) | 400/400 | 400/400 | 400/400 | exact every run |
+| **unlocked** (bare RMW) | 52/400 | 51/400 | 51/400 | ≈ 349 lost; non-deterministic but reliably « 400 |
+
+The unlocked count is a race, so it is *not* a fixed number — the **loss** is the lesson, and locked-is-always-exact is the proof the lock fixes it. The torn-read test races a reader against 200 big/small rewrites and asserts every observed file length is a *complete* value (`{1, 100000}`), never a torn in-between size. `tests/test_artifact_writer.py` — **3 passed in 0.22 s**. Source: bytedance/deer-flow sandbox file operations (EDP Pattern 42).
+
+**Bug found by running (BCJ Entry 3):** the first `atomic_write` named its temp `f"{name}.{pid}.tmp"` — pid-scoped, so 8 threads of one process collided on one temp file and writers crashed with `FileNotFoundError` mid-rename, driving the unlocked count to 2/400 *by dying*, not by clean races. Fixed with `mkstemp` (unique per call) + `except BaseException: unlink`. A test that passed for the wrong reason until the crash was read.
