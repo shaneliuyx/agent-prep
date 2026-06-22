@@ -102,3 +102,16 @@ Probe: 8 threads × 50 read-modify-write increments on one shared counter file, 
 The unlocked count is a race, so it is *not* a fixed number — the **loss** is the lesson, and locked-is-always-exact is the proof the lock fixes it. The torn-read test races a reader against 200 big/small rewrites and asserts every observed file length is a *complete* value (`{1, 100000}`), never a torn in-between size. `tests/test_artifact_writer.py` — **3 passed in 0.22 s**. Source: bytedance/deer-flow sandbox file operations (EDP Pattern 42).
 
 **Bug found by running (BCJ Entry 3):** the first `atomic_write` named its temp `f"{name}.{pid}.tmp"` — pid-scoped, so 8 threads of one process collided on one temp file and writers crashed with `FileNotFoundError` mid-rename, driving the unlocked count to 2/400 *by dying*, not by clean races. Fixed with `mkstemp` (unique per call) + `except BaseException: unlink`. A test that passed for the wrong reason until the crash was read.
+
+## Fan-out cost aggregation + parent-level ceiling (deer-flow pattern #2, 2026-06-22)
+
+Additive phase: `src/cost_ceiling.py`. Phase 4's `CostMeter` is a per-*node* ledger; it does not bound a *fan-out*. A per-child `max_tokens` is not a total cap — N children at the cap cost N× the cap. `FanoutBudget` aggregates every child's cost into one running sum at the parent; `run_fanout` aborts the whole fan-out (skips remaining children) the instant the sum crosses the ceiling.
+
+Probe: 10 children, each cost 100 (the per-child "cap").
+
+| config | children ran | total spent | aborted | note |
+|---|---|---|---|---|
+| no effective ceiling (10000) | 10/10 | 1000 | no | the N× blow-up a per-child cap leaves unbounded |
+| **ceiling = 350** | **4/10** | **400** | **yes** | running sum 100,200,300,400 — child 4 crosses → abort, 6 skipped, **saved 600** |
+
+The breaching child (the 4th) is counted in `ran`/`spent` — you can't un-spend it; the ceiling's value is aborting the 6 after it. `tests/test_cost_ceiling.py` — **4 passed in 0.01 s** (the two rows above + a per-child-cap-doesn't-bound-total contrast + `charge` raises with correct `spent`/`ceiling` and clamps `remaining` to 0). **Concurrency caveat:** the lab charges sequentially so the ceiling is exact; under Phase 2's parallel `worker_pool` the check races in-flight children, so the real bound is `ceiling + (in-flight × per-child)` — you can only cancel children that haven't started. Source: bytedance/deer-flow `subagents/token_collector.py` (EDP Pattern 39).
