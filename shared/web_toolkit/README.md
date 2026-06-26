@@ -30,7 +30,7 @@ inside an agent's action space.
 | function | backend | returns | purpose |
 |---|---|---|---|
 | `web_search(query, results=10, language=None)` | SearXNG → Tavily → DuckDuckGo | `list[SearchResult]` | ranked results (title/url/snippet/engine/score), auto-paged ≤3 pages + URL de-dup + `suggestions` capture |
-| `web_fetch(url, selector=None, stealthy=False)` | scrapling CLI | `FetchResult` | one page → clean markdown (browser fetch, HTTP GET fallback; stealthy anti-bot) |
+| `web_fetch(url, selector=None, stealthy=False, use_cache=True)` | scrapling CLI | `FetchResult` | one page → clean markdown; disk-cached; browser fetch, HTTP GET fallback; stealthy anti-bot |
 | `web_batch_fetch(urls, max_concurrency=3)` | scrapling CLI | `BatchFetchResult` | 2–5 pages in parallel (bounded pool, order-preserved, per-page failure isolation) |
 | `web_browse(url, actions, selector=None)` | agent-browser CLI | `BrowseResult` | click/fill/scroll/wait, then extract |
 
@@ -80,7 +80,7 @@ from web_toolkit import web_search_text       # back-compat: list[str] like web_
 |---|---|---|
 | `web_search` | `(query, *, results=10, language=None, use_cache=True) -> list[SearchResult]` | ranked search across SearXNG→Tavily→DDG; after empty, see `web_toolkit.search.last_suggestions` |
 | `web_search_text` | `(query, k=4) -> list[str]` | back-compat snippet strings (matches `web_search.py`'s shape) |
-| `web_fetch` | `(url, *, selector=None, stealthy=False, timeout=60) -> FetchResult` | single page → markdown; per-page errors return `ok=False` |
+| `web_fetch` | `(url, *, selector=None, stealthy=False, timeout=60, use_cache=True) -> FetchResult` | single page → markdown; disk-cached by url+selector in `.web_cache.json` (same pool as search); per-page errors return `ok=False` |
 | `web_batch_fetch` | `(urls, *, selector=None, stealthy=False, max_concurrency=3, timeout=60) -> BatchFetchResult` | bounded-parallel fetch, order-preserved |
 | `web_browse` | `(url, actions=None, *, selector=None, headless=True, timeout=30) -> BrowseResult` | interactive session then extract |
 | `scrapling_available` / `agent_browser_available` | `() -> bool` | capability probes |
