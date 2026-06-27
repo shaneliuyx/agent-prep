@@ -18,3 +18,34 @@ search:
   formats:
     - html
     - json              # REQUIRED: default config omits json, which breaks the API client
+
+# Outgoing-request tuning. The default request_timeout is 3s, which makes
+# reachable-but-slow engines (Wikipedia, Bing, Mojeek) report "timeout" and
+# return zero results under concurrent agent load. Raise it so engines that
+# are NOT CAPTCHA-blocked actually return results. (CAPTCHA-suspended engines
+# like Google/Startpage/Brave self-suspend for 1h regardless; this rescues the
+# rest.)
+outgoing:
+  request_timeout: 6.0
+  max_request_timeout: 10.0
+  pool_connections: 100
+  pool_maxsize: 20
+  retries: 1
+
+# Prefer engines that don't CAPTCHA datacenter IPs. Disable the ones the logs
+# show perpetually suspended so SearXNG doesn't waste the request budget on them.
+engines:
+  - name: google
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: brave
+    disabled: true
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: mojeek
+    disabled: false
+  - name: wikipedia
+    disabled: false
